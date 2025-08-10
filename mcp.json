@@ -1,0 +1,19 @@
+{
+    "mcpServers": {
+        "tripo-mcp": {
+            "command": "uvx",
+            "args": [
+            "tripo-mcp"
+            ]
+         },
+        "blender-mcp": {
+            "command": "blender-mcp"
+        },
+        "playwright": {
+            "command": "npx",
+            "args": [
+              "@playwright/mcp@latest"
+            ]
+        }
+     }
+}
