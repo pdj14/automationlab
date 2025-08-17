@@ -353,6 +353,20 @@ let selectedThumbnail: File | null = null
 const defaultObjects: GameObject[] = [
   
   {
+    id: 'default-pillar',
+    name: '기둥',
+    category: 'equipment',
+    glbUrl: '/기둥_light.glb',
+    lodUrl: '/기둥_light.glb',
+    thumbnail: '/기둥.png',
+    description: '실내 구조용 기둥',
+    size: '0.4m × 0.4m × 3.0m',
+    width: 0.4,
+    depth: 0.4,
+    height: 3.0,
+    instancing: true
+  },
+  {
     id: 'default-robot-arm',
     name: 'Robot Arm',
     category: 'robot',
@@ -372,6 +386,19 @@ const defaultObjects: GameObject[] = [
     glbUrl: '/로봇2.glb',
     thumbnail: '/로봇2.png',
     description: '로봇2',
+    size: '1.0m × 1.0m × 1.5m',
+    width: 1.0,
+    depth: 1.0,
+    height: 1.5,
+    instancing: false
+  },
+  {
+    id: 'default-dubot',
+    name: '두봇',
+    category: 'robot',
+    glbUrl: '/두봇.glb',
+    thumbnail: '/두봇.png',
+    description: '두봇 로봇',
     size: '1.0m × 1.0m × 1.5m',
     width: 1.0,
     depth: 1.0,

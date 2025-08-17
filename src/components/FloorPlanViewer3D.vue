@@ -15,6 +15,9 @@
          <button @click="toggleWallTransparency" class="btn btn-secondary" title="Toggle Wall Transparency">
            {{ wallTransparencyEnabled ? '🔍' : '🧱' }} Wall Transparency
          </button>
+         <button @click="toggleStatusSpheres" class="btn btn-secondary" title="Toggle Status Spheres">
+           {{ statusSpheresVisible ? '🔵' : '⚪' }} Status Spheres
+         </button>
       </div>
       
       <div class="control-group">
@@ -115,6 +118,7 @@ const visibleObjects = ref(0)
 const cullingEnabled = ref(true)
 const lodEnabled = ref(true)
 const lodThreshold = ref(10) // LOD 활성화 임계값 (보이는 객체 수)
+const statusSpheresVisible = ref(false) // 상태 표시 구체 표시 여부 - 기본값 false
 
 // 3D 팝업 관련 상태
 const raycaster = new THREE.Raycaster()
@@ -447,6 +451,9 @@ const animate = (currentTime = 0) => {
   updateFrustum()
   updateObjectVisibility()
   
+  // 상태 표시 구체 가시성 업데이트
+  updateStatusSpheresVisibility()
+  
   // 3D 팝업 빌보딩 업데이트
   if (current3DPopup) {
     current3DPopup.lookAt(camera.position)
@@ -564,6 +571,33 @@ const toggleWallTransparency = () => {
   })
   
   console.log(`🧱 벽 투명도 ${wallTransparencyEnabled.value ? '활성화' : '비활성화'}`)
+}
+
+const toggleStatusSpheres = () => {
+  statusSpheresVisible.value = !statusSpheresVisible.value
+  
+  scene.traverse((object) => {
+    if (object.userData.type === 'status-sphere') {
+      object.visible = statusSpheresVisible.value
+    }
+  })
+  
+  // 상태 표시 구체가 숨겨지면 3D 팝업도 함께 숨김
+  if (!statusSpheresVisible.value && current3DPopup) {
+    remove3DPopup()
+  }
+  
+  console.log(`🔵 상태 표시 구체 ${statusSpheresVisible.value ? '표시' : '숨김'}`)
+}
+
+const updateStatusSpheresVisibility = () => {
+  if (!scene) return
+  
+  scene.traverse((object) => {
+    if (object.userData.type === 'status-sphere') {
+      object.visible = statusSpheresVisible.value
+    }
+  })
 }
 
 // 실시간 3D 오브젝트 업데이트 (Store 변경 감지용)
@@ -914,6 +948,9 @@ const addStatusSphere = (object: THREE.Object3D, placedObj: any) => {
     category: placedObj.category
   }
   
+  // 초기 가시성 상태 설정
+  sphere.visible = statusSpheresVisible.value
+  
   // 씬에 구체 추가
   scene.add(sphere)
   
@@ -1235,6 +1272,14 @@ const handleCanvasClick = (event: MouseEvent) => {
       remove3DPopup()
       return
     }
+  }
+  
+  // 상태 표시 구체가 숨겨져 있으면 클릭 이벤트 처리하지 않음
+  if (!statusSpheresVisible.value) {
+    if (current3DPopup) {
+      remove3DPopup()
+    }
+    return
   }
   
   // 상태 표시 구체 클릭 검사
