@@ -5,9 +5,7 @@
         <div class="badge">Automation Lab Control</div>
         <h1 class="title">SDF — Orchestrate your automation lab</h1>
         <p class="subtitle">Monitor robots, schedule jobs, and keep your operations on track with a unified control surface.</p>
-        <div class="actions">
-          <a class="btn btn-secondary" href="#features">Explore Features</a>
-        </div>
+
       </div>
     </header>
 
@@ -72,7 +70,7 @@
   background-size: cover, cover;
   background-position: center, center;
   background-repeat: no-repeat, no-repeat;
-  filter: grayscale(100%) blur(2px) brightness(0.8) contrast(1.05) saturate(1.02);
+  filter: grayscale(50%) blur(0.5px) brightness(0.8) contrast(1.05) saturate(1.02);
   transform: scale(1.05);
   pointer-events: none;
   z-index: -2;
@@ -91,27 +89,30 @@
 .badge {
   display: inline-block;
   padding: 0.25rem 0.5rem;
-  border: 1px solid var(--color-border-secondary, #34343a);
-  background: var(--color-bg-translucent, rgba(255,255,255,0.05));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-rounded, 9999px);
-  color: var(--color-text-secondary, #d0d6e0);
+  color: #ffffff;
   font-size: var(--font-size-mini, 0.75rem);
+  font-weight: 500;
 }
 
 .title {
   margin-top: 1rem;
   font: var(--title-7, 590 3.5rem/1.1 var(--font-regular, 'Inter Variable'));
   letter-spacing: var(--title-7-letter-spacing, -0.022em);
-  color: var(--color-text-primary, #f7f8f8);
+  color: #ffffff;
   /* 더 큰 화면에서 조금 더 키우고, 모바일에서는 축소 */
   font-size: clamp(2rem, 6vw, 3.75rem);
+  font-weight: 600;
 }
 
 .subtitle {
   margin-top: 1rem;
-  color: var(--color-text-tertiary, #8a8f98);
+  color: #ffffff;
   font-size: clamp(1rem, 2.2vw, 1.25rem);
   line-height: var(--text-large-line-height, 1.6);
+  font-weight: 400;
 }
 
 .actions {
@@ -159,18 +160,28 @@
   border: 1px solid var(--color-border-primary, #23252a);
   background: var(--color-bg-level-1, #0f1011);
   border-radius: var(--radius-8, 8px);
-  padding: 1rem;
+  padding: 1.5rem;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .card h3 {
   font: var(--title-2, 590 1.3125rem/1.33 var(--font-regular));
   color: var(--color-text-primary, #f7f8f8);
+  font-size: 1.3125rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  line-height: 1.33;
 }
 
 .card p {
   margin-top: 0.5rem;
-  color: var(--color-text-secondary, #d0d6e0);
+  color: var(--color-text-secondary, #a1a1aa);
   line-height: 1.6;
+  font-size: 1rem;
+  font-weight: 400;
 }
 
 @media (max-width: 900px) {
@@ -181,6 +192,8 @@
   border-top: 1px solid var(--color-border-primary, #23252a);
   padding-block: 4rem;
   background: var(--color-bg-level-0, #08090a);
+  position: relative;
+  z-index: 1;
 }
 
 .cta__content {
@@ -188,15 +201,25 @@
   margin: 0 auto;
   padding: 0 var(--page-padding-inline, 24px);
   text-align: center;
+  position: relative;
+  z-index: 2;
 }
 
 .cta__content h2 {
   font: var(--title-4, 590 2rem/1.125 var(--font-regular));
+  color: var(--color-text-primary, #f7f8f8);
+  font-weight: 600;
+  margin-bottom: 1rem;
+  font-size: 2rem;
+  line-height: 1.2;
 }
 
 .cta__content p {
   margin-top: 0.5rem;
-  color: var(--color-text-secondary, #d0d6e0);
+  color: var(--color-text-secondary, #a1a1aa);
+  font-size: 1.125rem;
+  line-height: 1.6;
+  font-weight: 400;
 }
 </style>
 
