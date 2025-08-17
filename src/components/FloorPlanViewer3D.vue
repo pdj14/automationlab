@@ -131,7 +131,6 @@ const floorplanStore = useFloorplanStore()
 // Frustum Culling 관련 함수들
 const updateFrustum = () => {
   if (!camera) {
-    console.log('⚠️ updateFrustum: camera가 초기화되지 않음')
     return
   }
   
@@ -140,7 +139,6 @@ const updateFrustum = () => {
     projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
     frustum = new THREE.Frustum()
     frustum.setFromProjectionMatrix(projScreenMatrix)
-    console.log('📐 Frustum 업데이트 완료')
   } catch (error) {
     console.error('❌ updateFrustum 오류:', error)
   }
@@ -205,25 +203,16 @@ let lastVisibleCount = 0
 // Three.js 내장 LOD 사용 - 수동 업데이트 불필요
 const updateLOD = () => {
   // Three.js LOD는 자동으로 거리 기반 전환을 처리하므로 수동 업데이트 불필요
-  console.log('🎯 Three.js LOD 자동 처리 중 - 수동 업데이트 불필요')
 }
 
 // Three.js LOD는 자동으로 처리되므로 스케줄링 불필요
 const scheduleLODUpdate = () => {
   // Three.js LOD는 자동으로 거리 기반 전환을 처리하므로 수동 스케줄링 불필요
-  console.log('🎯 Three.js LOD 자동 스케줄링 - 수동 처리 불필요')
 }
 
 // Three.js 초기화
 const initThreeJS = () => {
-  console.log('🎯 initThreeJS 시작')
-  console.log('📊 DOM 요소 상태:', {
-    hasCanvas: !!canvas3d.value,
-    hasContainer: !!canvas3dContainer.value
-  })
-  
   if (!canvas3d.value || !canvas3dContainer.value) {
-    console.log('❌ DOM 요소가 준비되지 않음')
     return
   }
 
@@ -231,10 +220,7 @@ const initThreeJS = () => {
   const width = container.clientWidth
   const height = container.clientHeight
   
-  console.log('📐 컨테이너 크기:', { width, height })
-  
   if (width === 0 || height === 0) {
-    console.log('❌ 컨테이너 크기가 0입니다')
     return
   }
 
@@ -306,17 +292,11 @@ const initThreeJS = () => {
     hasControls: !!controls
   })
   
-  // 초기화 완료 후 Store 상태 확인
-  console.log('📊 초기화 후 Store 상태:', {
-    placedObjectsCount: floorplanStore.placedObjects.length,
-    hasFloorplanData: !!floorplanStore.floorplanData
-  })
 }
 
 // 조명 설정
 const setupLights = () => {
   if (!scene) {
-    console.log('❌ setupLights: scene이 초기화되지 않음')
     return
   }
   
@@ -333,8 +313,6 @@ const setupLights = () => {
     fillLight.position.set(-5, 5, -3)
     fillLight.castShadow = false
     scene.add(fillLight)
-    
-    console.log('💡 조명 설정 완료')
   } catch (error) {
     console.error('❌ setupLights 오류:', error)
   }
@@ -529,7 +507,6 @@ const animate = (currentTime = 0) => {
 // 폴리곤 수 업데이트
 const updatePolygonCount = () => {
   if (!scene) {
-    console.log('⚠️ updatePolygonCount: scene이 초기화되지 않음')
     return
   }
   
@@ -577,8 +554,6 @@ const toggleCulling = () => {
 
 const toggleLOD = () => {
   lodEnabled.value = !lodEnabled.value
-  
-  console.log(`🎯 LOD ${lodEnabled.value ? '활성화' : '비활성화'}`)
   
   // LOD 상태 변경 시 기존 객체들의 LOD 적용/해제
   if (floorplanStore.placedObjects.length > 0) {
@@ -725,10 +700,7 @@ let instancedMeshes: THREE.InstancedMesh[] = []
 
 // 3D 오브젝트 생성 (GLB 모델 로딩) - Three.js 내장 LOD 사용
 const create3DObjects = async (placedObjects: any[]) => {
-  console.log('🎯 create3DObjects 시작 - Three.js 내장 LOD 사용')
-  
   if (!scene || !placedObjects || placedObjects.length === 0) {
-    console.log('❌ 씬이 없거나 배치할 객체가 없음')
     return
   }
 
@@ -902,7 +874,10 @@ const create3DObjects = async (placedObjects: any[]) => {
            lodModel.position.set(pos3D.x, pos3D.y, pos3D.z)
            lodModel.rotation.y = -rotationValue
            finalObject = lodModel
-           console.log(`🎯 ${placedObj.name} LOD 모드 - 통일된 회색 적용`)
+           // LOD 모델을 메인으로 사용
+           lodModel.position.set(pos3D.x, pos3D.y, pos3D.z)
+           lodModel.rotation.y = -rotationValue
+           finalObject = lodModel
          } else {
            // LOD 모델이 없으면 원본 모델에 회색 적용
            model.traverse((child: any) => {
@@ -921,14 +896,12 @@ const create3DObjects = async (placedObjects: any[]) => {
            model.position.set(pos3D.x, pos3D.y, pos3D.z)
            model.rotation.y = -rotationValue
            finalObject = model
-           console.log(`🎯 ${placedObj.name} LOD 모드 - 원본 모델에 회색 적용`)
          }
        } else {
          // 일반 모드: 원본 모델 사용
          model.position.set(pos3D.x, pos3D.y, pos3D.z)
          model.rotation.y = -rotationValue
          finalObject = model
-         console.log(`📦 ${placedObj.name} 일반 모드 - 원본 모델 사용`)
        }
       
       // 메타데이터 설정
@@ -1282,8 +1255,6 @@ const create3DPopup = (objectData: any, spherePosition: THREE.Vector3) => {
   
   scene.add(popupGroup)
   current3DPopup = popupGroup
-  
-  console.log('🎯 3D 팝업 생성:', objectData.objectName, '위치:', spherePosition)
 }
 
 // 3D 팝업 제거
@@ -1291,7 +1262,6 @@ const remove3DPopup = () => {
   if (current3DPopup) {
     scene.remove(current3DPopup)
     current3DPopup = null
-    console.log('🎯 3D 팝업 제거')
   }
 }
 
@@ -1434,8 +1404,6 @@ const create3DBox = (placedObj: any, color: string) => {
 // GLB 파일을 사용한 인스턴싱 오브젝트들 생성 (InstancedMesh 사용)
 // 같은 glbUrl(+lodUrl) 별로 묶어서 각각의 InstancedMesh를 생성
 const createInstancedObjectsFromGLB = async (instancedObjects: any[]) => {
-  console.log(`🎯 GLB 기반 인스턴싱 오브젝트 ${instancedObjects.length}개 생성`)
-  
   if (instancedObjects.length === 0) return
   
   // glbUrl(+lodUrl) 키로 그룹핑
@@ -1542,8 +1510,6 @@ const createInstancedObjectsFromGLB = async (instancedObjects: any[]) => {
 
 // 큐브 기반 인스턴싱 오브젝트들 생성 (폴백용)
 const createInstancedObjects = (instancedObjects: any[]) => {
-  console.log(`🎯 큐브 기반 인스턴싱 오브젝트 ${instancedObjects.length}개 생성 (폴백)`)
-  
   // 기존 인스턴스 메시 정리 (폴백 전용 단일 메쉬)
   if (instancedMeshes.length > 0) {
     instancedMeshes.forEach(mesh => {
@@ -1918,17 +1884,10 @@ watch(
 
 // 라이프사이클
 onMounted(() => {
-  console.log('🎯 FloorPlanViewer3D 마운트됨')
-  console.log('📊 Store 초기 상태 확인:')
-  console.log('📦 placedObjects 개수:', floorplanStore.placedObjects.length)
-  console.log('📦 placedObjects:', floorplanStore.placedObjects)
-  console.log('🏠 floorplanData:', floorplanStore.floorplanData)
-  
   // IntersectionObserver를 사용하여 컴포넌트가 실제로 보일 때만 초기화
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
-        console.log('✅ 컴포넌트가 화면에 보임, Three.js 초기화 시작')
         observer.disconnect() // 한 번만 실행되도록 연결 해제
         
         // Three.js 초기화
@@ -1937,14 +1896,8 @@ onMounted(() => {
         // Three.js 초기화가 완료된 후에만 resize 이벤트 리스너 추가
         const checkInitAndAddResize = () => {
           if (camera && renderer && scene) {
-            console.log('✅ Three.js 초기화 완료, resize 이벤트 리스너 추가')
             window.addEventListener('resize', handleResize)
           } else {
-            console.log('⏳ Three.js 초기화 대기 중...', {
-              hasCamera: !!camera,
-              hasRenderer: !!renderer,
-              hasScene: !!scene
-            })
             setTimeout(checkInitAndAddResize, 100)
           }
         }
@@ -1958,7 +1911,6 @@ onMounted(() => {
   
   // DOM이 완전히 렌더링된 후 관찰 시작
   nextTick(() => {
-    console.log('🔄 nextTick 후 IntersectionObserver 시작')
     if (canvas3dContainer.value) {
       observer.observe(canvas3dContainer.value)
     }
@@ -1971,43 +1923,34 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  console.log('🔄 FloorPlanViewer3D 언마운트됨 - 리소스 정리 시작')
-  
   // 애니메이션 루프 정리
   if (animationId) {
     cancelAnimationFrame(animationId)
-    console.log('✅ 애니메이션 루프 정리 완료')
   }
   
   // 이벤트 리스너 제거
   window.removeEventListener('resize', handleResize)
-  console.log('✅ resize 이벤트 리스너 제거 완료')
   
   // 클릭 이벤트 리스너 제거
   if (canvas3d.value) {
     canvas3d.value.removeEventListener('click', handleCanvasClick)
-    console.log('✅ 클릭 이벤트 리스너 제거 완료')
   }
   
   // 3D 팝업 제거
   remove3DPopup()
-  console.log('✅ 3D 팝업 제거 완료')
   
   // Three.js 리소스 정리
   if (renderer) {
     renderer.dispose()
-    console.log('✅ 렌더러 리소스 정리 완료')
   }
   
   if (controls) {
     controls.dispose()
-    console.log('✅ 컨트롤 리소스 정리 완료')
   }
   
   // 씬 정리
   if (scene) {
     scene.clear()
-    console.log('✅ 씬 정리 완료')
   }
   
   // 전역 변수 정리 (타입 안전하게)

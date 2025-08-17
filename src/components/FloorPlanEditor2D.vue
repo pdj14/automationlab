@@ -225,10 +225,14 @@ const initCanvas = () => {
   const width = wrapper.clientWidth
   const height = wrapper.clientHeight
 
+  // Dark/Light mode에 따른 캔버스 배경색 설정
+  const isDarkMode = document.documentElement.classList.contains('dark')
+  const backgroundColor = isDarkMode ? '#1a1a1a' : '#ffffff'
+  
   fabricCanvas = new fabric.Canvas(canvas2d.value, {
     width,
     height,
-    backgroundColor: '#ffffff',
+    backgroundColor,
     selection: true,
   })
 
@@ -470,18 +474,15 @@ const setupWallDrawing = () => {
 
   fabricCanvas.on('selection:created', (e: any) => {
     const selected = e.selected[0]
-    console.log('🎯 오브젝트 선택됨:', selected?.userData)
     
     // placed-object는 두 모드에서 모두 선택 가능
     if (selected && selected.userData?.type === 'placed-object') {
       selectedObject.value = selected
-      console.log('✅ 배치된 오브젝트 선택:', selected.userData?.placedObjectId)
       
       // ETC 상자가 선택된 경우 상자 위 장비 배치 모드 활성화
       if (selected.userData?.category === 'etc' && selected.userData?.isBox) {
         selectedBox.value = selected
         boxPlacementMode.value = true
-        console.log('📦 상자 선택됨 - 장비 배치 모드 활성화')
       } else {
         // 상자가 아닌 오브젝트 선택 시 상자 모드 비활성화
         selectedBox.value = null
@@ -495,7 +496,6 @@ const setupWallDrawing = () => {
           )
           if (boxObject) {
             fabricCanvas.setActiveObject(boxObject)
-            console.log('📦 상자 위 장비 선택으로 인한 상자도 함께 선택')
           }
         }
       }
@@ -516,10 +516,8 @@ const setupWallDrawing = () => {
     
     if (selected && (selected.userData?.type === 'interior-wall' || selected.userData?.type === 'exterior-wall')) {
       selectedObject.value = selected
-      console.log('✅ 벽 선택:', selected.userData?.type)
     } else {
       selectedObject.value = null
-      console.log('❌ 선택 해제')
     }
   })
 
@@ -697,12 +695,16 @@ const addGrid = () => {
   const width = fabricCanvas.width!
   const height = fabricCanvas.height!
 
+  // Dark/Light mode에 따른 그리드 색상 설정
+  const thinGridColor = document.documentElement.classList.contains('dark') ? '#404040' : '#c0c0c0'  // 얇은 그리드 선
+  const thickGridColor = document.documentElement.classList.contains('dark') ? '#606060' : '#a0a0a0' // 굵은 그리드 선
+
   const lines = []
 
   // 세로선 (50cm 간격)
   for (let i = 0; i <= width; i += gridSize) {
     lines.push(new fabric.Line([i, 0, i, height], {
-      stroke: '#c0c0c0',
+      stroke: thinGridColor,
       strokeWidth: 1,
       selectable: false,
       evented: false,
@@ -712,7 +714,7 @@ const addGrid = () => {
   // 가로선 (50cm 간격)
   for (let i = 0; i <= height; i += gridSize) {
     lines.push(new fabric.Line([0, i, width, i], {
-      stroke: '#c0c0c0',
+      stroke: thinGridColor,
       strokeWidth: 1,
       selectable: false,
       evented: false,
@@ -722,7 +724,7 @@ const addGrid = () => {
   // 굵은 그리드 (2.5m 간격)
   for (let i = 0; i <= width; i += gridSize * 5) {
     lines.push(new fabric.Line([i, 0, i, height], {
-      stroke: '#a0a0a0',
+      stroke: thickGridColor,
       strokeWidth: 2,
       selectable: false,
       evented: false,
@@ -731,7 +733,7 @@ const addGrid = () => {
 
   for (let i = 0; i <= height; i += gridSize * 5) {
     lines.push(new fabric.Line([0, i, width, i], {
-      stroke: '#a0a0a0',
+      stroke: thickGridColor,
       strokeWidth: 2,
       selectable: false,
       evented: false,
@@ -746,6 +748,12 @@ const addGrid = () => {
   fabricCanvas.add(grid)
   // 레이어 정렬: 모든 바닥 뒤, 그 위에 그리드, 그 위에 오브젝트
   positionGridAfterFloors()
+  
+  // 테마 변경 시 캔버스 배경색도 업데이트
+  const backgroundColor = document.documentElement.classList.contains('dark') ? '#1a1a1a' : '#ffffff'
+  fabricCanvas.setBackgroundColor(backgroundColor, () => {
+    fabricCanvas.renderAll()
+  })
 }
 
 // 확대/축소 및 이동에 따른 그리드 업데이트
@@ -779,12 +787,16 @@ const updateGrid = () => {
   const startY = Math.floor((viewportTop - margin) / gridSize) * gridSize
   const endY = Math.ceil((viewportBottom + margin) / gridSize) * gridSize
   
+  // Dark/Light mode에 따른 그리드 색상 설정
+  const thinGridColor = document.documentElement.classList.contains('dark') ? '#404040' : '#c0c0c0'  // 얇은 그리드 선
+  const thickGridColor = document.documentElement.classList.contains('dark') ? '#606060' : '#a0a0a0' // 굵은 그리드 선
+  
   const lines = []
   
   // 세로선 (50cm 간격)
   for (let i = startX; i <= endX; i += gridSize) {
     lines.push(new fabric.Line([i, startY, i, endY], {
-      stroke: '#c0c0c0',
+      stroke: thinGridColor,
       strokeWidth: 1,
       selectable: false,
       evented: false,
@@ -794,7 +806,7 @@ const updateGrid = () => {
   // 가로선 (50cm 간격)
   for (let i = startY; i <= endY; i += gridSize) {
     lines.push(new fabric.Line([startX, i, endX, i], {
-      stroke: '#c0c0c0',
+      stroke: thinGridColor,
       strokeWidth: 1,
       selectable: false,
       evented: false,
@@ -804,7 +816,7 @@ const updateGrid = () => {
   // 굵은 그리드 (2.5m 간격)
   for (let i = startX; i <= endX; i += gridSize * 5) {
     lines.push(new fabric.Line([i, startY, i, endY], {
-      stroke: '#a0a0a0',
+      stroke: thickGridColor,
       strokeWidth: 2,
       selectable: false,
       evented: false,
@@ -813,7 +825,7 @@ const updateGrid = () => {
   
   for (let i = startY; i <= endY; i += gridSize * 5) {
     lines.push(new fabric.Line([startX, i, endX, i], {
-      stroke: '#a0a0a0',
+      stroke: thickGridColor,
       strokeWidth: 2,
       selectable: false,
       evented: false,
@@ -827,6 +839,12 @@ const updateGrid = () => {
   
   fabricCanvas.add(grid)
   positionGridAfterFloors()
+  
+  // 테마 변경 시 캔버스 배경색도 업데이트
+  const backgroundColor = document.documentElement.classList.contains('dark') ? '#1a1a1a' : '#ffffff'
+  fabricCanvas.setBackgroundColor(backgroundColor, () => {
+    fabricCanvas.renderAll()
+  })
 }
 
 // Store를 사용한 내부 벽 추가
@@ -1288,14 +1306,10 @@ const updateObjectColorOnCanvas = (placedObjectId: string, newColor: string) => 
 const rerender2DObjectsFromStore = () => {
   if (!fabricCanvas) return
   
-  console.log('🔄 2D Store 기반 재구성 시작')
-  
   // 기존 배치 오브젝트 모두 제거
   const objectsToRemove = (fabricCanvas.getObjects() as Array<fabric.Object & { userData?: any }>).filter((obj) => 
     obj.userData?.type === 'placed-object'
   )
-  
-  console.log(`🗑️ 2D에서 제거할 기존 오브젝트 개수: ${objectsToRemove.length}`)
   
   objectsToRemove.forEach(obj => {
     fabricCanvas.remove(obj)
@@ -1358,7 +1372,6 @@ const rerender2DObjectsFromStore = () => {
   })
   
   fabricCanvas.renderAll()
-  console.log(`✅ 2D Store 기반 재구성 완료 (${floorplanStore.placedObjects.length}개 오브젝트)`)
 }
 
 // 상자 위의 장비들을 상자와 함께 이동
@@ -1405,7 +1418,6 @@ const moveObjectsOnBox = (boxObject: any) => {
   })
   
   fabricCanvas?.renderAll()
-  console.log(`📦 상자 이동으로 인한 장비 ${objectsOnBox.length}개 이동 완료`)
 }
 
 // Store에서 배치된 오브젝트 정보 업데이트
@@ -1424,10 +1436,7 @@ const updatePlacedObjectInStore = (fabricObject: any) => {
   const fabricAngle = fabricObject.angle || 0
   const rotationRadians = fabricAngle * (Math.PI / 180)
   
-  console.log(`🔄 2D 회전 업데이트: ${fabricAngle}도 → ${rotationRadians.toFixed(3)} 라디안`)
-  console.log(`🔄 시계방향이 양수인지 확인 중...`)
-  
-  console.log(`오브젝트 이동: Fabric(${fabricObject.left}, ${fabricObject.top}) → World(${worldX}, ${worldY})`)
+
   
   // Store에서 해당 오브젝트 찾기
   const existingObject = floorplanStore.placedObjects.find(obj => obj.id === placedObjectId)
@@ -1460,7 +1469,7 @@ const handlePlaceObject = (event: any) => {
     centerX = boxLeft
     centerY = boxTop - 20 // 상자 위쪽에 약간 올려서 배치
     
-    console.log('📦 상자 위에 장비 배치:', object.name, '위치:', centerX, centerY)
+
   } else {
     // 일반 배치 - 캔버스 중앙에 배치
     const canvasWidth = fabricCanvas.width || 800
@@ -1592,22 +1601,15 @@ const handlePlaceObject = (event: any) => {
     instancing: object.instancing || false // 인스턴싱 값 추가
   }
   
-  console.log('📦 Store에 오브젝트 추가 중:', placedObjectData)
   floorplanStore.addPlacedObject(placedObjectData)
   
-  console.log('📦 Store 현재 상태 - placedObjects 개수:', floorplanStore.placedObjects.length)
-  console.log('📦 Store 현재 상태 - placedObjects:', floorplanStore.placedObjects)
-  
   // 🚀 핵심 개선: Store 기반 2D 재구성 (일관성 있는 렌더링)
-  console.log('🔄 Store 변경으로 인한 2D 재구성 시작')
   rerender2DObjectsFromStore()
-  console.log('✅ Store 기반 2D 재구성 완료')
   
   // 상자 위 배치 후 상자 모드 비활성화
   if (boxPlacementMode.value) {
     boxPlacementMode.value = false
     selectedBox.value = null
-    console.log('📦 상자 위 배치 완료 - 상자 모드 비활성화')
   }
   
   // 배치 완료 (알림 제거)
@@ -1676,10 +1678,7 @@ const exportFloorPlan = () => {
 
 // 선택된 오브젝트 삭제
 const deleteSelectedObject = () => {
-  console.log('🗑️ 삭제 시도:', selectedObject.value)
-  
   if (!selectedObject.value || !fabricCanvas) {
-    console.log('❌ 삭제 실패: selectedObject 없음 또는 canvas 없음')
     alert('삭제할 오브젝트를 먼저 선택해주세요.')
     return
   }
@@ -1688,36 +1687,21 @@ const deleteSelectedObject = () => {
   const objectId = objectToDelete.userData?.id
   const objectType = objectToDelete.userData?.type
   
-  console.log(`🗑️ 삭제 대상: ${objectType}, ID: ${objectId}`)
-  
     if (objectType === 'placed-object') {
     // 배치된 오브젝트 삭제 (그룹으로 묶여있으므로 레이블도 함께 삭제됨)
     const placedObjectId = objectToDelete.userData?.placedObjectId
-    console.log(`📦 배치된 오브젝트 삭제: ${placedObjectId}`)
-    
-    console.log('🎯 Fabric.js 제거 전 canvas 객체 수:', fabricCanvas.getObjects().length)
-    console.log('🎯 제거할 객체:', objectToDelete)
-    console.log('🎯 제거할 객체 타입:', objectToDelete.type)
     
     fabricCanvas.remove(objectToDelete)
-    
-    console.log('🎯 Fabric.js 제거 후 canvas 객체 수:', fabricCanvas.getObjects().length)
     
     // 강제 렌더링
     fabricCanvas.renderAll()
     fabricCanvas.requestRenderAll()
     
-    console.log('🎯 Fabric.js 강제 렌더링 완료')
-    
     // Store에서도 제거
     if (placedObjectId) {
-      console.log(`🗑️ Store 제거 전 개수: ${floorplanStore.placedObjects.length}`)
-      console.log(`🗑️ Store 제거 전 오브젝트들:`, floorplanStore.placedObjects.map(obj => obj.id))
-      
       // 상자가 삭제되는 경우 그 위의 장비들도 함께 삭제
       if (objectToDelete.userData?.category === 'etc' && objectToDelete.userData?.isBox) {
         const objectsOnBox = floorplanStore.placedObjects.filter(obj => obj.boxId === placedObjectId)
-        console.log(`📦 상자 위의 장비 ${objectsOnBox.length}개도 함께 삭제`)
         
         objectsOnBox.forEach(obj => {
           // Fabric.js에서도 제거
@@ -1736,23 +1720,14 @@ const deleteSelectedObject = () => {
       
       floorplanStore.removePlacedObject(placedObjectId)
       
-      console.log(`🗑️ Store 제거 후 개수: ${floorplanStore.placedObjects.length}`)
-      console.log(`🗑️ Store 제거 후 오브젝트들:`, floorplanStore.placedObjects.map(obj => obj.id))
-      console.log(`✅ Store에서 오브젝트 제거 완료: ${placedObjectId}`)
-      
       // 🚀 핵심 개선: Store 기반 2D 재구성 (3D와 동일한 방식)
-      console.log('🔄 Store 변경으로 인한 2D 재구성 시작')
       rerender2DObjectsFromStore()
-      console.log('✅ Store 기반 2D 재구성 완료')
       
-    } else {
-      console.log('⚠️ placedObjectId 없음')
     }
     
     // 선택 해제
     selectedObject.value = null
     fabricCanvas.discardActiveObject()
-    console.log('✅ 배치된 오브젝트 삭제 완료')
     
   } else if (objectType === 'interior-wall' || objectType === 'exterior-wall') {
     // 벽 삭제 (기존 로직)
@@ -1897,6 +1872,29 @@ onMounted(() => {
   initCanvas()
   window.addEventListener('resize', handleResize)
   window.addEventListener('placeObject', handlePlaceObject)
+  
+  // 테마 변경 감지 및 그리드 업데이트
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+        // dark 클래스 변경 감지 시 그리드 업데이트
+        if (fabricCanvas) {
+          updateGrid()
+        }
+      }
+    })
+  })
+  
+  // document.documentElement의 class 변경 감지
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class']
+  })
+  
+  // 컴포넌트 언마운트 시 observer 정리
+  onUnmounted(() => {
+    observer.disconnect()
+  })
 })
 
 onUnmounted(() => {

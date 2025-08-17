@@ -60,34 +60,25 @@ const viewer3dRef = ref<InstanceType<typeof FloorPlanViewer3D> | null>(null)
 
 // Tab 변경 시 컴포넌트 초기화 처리
 watch(activeTab, async (newTab) => {
-  console.log(`🔄 Tab 변경: ${newTab}`)
-  
   if (newTab === '3d') {
     // 3D 탭으로 전환 시 3D 뷰어 초기화
-    console.log('🚀 3D 탭 활성화 - 3D 뷰어 초기화')
     
     // 3D 뷰어가 완전히 렌더링될 때까지 대기
     await nextTick()
     
     // 3D 뷰어 컴포넌트에 접근하여 강제 재초기화
     if (viewer3dRef.value) {
-      console.log('✅ 3D 뷰어 컴포넌트 참조 발견')
-      
       // 3D 뷰어의 debugStore 함수 호출하여 상태 확인
       try {
         if (typeof viewer3dRef.value.debugStore === 'function') {
-          console.log('🔍 3D 뷰어 상태 디버깅 시작')
           viewer3dRef.value.debugStore()
         }
       } catch (error) {
         console.error('❌ 3D 뷰어 디버깅 오류:', error)
       }
-    } else {
-      console.log('⚠️ 3D 뷰어 컴포넌트 참조를 찾을 수 없음')
     }
   } else if (newTab === '2d') {
     // 2D 탭으로 전환 시 2D 에디터 초기화
-    console.log('🎨 2D 탭 활성화 - 2D 에디터 초기화')
     
     // 2D 탭으로 전환 시 3D 뷰어 참조 정리
     viewer3dRef.value = null
