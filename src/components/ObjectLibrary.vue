@@ -744,10 +744,11 @@ onMounted(() => {
 .object-library {
   display: flex;
   flex-direction: column;
-  height: auto;
-  max-height: unset;
+  height: 100%;
+  background: var(--color-bg-level-2, #141516);
+  color: var(--color-text-primary, #f7f8f8);
+  overflow: hidden;
   padding: 1rem;
-  background: #f8f9fa;
 }
 
 .library-header {
@@ -777,19 +778,19 @@ onMounted(() => {
 }
 
 .objects-grid {
-  flex: 0 0 auto;
-  overflow: visible;
+  flex: 1;
+  overflow-y: auto;
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  padding-right: 0.5rem;
 }
 
 .object-item {
   display: flex;
   flex-direction: column;
-  background: white;
-  border: 1px solid #ddd;
+  background: var(--color-bg-level-1, #0f1011);
+  border: 1px solid var(--color-border-secondary, #34343a);
   border-radius: 8px;
   padding: 0.5rem;
   cursor: pointer;
@@ -804,8 +805,8 @@ onMounted(() => {
 }
 
 .object-item.selected {
-  border-color: #3498db;
-  background: #e3f2fd;
+  border-color: var(--color-accent-primary, #3b82f6);
+  background: var(--color-bg-tertiary, #232326);
 }
 
 .object-preview {
@@ -814,7 +815,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: var(--color-bg-level-2, #141516);
   border-radius: 4px;
   margin-bottom: 0.5rem;
   overflow: hidden;
@@ -828,25 +829,25 @@ onMounted(() => {
 
 .placeholder-icon {
   font-size: 2rem;
-  color: #999;
+  color: var(--color-text-secondary, #a1a1aa);
 }
 
 .object-info h4 {
   margin: 0 0 0.25rem 0;
   font-size: 0.9rem;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .object-info p {
   margin: 0;
   font-size: 0.8rem;
-  color: #666;
+  color: var(--color-text-secondary, #a1a1aa);
   text-transform: capitalize;
 }
 
 .object-info small {
   font-size: 0.7rem;
-  color: #999;
+  color: var(--color-text-tertiary, #71717a);
 }
 
 .object-actions {
@@ -864,8 +865,8 @@ onMounted(() => {
 }
 
 .btn-icon {
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
+  background: var(--color-bg-tertiary, #232326);
+  border: 1px solid var(--color-border-secondary, #34343a);
   border-radius: 4px;
   width: 24px;
   height: 24px;
@@ -874,10 +875,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .btn-icon:hover {
-  background: white;
+  background: var(--color-bg-quaternary, #28282c);
+  border-color: var(--color-accent-primary, #3b82f6);
 }
 
 /* 모달 스타일 */
@@ -895,12 +898,14 @@ onMounted(() => {
 }
 
 .modal {
-  background: white;
+  background: var(--color-bg-level-1, #0f1011);
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 8px;
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .modal-header {
@@ -908,11 +913,12 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--color-border-primary, #23252a);
 }
 
 .modal-header h3 {
   margin: 0;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .btn-close {
@@ -920,7 +926,11 @@ onMounted(() => {
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #999;
+  color: var(--color-text-secondary, #a1a1aa);
+}
+
+.btn-close:hover {
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .modal-body {
@@ -935,7 +945,7 @@ onMounted(() => {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: bold;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .form-group input,
@@ -943,9 +953,19 @@ onMounted(() => {
 .form-group textarea {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  background: var(--color-bg-level-2, #141516);
+  border: 1px solid var(--color-border-secondary, #34343a);
   border-radius: 4px;
   font-size: 0.9rem;
+  color: var(--color-text-primary, #f7f8f8);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-accent-primary, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .modal-actions {
@@ -957,8 +977,8 @@ onMounted(() => {
 
 /* 선택된 오브젝트 정보 */
 .selected-object-info {
-  background: white;
-  border: 1px solid #ddd;
+  background: var(--color-bg-level-1, #0f1011);
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 8px;
   padding: 1rem;
   margin-top: 1rem;
@@ -966,17 +986,61 @@ onMounted(() => {
 
 .selected-object-info h4 {
   margin: 0 0 0.5rem 0;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
+  font-weight: 600;
 }
 
 .object-details p {
   margin: 0.25rem 0;
   font-size: 0.9rem;
+  color: var(--color-text-secondary, #a1a1aa);
+}
+
+.object-details strong {
+  color: var(--color-text-primary, #f7f8f8);
+  font-weight: 600;
 }
 
 .placement-controls {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--color-border-secondary, #34343a);
+}
+
+/* 버튼 스타일 */
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-primary {
+  background: var(--color-accent-primary, #3b82f6);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--color-accent-primary-hover, #2563eb);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--color-bg-tertiary, #232326);
+  color: var(--color-text-primary, #f7f8f8);
+  border: 1px solid var(--color-border-secondary, #34343a);
+}
+
+.btn-secondary:hover {
+  background: var(--color-bg-quaternary, #28282c);
+  border-color: var(--color-accent-primary, #3b82f6);
 }
 </style> 

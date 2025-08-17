@@ -1937,7 +1937,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #f8f9fa;
+  background: var(--color-bg-level-1, #0f1011);
+  color: var(--color-text-primary, #f7f8f8);
+  overflow: hidden;
 }
 
 .toolbar {
@@ -2089,6 +2091,8 @@ onUnmounted(() => {
 
 .canvas-wrapper {
   flex: 1;
+  min-height: 0;
+  background: var(--color-bg-level-2, #141516);
   overflow: hidden;
   position: relative;
 }

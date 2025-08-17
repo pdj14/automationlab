@@ -85,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -130,12 +130,20 @@ const floorplanStore = useFloorplanStore()
 
 // Frustum Culling 관련 함수들
 const updateFrustum = () => {
-  if (!camera) return
+  if (!camera) {
+    console.log('⚠️ updateFrustum: camera가 초기화되지 않음')
+    return
+  }
   
-  projScreenMatrix = new THREE.Matrix4()
-  projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
-  frustum = new THREE.Frustum()
-  frustum.setFromProjectionMatrix(projScreenMatrix)
+  try {
+    projScreenMatrix = new THREE.Matrix4()
+    projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+    frustum = new THREE.Frustum()
+    frustum.setFromProjectionMatrix(projScreenMatrix)
+    console.log('📐 Frustum 업데이트 완료')
+  } catch (error) {
+    console.error('❌ updateFrustum 오류:', error)
+  }
 }
 
 const isObjectVisible = (object: THREE.Object3D): boolean => {
@@ -208,13 +216,25 @@ const scheduleLODUpdate = () => {
 
 // Three.js 초기화
 const initThreeJS = () => {
-  if (!canvas3d.value || !canvas3dContainer.value) return
+  console.log('🎯 initThreeJS 시작')
+  console.log('📊 DOM 요소 상태:', {
+    hasCanvas: !!canvas3d.value,
+    hasContainer: !!canvas3dContainer.value
+  })
+  
+  if (!canvas3d.value || !canvas3dContainer.value) {
+    console.log('❌ DOM 요소가 준비되지 않음')
+    return
+  }
 
   const container = canvas3dContainer.value
   const width = container.clientWidth
   const height = container.clientHeight
   
+  console.log('📐 컨테이너 크기:', { width, height })
+  
   if (width === 0 || height === 0) {
+    console.log('❌ 컨테이너 크기가 0입니다')
     return
   }
 
@@ -278,22 +298,46 @@ const initThreeJS = () => {
   
   // 렌더링 시작
   animate()
+  
+  console.log('✅ Three.js 초기화 완료:', {
+    hasScene: !!scene,
+    hasCamera: !!camera,
+    hasRenderer: !!renderer,
+    hasControls: !!controls
+  })
+  
+  // 초기화 완료 후 Store 상태 확인
+  console.log('📊 초기화 후 Store 상태:', {
+    placedObjectsCount: floorplanStore.placedObjects.length,
+    hasFloorplanData: !!floorplanStore.floorplanData
+  })
 }
 
 // 조명 설정
 const setupLights = () => {
-  const ambientLight = new THREE.AmbientLight(0xffffff, 2.0)
-  scene.add(ambientLight)
+  if (!scene) {
+    console.log('❌ setupLights: scene이 초기화되지 않음')
+    return
+  }
+  
+  try {
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0)
+    scene.add(ambientLight)
 
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5)
-  directionalLight.position.set(5, 8, 3)
-  directionalLight.castShadow = false
-  scene.add(directionalLight)
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5)
+    directionalLight.position.set(5, 8, 3)
+    directionalLight.castShadow = false
+    scene.add(directionalLight)
 
-  const fillLight = new THREE.DirectionalLight(0xffffff, 1.0)
-  fillLight.position.set(-5, 5, -3)
-  fillLight.castShadow = false
-  scene.add(fillLight)
+    const fillLight = new THREE.DirectionalLight(0xffffff, 1.0)
+    fillLight.position.set(-5, 5, -3)
+    fillLight.castShadow = false
+    scene.add(fillLight)
+    
+    console.log('💡 조명 설정 완료')
+  } catch (error) {
+    console.error('❌ setupLights 오류:', error)
+  }
 }
 
 // 3D 바닥 생성 (2D 룸 사이즈 기반)
@@ -439,48 +483,72 @@ let lastTime = 0
 const animate = (currentTime = 0) => {
   animationId = requestAnimationFrame(animate)
   
+  // 필수 컴포넌트들이 초기화되었는지 확인
+  if (!scene || !camera || !renderer || !controls) {
+    console.log('⚠️ animate: 필요한 컴포넌트가 초기화되지 않음', {
+      hasScene: !!scene,
+      hasCamera: !!camera,
+      hasRenderer: !!renderer,
+      hasControls: !!controls
+    })
+    return
+  }
+  
   // FPS 계산
   if (currentTime - lastTime >= 1000) {
     fps.value = Math.round(1000 / (currentTime - lastTime))
     lastTime = currentTime
   }
   
-  controls.update()
-  
-  // Frustum Culling 업데이트
-  updateFrustum()
-  updateObjectVisibility()
-  
-  // 상태 표시 구체 가시성 업데이트
-  updateStatusSpheresVisibility()
-  
-  // 3D 팝업 빌보딩 업데이트
-  if (current3DPopup) {
-    current3DPopup.lookAt(camera.position)
+  try {
+    controls.update()
+    
+    // Frustum Culling 업데이트
+    updateFrustum()
+    updateObjectVisibility()
+    
+    // 상태 표시 구체 가시성 업데이트
+    updateStatusSpheresVisibility()
+    
+    // 3D 팝업 빌보딩 업데이트
+    if (current3DPopup) {
+      current3DPopup.lookAt(camera.position)
+    }
+    
+    // Three.js LOD는 자동으로 처리됨 - 수동 업데이트 불필요
+    
+    // 폴리곤 수 계산
+    updatePolygonCount()
+    
+    renderer.render(scene, camera)
+  } catch (error) {
+    console.error('❌ animate 함수 오류:', error)
   }
-  
-  // Three.js LOD는 자동으로 처리됨 - 수동 업데이트 불필요
-  
-  // 폴리곤 수 계산
-  updatePolygonCount()
-  
-  renderer.render(scene, camera)
 }
 
 // 폴리곤 수 업데이트
 const updatePolygonCount = () => {
-  let count = 0
-  scene.traverse((object) => {
-    if (object instanceof THREE.Mesh && object.visible) {
-      const geometry = object.geometry
-      if (geometry.index) {
-        count += geometry.index.count / 3
-      } else {
-        count += geometry.attributes.position.count / 3
+  if (!scene) {
+    console.log('⚠️ updatePolygonCount: scene이 초기화되지 않음')
+    return
+  }
+  
+  try {
+    let count = 0
+    scene.traverse((object) => {
+      if (object instanceof THREE.Mesh && object.visible) {
+        const geometry = object.geometry
+        if (geometry.index) {
+          count += geometry.index.count / 3
+        } else {
+          count += geometry.attributes.position.count / 3
+        }
       }
-    }
-  })
-  polygonCount.value = Math.round(count)
+    })
+    polygonCount.value = Math.round(count)
+  } catch (error) {
+    console.error('❌ updatePolygonCount 오류:', error)
+  }
 }
 
 // 컨트롤 함수들
@@ -963,35 +1031,39 @@ const fontLoader = new FontLoader()
 
 // 기본 폰트 로딩 (실제 폰트 파일 사용)
 const loadDefaultFont = () => {
-  // 기본 폰트 데이터 (실제 폰트 파일이 없을 때 사용할 fallback)
-  const fontData = {
-    familyName: 'Arial',
-    ascender: 0.8,
-    descender: -0.2,
-    underlinePosition: -0.1,
-    underlineThickness: 0.05,
-    boundingBox: {
-      yMin: -0.2,
-      yMax: 0.8,
-      xMin: 0,
-      xMax: 0
-    },
-    glyphs: {}
-  }
-  
-  // 기본 문자들에 대한 간단한 기하학적 형태 정의
-  const basicGlyphs = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789가나다라마바사아자차카타파하:()×°'
-  basicGlyphs.split('').forEach(char => {
-    (fontData.glyphs as any)[char] = {
-      ha: 0.6, // 기본 너비
-      x_min: 0,
-      x_max: 0.5,
-      o: `m 0 0 l 0.5 0 l 0.5 0.6 l 0 0.6 z` // 간단한 사각형 형태
+  try {
+    // 기본 폰트 데이터 (실제 폰트 파일이 없을 때 사용할 fallback)
+    const fontData = {
+      familyName: 'Arial',
+      ascender: 0.8,
+      descender: -0.2,
+      underlinePosition: -0.1,
+      underlineThickness: 0.05,
+      boundingBox: {
+        yMin: -0.2,
+        yMax: 0.8,
+        xMin: 0,
+        xMax: 0
+      },
+      glyphs: {}
     }
-  })
-  
-  loadedFont = fontData
-  console.log('📝 기본 폰트 로딩 완료')
+    
+    // 기본 문자들에 대한 간단한 기하학적 형태 정의
+    const basicGlyphs = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789가나다라마바사아자차카타파하:()×°'
+    basicGlyphs.split('').forEach(char => {
+      (fontData.glyphs as any)[char] = {
+        ha: 0.6, // 기본 너비
+        x_min: 0,
+        x_max: 0.5,
+        o: `m 0 0 l 0.5 0 l 0.5 0.6 l 0 0.6 z` // 간단한 사각형 형태
+      }
+    })
+    
+    loadedFont = fontData
+    console.log('📝 기본 폰트 로딩 완료')
+  } catch (error) {
+    console.error('❌ loadDefaultFont 오류:', error)
+  }
 }
 
 // 3D 텍스트 생성 함수 (개선된 버전)
@@ -1846,31 +1918,100 @@ watch(
 
 // 라이프사이클
 onMounted(() => {
-  initThreeJS()
-  window.addEventListener('resize', handleResize)
+  console.log('🎯 FloorPlanViewer3D 마운트됨')
+  console.log('📊 Store 초기 상태 확인:')
+  console.log('📦 placedObjects 개수:', floorplanStore.placedObjects.length)
+  console.log('📦 placedObjects:', floorplanStore.placedObjects)
+  console.log('🏠 floorplanData:', floorplanStore.floorplanData)
+  
+  // IntersectionObserver를 사용하여 컴포넌트가 실제로 보일 때만 초기화
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        console.log('✅ 컴포넌트가 화면에 보임, Three.js 초기화 시작')
+        observer.disconnect() // 한 번만 실행되도록 연결 해제
+        
+        // Three.js 초기화
+        initThreeJS()
+        
+        // Three.js 초기화가 완료된 후에만 resize 이벤트 리스너 추가
+        const checkInitAndAddResize = () => {
+          if (camera && renderer && scene) {
+            console.log('✅ Three.js 초기화 완료, resize 이벤트 리스너 추가')
+            window.addEventListener('resize', handleResize)
+          } else {
+            console.log('⏳ Three.js 초기화 대기 중...', {
+              hasCamera: !!camera,
+              hasRenderer: !!renderer,
+              hasScene: !!scene
+            })
+            setTimeout(checkInitAndAddResize, 100)
+          }
+        }
+        
+        checkInitAndAddResize()
+      }
+    })
+  }, {
+    threshold: 0.1 // 10% 이상 보일 때 감지
+  })
+  
+  // DOM이 완전히 렌더링된 후 관찰 시작
+  nextTick(() => {
+    console.log('🔄 nextTick 후 IntersectionObserver 시작')
+    if (canvas3dContainer.value) {
+      observer.observe(canvas3dContainer.value)
+    }
+  })
+  
+  // 컴포넌트 언마운트 시 observer 정리
+  onUnmounted(() => {
+    observer.disconnect()
+  })
 })
 
 onUnmounted(() => {
+  console.log('🔄 FloorPlanViewer3D 언마운트됨 - 리소스 정리 시작')
+  
+  // 애니메이션 루프 정리
   if (animationId) {
     cancelAnimationFrame(animationId)
+    console.log('✅ 애니메이션 루프 정리 완료')
   }
+  
+  // 이벤트 리스너 제거
   window.removeEventListener('resize', handleResize)
+  console.log('✅ resize 이벤트 리스너 제거 완료')
   
   // 클릭 이벤트 리스너 제거
   if (canvas3d.value) {
     canvas3d.value.removeEventListener('click', handleCanvasClick)
+    console.log('✅ 클릭 이벤트 리스너 제거 완료')
   }
   
   // 3D 팝업 제거
   remove3DPopup()
-  
-  // Three.js LOD는 자동으로 처리되므로 타임아웃 정리 불필요
+  console.log('✅ 3D 팝업 제거 완료')
   
   // Three.js 리소스 정리
   if (renderer) {
     renderer.dispose()
+    console.log('✅ 렌더러 리소스 정리 완료')
   }
-  controls?.dispose()
+  
+  if (controls) {
+    controls.dispose()
+    console.log('✅ 컨트롤 리소스 정리 완료')
+  }
+  
+  // 씬 정리
+  if (scene) {
+    scene.clear()
+    console.log('✅ 씬 정리 완료')
+  }
+  
+  // 전역 변수 정리 (타입 안전하게)
+  console.log('✅ FloorPlanViewer3D 리소스 정리 완료')
 })
 
 // 외부에서 호출할 수 있는 함수들
@@ -1886,7 +2027,9 @@ defineExpose({
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #f8f9fa;
+  background: var(--color-bg-level-1, #0f1011);
+  color: var(--color-text-primary, #f7f8f8);
+  overflow: hidden;
 }
 
 .controls-toolbar {
