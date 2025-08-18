@@ -318,12 +318,14 @@ const setupLights = () => {
   }
 }
 
-// 3D 바닥 생성 (2D 룸 사이즈 기반)
+// 3D 바닥 생성 (2D 룸 사이즈 기반) - 개선된 버전
 const create3DFloorFromRoom = (data: any) => {
   if (!scene || !data?.roomSize || !data?.canvasSize) return
 
   // 기존 바닥 제거
-  const existingFloors = scene.children.filter(child => child.userData.type === 'room-floor')
+  const existingFloors = scene.children.filter(child => 
+    child.userData.type === 'room-floor' || child.userData.type === 'base-floor' || child.userData.type === 'zone-floor'
+  )
   existingFloors.forEach(f => {
     scene.remove(f)
     if ((f as any).geometry) (f as any).geometry.dispose()
@@ -334,10 +336,34 @@ const create3DFloorFromRoom = (data: any) => {
     }
   })
 
-  // 여러 바닥 지원: floors 기준으로만 렌더 (2D px → 3D m)
-  // floors가 있으면 floors만 기준으로 동기화
+  // 1단계: 기본 바닥 생성 (가장 아래 레이어)
+  if (data.roomSize) {
+    const widthMeters = data.roomSize.width
+    const depthMeters = data.roomSize.height
+    const geo = new THREE.PlaneGeometry(widthMeters, depthMeters)
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xD3D3D3, // 밝은 회색 (기본 바닥)
+      roughness: 0.9,
+      metalness: 0.0,
+      transparent: false, // 기본 바닥은 불투명
+      opacity: 1.0
+    })
+    const baseFloor = new THREE.Mesh(geo, mat)
+    baseFloor.rotation.x = -Math.PI / 2
+    baseFloor.position.set(0, -0.01, 0) // 약간 아래에 배치하여 Z-fighting 방지
+    baseFloor.renderOrder = -1 // 가장 뒤에 렌더링
+    baseFloor.userData.type = 'base-floor'
+    scene.add(baseFloor)
+  }
+
+  // 2단계: 추가 바닥들 생성 (기본 바닥 위에)
   if (Array.isArray(data.floors)) {
-    data.floors.forEach((f: any) => {
+    data.floors.forEach((f: any, index: number) => {
+      // 기본 바닥과 겹치는 부분은 건너뛰기
+      if (f.isZone || f.color === '#D3D3D3') {
+        return
+      }
+
       const widthMeters = f.width
       const depthMeters = f.height
       const geo = new THREE.PlaneGeometry(widthMeters, depthMeters)
@@ -346,35 +372,86 @@ const create3DFloorFromRoom = (data: any) => {
         roughness: 0.9,
         metalness: 0.0,
         transparent: true,
-        opacity: 0.65
+        opacity: 0.8, // 투명도 증가
+        depthWrite: false, // 깊이 버퍼 쓰기 비활성화로 겹침 문제 해결
+        depthTest: true, // 깊이 테스트는 활성화
+        side: THREE.DoubleSide // 양면 렌더링
       })
+      
       const mesh = new THREE.Mesh(geo, mat)
       mesh.rotation.x = -Math.PI / 2
+      
+      // 좌표 변환 (2D px → 3D m)
       const cx = (f.boundsPx.left + f.boundsPx.right) / 2
       const cy = (f.boundsPx.top + f.boundsPx.bottom) / 2
       const posX = (cx - data.canvasSize.width / 2) / 40
       const posZ = (cy - data.canvasSize.height / 2) / 40
-      mesh.position.set(posX, 0, posZ)
+      
+      mesh.position.set(posX, 0.01, posZ) // 기본 바닥보다 약간 위에 배치
+      mesh.renderOrder = index + 1 // 순서대로 렌더링
       mesh.userData.type = 'room-floor'
+      mesh.userData.floorId = f.id
+      
       scene.add(mesh)
     })
-  } else if (data.roomSize) {
-    // floors가 아직 없는 경우 roomSize 기준으로 1개 표시 (호환)
-    const widthMeters = data.roomSize.width
-    const depthMeters = data.roomSize.height
-    const geo = new THREE.PlaneGeometry(widthMeters, depthMeters)
-    const mat = new THREE.MeshStandardMaterial({
-      color: 0xFFF3B0,
-      roughness: 0.9,
-      metalness: 0.0,
-      transparent: true,
-      opacity: 0.6
+  }
+
+  // 3단계: Zone 바닥들 생성 (가장 위 레이어)
+  if (Array.isArray(data.floors)) {
+    const zoneFloors = data.floors.filter((f: any) => f.isZone)
+    zoneFloors.forEach((f: any, index: number) => {
+      const widthMeters = f.width
+      const depthMeters = f.height
+      const geo = new THREE.PlaneGeometry(widthMeters, depthMeters)
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(f.color || '#FFE082'),
+        roughness: 0.9,
+        metalness: 0.0,
+        transparent: true,
+        opacity: 0.9, // Zone은 더 불투명하게
+        depthWrite: false,
+        depthTest: true,
+        side: THREE.DoubleSide
+      })
+      
+      const mesh = new THREE.Mesh(geo, mat)
+      mesh.rotation.x = -Math.PI / 2
+      
+      // 좌표 변환
+      const cx = (f.boundsPx.left + f.boundsPx.right) / 2
+      const cy = (f.boundsPx.top + f.boundsPx.bottom) / 2
+      const posX = (cx - data.canvasSize.width / 2) / 40
+      const posZ = (cy - data.canvasSize.height / 2) / 40
+      
+      mesh.position.set(posX, 0.02, posZ) // Zone은 가장 위에 배치
+      mesh.renderOrder = 100 + index // 높은 렌더 순서
+      mesh.userData.type = 'zone-floor'
+      mesh.userData.zoneId = f.id
+      
+      scene.add(mesh)
     })
-    const mesh = new THREE.Mesh(geo, mat)
-    mesh.rotation.x = -Math.PI / 2
-    mesh.position.set(0, 0, 0)
-    mesh.userData.type = 'room-floor'
-    scene.add(mesh)
+  }
+
+  // 4단계: 씬 정리 및 렌더링 순서 최적화
+  if (scene) {
+    // 바닥들을 렌더링 순서대로 정렬
+    const floors = scene.children.filter(child => 
+      child.userData.type === 'base-floor' || 
+      child.userData.type === 'room-floor' || 
+      child.userData.type === 'zone-floor'
+    )
+    
+    floors.sort((a, b) => {
+      const orderA = (a as any).renderOrder || 0
+      const orderB = (b as any).renderOrder || 0
+      return orderA - orderB
+    })
+    
+    // 정렬된 순서대로 씬에 재배치
+    floors.forEach((floor, index) => {
+      scene.remove(floor)
+      scene.add(floor)
+    })
   }
 }
 
@@ -1784,7 +1861,7 @@ const clearAll3D = () => {
   remove3DPopup()
 
   const objectTypesToRemove = [
-    'exterior-wall', 'interior-wall', 'room-floor', 'ceiling', 
+    'exterior-wall', 'interior-wall', 'room-floor', 'base-floor', 'zone-floor', 'ceiling', 
     'room-light', 'corner-light', 'wall-decoration', 'placed-object', 'status-sphere', '3d-popup',
     'instanced-objects'
   ]
@@ -1962,6 +2039,19 @@ defineExpose({
   create3DWalls,
   make3D,
   clearAll3D
+})
+
+// mounted 이벤트 emit
+const emit = defineEmits<{
+  mounted: []
+}>()
+
+// 컴포넌트 마운트 완료 시 이벤트 emit
+onMounted(() => {
+  // 3D 뷰어 초기화 완료 후 mounted 이벤트 emit
+  nextTick(() => {
+    emit('mounted')
+  })
 })
 </script>
 

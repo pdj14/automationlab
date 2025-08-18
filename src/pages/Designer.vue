@@ -38,7 +38,7 @@
       <div v-if="activeTab === '3d'" class="tab-panel tab-3d">
         <div class="layout-3d">
           <section class="viewer-3d">
-            <FloorPlanViewer3D ref="viewer3dRef" />
+            <FloorPlanViewer3D ref="viewer3dRef" @mounted="handle3DViewerMounted" />
           </section>
         </div>
       </div>
@@ -66,15 +66,21 @@ watch(activeTab, async (newTab) => {
     // 3D 뷰어가 완전히 렌더링될 때까지 대기
     await nextTick()
     
-    // 3D 뷰어 컴포넌트에 접근하여 강제 재초기화
+    // 3D 뷰어 컴포넌트에 접근하여 자동으로 Make3D 실행
     if (viewer3dRef.value) {
-      // 3D 뷰어의 debugStore 함수 호출하여 상태 확인
       try {
-        if (typeof viewer3dRef.value.debugStore === 'function') {
-          viewer3dRef.value.debugStore()
+        // 3D 뷰어가 완전히 마운트될 때까지 추가 대기
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // make3D 함수가 존재하면 자동 실행
+        if (typeof viewer3dRef.value.make3D === 'function') {
+          console.log('🚀 3D 탭 전환 시 자동 Make3D 실행')
+          await viewer3dRef.value.make3D()
+        } else {
+          console.warn('⚠️ make3D 함수를 찾을 수 없습니다')
         }
       } catch (error) {
-        console.error('❌ 3D 뷰어 디버깅 오류:', error)
+        console.error('❌ 3D 뷰어 자동 Make3D 오류:', error)
       }
     }
   } else if (newTab === '2d') {
@@ -84,6 +90,24 @@ watch(activeTab, async (newTab) => {
     viewer3dRef.value = null
   }
 })
+
+// 3D 뷰어 컴포넌트가 마운트된 후 자동 Make3D 실행을 위한 추가 처리
+const handle3DViewerMounted = async () => {
+  if (activeTab.value === '3d' && viewer3dRef.value) {
+    try {
+      // 3D 뷰어가 완전히 마운트될 때까지 추가 대기
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // make3D 함수가 존재하면 자동 실행
+      if (typeof viewer3dRef.value.make3D === 'function') {
+        console.log('🚀 3D 뷰어 마운트 후 자동 Make3D 실행')
+        await viewer3dRef.value.make3D()
+      }
+    } catch (error) {
+      console.error('❌ 3D 뷰어 마운트 후 자동 Make3D 오류:', error)
+    }
+  }
+}
 </script>
 
 <style scoped>

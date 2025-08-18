@@ -1,0 +1,5 @@
+[33m36e9e9f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m feat: Zone 삭제 기능 개선 - Zone 생성 후 선택 및 삭제 가능하도록 수정
+[33m322a274[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix Dark mode grid color issues and remove debug console.log statements
+[33mc0cacb1[m Home 화면 테마 일관성 개선 및 Background image 가시성 복구
+[33m1eefc9e[m Dark mode 호환성 개선 및 ObjectLibrary 스타일 업데이트
+[33mf816a01[m Add Dubot GLB model and 3D status spheres toggle functionality

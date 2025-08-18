@@ -45,19 +45,61 @@
             :class="['btn', 'btn-secondary', { active: currentTool === 'wall' }]" title="Draw New Interior Walls">
             🧱 Draw Wall
           </button>
-          <button @click="deleteSelectedObject" :disabled="!selectedObject" class="btn btn-danger"
-            title="Delete Selected Object">
+          <button @click="deleteSelectedObject" :disabled="!selectedObject && selectedObjects.length === 0" class="btn btn-danger"
+            title="Delete Selected Object(s)">
             🗑️ Delete
           </button>
         </div>
-        <div v-if="selectedObject" class="selection-info">
-          <small v-if="selectedObject.userData?.type === 'placed-object'">
-            ✅ Object "{{ selectedObject.userData?.objectName }}" selected - Press Delete or click button to remove
-          </small>
-          <small v-else>
-            ✅ {{ selectedObject.userData?.type === 'exterior-wall' ? 'Exterior Wall' : 'Interior Wall' }} selected
-            ({{ selectedObject.userData?.position || 'custom' }}) - Press Delete or click button to remove
-          </small>
+        
+        <!-- 벽 그리기 좌표 입력 -->
+        <div v-if="currentTool === 'wall'" class="wall-coordinates">
+          <h5>📍 Wall Coordinates</h5>
+          <div class="coordinate-inputs">
+            <div class="coordinate-group">
+              <label>Start Point:</label>
+              <div class="coordinate-pair">
+                <input v-model.number="wallStartX" type="number" min="0" max="100" step="0.5" placeholder="X (m)" />
+                <input v-model.number="wallStartY" type="number" min="0" max="70" step="0.5" placeholder="Y (m)" />
+              </div>
+            </div>
+            <div class="coordinate-group">
+              <label>End Point:</label>
+              <div class="coordinate-pair">
+                <input v-model.number="wallEndX" type="number" min="0" max="100" step="0.5" placeholder="X (m)" />
+                <input v-model.number="wallEndY" type="number" min="0" max="70" step="0.5" placeholder="Y (m)" />
+              </div>
+            </div>
+            <button @click="drawWallFromCoordinates" class="btn btn-primary" :disabled="!isValidWallCoordinates">
+              🧱 Draw Wall
+            </button>
+          </div>
+        </div>
+        <div v-if="selectedObject || selectedObjects.length > 0" class="selection-info">
+          <!-- 멀티 선택 정보 -->
+          <div v-if="selectedObjects.length > 1" class="multi-selection-info">
+            <small>✅ {{ selectedObjects.length }}개 객체 선택됨 - Press Delete or click button to remove all</small>
+            <div class="selected-objects-list">
+              <small v-for="(obj, index) in selectedObjects" :key="index" class="selected-object-item">
+                • {{ getObjectDisplayName(obj) }}
+              </small>
+            </div>
+          </div>
+          <!-- 단일 선택 정보 -->
+          <div v-else-if="selectedObject">
+            <small v-if="selectedObject.userData?.type === 'placed-object'">
+              ✅ Object "{{ selectedObject.userData?.objectName }}" selected - Press Delete or click button to remove
+            </small>
+            <small v-else-if="selectedObject.userData?.type === 'room-floor'">
+              ✅ Room Floor selected - Press Delete or click button to remove
+            </small>
+            <small v-else-if="selectedObject.userData?.type === 'zone-floor'">
+              ✅ Zone Floor selected - Press Delete or click button to remove
+            </small>
+            <small v-else>
+              ✅ {{ selectedObject.userData?.type === 'exterior-wall' ? 'Exterior Wall' : 'Interior Wall' }} selected
+              ({{ selectedObject.userData?.position || 'custom' }}) - Press Delete or click button to remove
+            </small>
+          </div>
         </div>
 
 
@@ -68,8 +110,7 @@
             selected items.
           </small>
           <small v-else-if="currentTool === 'wall'">
-            🛠️ <strong>Draw Mode (Active):</strong> Click and drag on canvas to draw new walls. Existing items are not
-            selectable.
+            🛠️ <strong>Draw Mode (Active):</strong> Click and drag on canvas to draw new walls, or input exact coordinates below. Existing items are not selectable.
           </small>
         </div>
 
@@ -138,22 +179,35 @@ const zoneY = ref(0)      // Zone Y 위치 (m)
 const zoneWidth = ref(10) // Zone 가로 크기 (m)
 const zoneHeight = ref(10) // Zone 세로 크기 (m)
 
+// 벽 그리기를 위한 좌표 변수들
+const wallStartX = ref(0)  // 벽 시작점 X (m)
+const wallStartY = ref(0)  // 벽 시작점 Y (m)
+const wallEndX = ref(10)   // 벽 끝점 X (m)
+const wallEndY = ref(0)    // 벽 끝점 Y (m)
+
 // 기본 바닥 크기 (Grid 중앙에 배치)
 const roomWidth = ref(87)  // 기본 가로 87m (8700cm)
 const roomHeight = ref(56) // 기본 세로 56m (5600cm)
 
 const floorColors = ref([
-  { label: 'Light Gray', hex: '#D3D3D3', rgba: 'rgba(211, 211, 211, 0.8)' }, // 밝은 회색을 첫 번째로
   { label: 'Pastel Yellow', hex: '#FFE082', rgba: 'rgba(255, 224, 130, 0.65)' },
   { label: 'Pastel Mint', hex: '#80DEEA', rgba: 'rgba(128, 222, 234, 0.65)' },
   { label: 'Pastel Green', hex: '#A5D6A7', rgba: 'rgba(165, 214, 167, 0.65)' },
   { label: 'Pastel Pink', hex: '#F8BBD0', rgba: 'rgba(248, 187, 208, 0.65)' },
-  { label: 'Pastel Blue', hex: '#90CAF9', rgba: 'rgba(144, 202, 249, 0.65)' }
+  { label: 'Pastel Blue', hex: '#90CAF9', rgba: 'rgba(144, 202, 249, 0.65)' },
+  { label: 'Pastel Purple', hex: '#CE93D8', rgba: 'rgba(206, 147, 216, 0.65)' },
+  { label: 'Pastel Orange', hex: '#FFCC80', rgba: 'rgba(255, 204, 128, 0.65)' },
+  { label: 'Pastel Red', hex: '#EF9A9A', rgba: 'rgba(239, 154, 154, 0.65)' },
+  { label: 'Pastel Teal', hex: '#80CBC4', rgba: 'rgba(128, 203, 196, 0.65)' },
+  { label: 'Pastel Indigo', hex: '#9FA8DA', rgba: 'rgba(159, 168, 218, 0.65)' },
+  { label: 'Pastel Brown', hex: '#BCAAA4', rgba: 'rgba(188, 170, 164, 0.65)' },
+  { label: 'Pastel Coral', hex: '#FFAB91', rgba: 'rgba(255, 171, 145, 0.65)' }
 ])
-const selectedFloorColor = ref<{ label: string; hex: string; rgba: string }>(floorColors.value[0])
+const selectedFloorColor = ref<{ label: string; hex: string; rgba: string }>(floorColors.value[0]) // Pastel Yellow
 const currentTool = ref('select')
 const mousePosition = ref({ x: 0, y: 0 })
 const selectedObject = ref<any>(null)
+const selectedObjects = ref<any[]>([]) // 멀티 선택을 위한 배열
 const selectedBox = ref<any>(null) // 선택된 상자
 const boxPlacementMode = ref(false) // 상자 위 장비 배치 모드
 
@@ -174,6 +228,15 @@ const isValidZoneSize = computed(() => {
     zoneWidth.value > 0 && zoneHeight.value > 0 &&
     (zoneX.value + zoneWidth.value) <= GRID_WIDTH &&
     (zoneY.value + zoneHeight.value) <= GRID_HEIGHT
+})
+
+// 벽 좌표 유효성 검사
+const isValidWallCoordinates = computed(() => {
+  return wallStartX.value >= 0 && wallStartY.value >= 0 &&
+    wallEndX.value >= 0 && wallEndY.value >= 0 &&
+    wallStartX.value <= GRID_WIDTH && wallStartY.value <= GRID_HEIGHT &&
+    wallEndX.value <= GRID_WIDTH && wallEndY.value <= GRID_HEIGHT &&
+    (wallStartX.value !== wallEndX.value || wallStartY.value !== wallEndY.value) // 시작점과 끝점이 다르야 함
 })
 
 // 기존 Room 크기 유효성 검사 (호환성 유지)
@@ -571,15 +634,49 @@ const setupWallDrawing = () => {
   let currentLine: any = null
 
   fabricCanvas.on('selection:created', (e: any) => {
-    const selected = e.selected[0]
+    const selected = e.selected
 
-    // placed-object는 두 모드에서 모두 선택 가능
-    if (selected && selected.userData?.type === 'placed-object') {
-      selectedObject.value = selected
+    // 멀티 선택 지원
+    if (selected && selected.length > 0) {
+      selectedObjects.value = [...selected]
+      selectedObject.value = selected[0] // 첫 번째 선택된 객체를 메인으로 설정
+
+      // 첫 번째 선택된 객체로 상자 모드 결정
+      const firstSelected = selected[0]
+      if (firstSelected && firstSelected.userData?.type === 'placed-object') {
+        // ETC 상자가 선택된 경우 상자 위 장비 배치 모드 활성화
+        if (firstSelected.userData?.category === 'etc' && firstSelected.userData?.isBox) {
+          selectedBox.value = firstSelected
+          boxPlacementMode.value = true
+        } else {
+          // 상자가 아닌 오브젝트 선택 시 상자 모드 비활성화
+          selectedBox.value = null
+          boxPlacementMode.value = false
+
+          // 상자 위에 배치된 장비가 선택된 경우 해당 상자도 함께 선택
+          if (firstSelected.userData?.isOnBox && firstSelected.userData?.boxId) {
+            const fabricObjects = fabricCanvas.getObjects()
+            const boxObject = fabricObjects.find((fabricObj: any) =>
+              fabricObj.userData?.placedObjectId === firstSelected.userData?.boxId
+            )
+            if (boxObject) {
+              fabricCanvas.setActiveObject(boxObject)
+            }
+          }
+        }
+      }
+      return
+    }
+
+    // 단일 선택 처리 (기존 로직 유지)
+    const singleSelected = e.selected[0]
+    if (singleSelected && singleSelected.userData?.type === 'placed-object') {
+      selectedObject.value = singleSelected
+      selectedObjects.value = [singleSelected]
 
       // ETC 상자가 선택된 경우 상자 위 장비 배치 모드 활성화
-      if (selected.userData?.category === 'etc' && selected.userData?.isBox) {
-        selectedBox.value = selected
+      if (singleSelected.userData?.category === 'etc' && singleSelected.userData?.isBox) {
+        selectedBox.value = singleSelected
         boxPlacementMode.value = true
       } else {
         // 상자가 아닌 오브젝트 선택 시 상자 모드 비활성화
@@ -587,10 +684,10 @@ const setupWallDrawing = () => {
         boxPlacementMode.value = false
 
         // 상자 위에 배치된 장비가 선택된 경우 해당 상자도 함께 선택
-        if (selected.userData?.isOnBox && selected.userData?.boxId) {
+        if (singleSelected.userData?.isOnBox && singleSelected.userData?.boxId) {
           const fabricObjects = fabricCanvas.getObjects()
           const boxObject = fabricObjects.find((fabricObj: any) =>
-            fabricObj.userData?.placedObjectId === selected.userData?.boxId
+            fabricObj.userData?.placedObjectId === singleSelected.userData?.boxId
           )
           if (boxObject) {
             fabricCanvas.setActiveObject(boxObject)
@@ -600,14 +697,16 @@ const setupWallDrawing = () => {
       return
     }
     // 바닥 선택 허용
-    if (selected && selected.userData?.type === 'room-floor') {
-      selectedObject.value = selected
+    if (singleSelected && singleSelected.userData?.type === 'room-floor') {
+      selectedObject.value = singleSelected
+      selectedObjects.value = [singleSelected]
       return
     }
     
     // Zone 선택 허용
-    if (selected && selected.userData?.type === 'zone-floor') {
-      selectedObject.value = selected
+    if (singleSelected && singleSelected.userData?.type === 'zone-floor') {
+      selectedObject.value = singleSelected
+      selectedObjects.value = [singleSelected]
       return
     }
 
@@ -615,33 +714,47 @@ const setupWallDrawing = () => {
     if (currentTool.value !== 'select') {
       fabricCanvas.discardActiveObject()
       selectedObject.value = null
+      selectedObjects.value = []
       return
     }
 
-    if (selected && (selected.userData?.type === 'interior-wall' || selected.userData?.type === 'exterior-wall')) {
-      selectedObject.value = selected
+    if (singleSelected && (singleSelected.userData?.type === 'interior-wall' || singleSelected.userData?.type === 'exterior-wall')) {
+      selectedObject.value = singleSelected
+      selectedObjects.value = [singleSelected]
     } else {
       selectedObject.value = null
+      selectedObjects.value = []
     }
   })
 
   fabricCanvas.on('selection:updated', (e: any) => {
-    const selected = e.selected[0]
+    const selected = e.selected
 
-    // placed-object는 두 모드에서 모두 선택 가능
-    if (selected && selected.userData?.type === 'placed-object') {
-      selectedObject.value = selected
+    // 멀티 선택 지원
+    if (selected && selected.length > 0) {
+      selectedObjects.value = [...selected]
+      selectedObject.value = selected[0] // 첫 번째 선택된 객체를 메인으로 설정
+      return
+    }
+
+    // 단일 선택 처리
+    const singleSelected = e.selected[0]
+    if (singleSelected && singleSelected.userData?.type === 'placed-object') {
+      selectedObject.value = singleSelected
+      selectedObjects.value = [singleSelected]
       return
     }
     // 바닥 선택 허용
-    if (selected && selected.userData?.type === 'room-floor') {
-      selectedObject.value = selected
+    if (singleSelected && singleSelected.userData?.type === 'room-floor') {
+      selectedObject.value = singleSelected
+      selectedObjects.value = [singleSelected]
       return
     }
     
     // Zone 선택 허용
-    if (selected && selected.userData?.type === 'zone-floor') {
-      selectedObject.value = selected
+    if (singleSelected && singleSelected.userData?.type === 'zone-floor') {
+      selectedObject.value = singleSelected
+      selectedObjects.value = [singleSelected]
       return
     }
 
@@ -649,18 +762,22 @@ const setupWallDrawing = () => {
     if (currentTool.value !== 'select') {
       fabricCanvas.discardActiveObject()
       selectedObject.value = null
+      selectedObjects.value = []
       return
     }
 
-    if (selected && (selected.userData?.type === 'interior-wall' || selected.userData?.type === 'exterior-wall')) {
-      selectedObject.value = selected
+    if (singleSelected && (singleSelected.userData?.type === 'interior-wall' || singleSelected.userData?.type === 'exterior-wall')) {
+      selectedObject.value = singleSelected
+      selectedObjects.value = [singleSelected]
     } else {
       selectedObject.value = null
+      selectedObjects.value = []
     }
   })
 
   fabricCanvas.on('selection:cleared', () => {
     selectedObject.value = null
+    selectedObjects.value = []
   })
 
   updateWallSelectability()
@@ -988,6 +1105,46 @@ const updateGrid = () => {
   fabricCanvas.setBackgroundColor(backgroundColor, () => {
     fabricCanvas.renderAll()
   })
+}
+
+// 좌표 입력으로 벽 그리기
+const drawWallFromCoordinates = () => {
+  if (!isValidWallCoordinates.value || !fabricCanvas) return
+  
+  const scale = 40 // 1m = 40px
+  
+  // 기본 회색 바닥의 위치를 찾기
+  const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+    obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+  )
+  
+  if (!defaultFloor) {
+    console.error('기본 바닥을 찾을 수 없습니다.')
+    return
+  }
+  
+  // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 좌표 변환
+  const baseX = defaultFloor.left
+  const baseY = defaultFloor.top
+  
+  // 미터 단위를 픽셀 단위로 변환
+  const startX = baseX + (wallStartX.value * scale)
+  const startY = baseY + (wallStartY.value * scale)
+  const endX = baseX + (wallEndX.value * scale)
+  const endY = baseY + (wallEndY.value * scale)
+  
+  // 벽 그리기
+  addInteriorWall({ x: startX, y: startY }, { x: endX, y: endY })
+  
+  // 벽 그리기 완료 후 자동으로 Select 모드로 전환
+  console.log('🔄 좌표 입력으로 벽 그리기 완료 - Select 모드로 자동 전환')
+  setTool('select')
+  
+  // 입력 필드 초기화
+  wallStartX.value = 0
+  wallStartY.value = 0
+  wallEndX.value = 10
+  wallEndY.value = 0
 }
 
 // Store를 사용한 내부 벽 추가
@@ -2040,14 +2197,73 @@ const exportFloorPlan = () => {
   link.click()
 }
 
-// 선택된 오브젝트 삭제
+// 선택된 오브젝트 삭제 (멀티 선택 지원)
 const deleteSelectedObject = () => {
-  if (!selectedObject.value || !fabricCanvas) {
+  if (!fabricCanvas) {
     alert('삭제할 오브젝트를 먼저 선택해주세요.')
     return
   }
 
-  const objectToDelete = selectedObject.value
+  // 멀티 선택된 객체들이 있으면 모두 삭제
+  if (selectedObjects.value.length > 1) {
+    console.log(`🗑️ ${selectedObjects.value.length}개 객체 멀티 삭제 시작`)
+    
+    // 선택된 모든 객체를 삭제
+    selectedObjects.value.forEach(obj => {
+      deleteSingleObject(obj)
+    })
+    
+    // 선택 해제
+    selectedObjects.value = []
+    selectedObject.value = null
+    fabricCanvas.discardActiveObject()
+    
+    // 강제 렌더링
+    fabricCanvas.renderAll()
+    fabricCanvas.requestRenderAll()
+    
+    return
+  }
+
+  // 단일 선택된 객체 삭제 (기존 로직)
+  if (!selectedObject.value) {
+    alert('삭제할 오브젝트를 먼저 선택해주세요.')
+    return
+  }
+
+  deleteSingleObject(selectedObject.value)
+  
+  // 선택 해제
+  selectedObject.value = null
+  selectedObjects.value = []
+  fabricCanvas.discardActiveObject()
+}
+
+// 객체 표시 이름 반환 함수
+const getObjectDisplayName = (obj: any): string => {
+  if (!obj || !obj.userData) return 'Unknown Object'
+  
+  const type = obj.userData.type
+  switch (type) {
+    case 'placed-object':
+      return obj.userData.objectName || 'Object'
+    case 'room-floor':
+      return 'Room Floor'
+    case 'zone-floor':
+      return 'Zone Floor'
+    case 'interior-wall':
+      return 'Interior Wall'
+    case 'exterior-wall':
+      return 'Exterior Wall'
+    default:
+      return type || 'Unknown'
+  }
+}
+
+// 단일 객체 삭제 함수
+const deleteSingleObject = (objectToDelete: any) => {
+  if (!fabricCanvas) return
+  
   const objectId = objectToDelete.userData?.id
   const objectType = objectToDelete.userData?.type
 
@@ -2056,10 +2272,6 @@ const deleteSelectedObject = () => {
     const placedObjectId = objectToDelete.userData?.placedObjectId
 
     fabricCanvas.remove(objectToDelete)
-
-    // 강제 렌더링
-    fabricCanvas.renderAll()
-    fabricCanvas.requestRenderAll()
 
     // Store에서도 제거
     if (placedObjectId) {
@@ -2086,12 +2298,7 @@ const deleteSelectedObject = () => {
 
       // 🚀 핵심 개선: Store 기반 2D 재구성 (3D와 동일한 방식)
       rerender2DObjectsFromStore()
-
     }
-
-    // 선택 해제
-    selectedObject.value = null
-    fabricCanvas.discardActiveObject()
 
   } else if (objectType === 'interior-wall' || objectType === 'exterior-wall') {
     // 벽 삭제 (기존 로직)
@@ -2143,10 +2350,6 @@ const deleteSelectedObject = () => {
     // 레이어 재정렬 및 강제 리렌더
     sendAllFloorsToBack()
     positionGridAfterFloors()
-    fabricCanvas.discardActiveObject()
-    selectedObject.value = null
-    fabricCanvas.requestRenderAll()
-    fabricCanvas.renderAll()
   } else if (objectType === 'zone-floor') {
     // Zone 삭제: 같은 zoneId의 라벨/사각형 모두 제거, 스토어 업데이트
     const zoneId = objectToDelete.userData?.zoneId
@@ -2169,26 +2372,15 @@ const deleteSelectedObject = () => {
     // 레이어 재정렬 및 강제 리렌더
     sendAllFloorsToBack()
     positionGridAfterFloors()
-    fabricCanvas.discardActiveObject()
-    selectedObject.value = null
-    fabricCanvas.requestRenderAll()
-    fabricCanvas.renderAll()
   }
 
-  // 선택 해제
-  selectedObject.value = null
-  fabricCanvas.discardActiveObject()
-
-  // 5. 강제 캔버스 재렌더링 (여러 방법 시도)
+  // 강제 캔버스 재렌더링
   try {
     fabricCanvas.renderAll()
     fabricCanvas.requestRenderAll()
   } catch (error) {
     console.error('❌ 캔버스 재렌더링 실패:', error)
   }
-
-  // 6. 3D 업데이트 제거 - Make3D 버튼으로만 변환
-  // updateAllWalls() 제거
 
 }
 
@@ -2408,6 +2600,23 @@ onUnmounted(() => {
   color: #2d5a2d;
 }
 
+.multi-selection-info {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+}
+
+.selected-objects-list {
+  margin-top: 0.5rem;
+  padding-left: 1rem;
+}
+
+.selected-object-item {
+  display: block;
+  margin: 0.25rem 0;
+  color: #856404;
+}
+
 
 
 .tool-info {
@@ -2549,6 +2758,65 @@ onUnmounted(() => {
   border-radius: 4px;
   font-weight: bold;
   animation: pulse 2s infinite;
+}
+
+/* 벽 좌표 입력 스타일 */
+.wall-coordinates {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+}
+
+.wall-coordinates h5 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: #495057;
+  font-weight: 600;
+}
+
+.coordinate-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.coordinate-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.coordinate-group label {
+  font-size: 0.8rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.coordinate-pair {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.coordinate-pair input {
+  width: 70px;
+  padding: 0.4rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.coordinate-pair input:focus {
+  outline: none;
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.coordinate-pair input::placeholder {
+  color: #adb5bd;
+  font-size: 0.8rem;
 }
 
 @keyframes pulse {
