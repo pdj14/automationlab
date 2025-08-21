@@ -127,8 +127,11 @@
         <button @click="clearCanvas" class="btn btn-secondary">
           🗑️ Clear
         </button>
+        <button @click="saveFloorPlan" class="btn btn-success" title="Save floor plan to backend">
+          💾 Save
+        </button>
         <button @click="exportFloorPlan" class="btn btn-primary">
-          💾 Export
+          📤 Export
         </button>
       </div>
     </div>
@@ -329,7 +332,7 @@ const throttle = (func: Function, delay: number) => {
 // }, 300)
 
 // 캔버스 초기화
-const initCanvas = () => {
+const initCanvas = async () => {
   if (!canvas2d.value || !canvasWrapper.value) return
 
   const wrapper = canvasWrapper.value
@@ -412,6 +415,9 @@ const initCanvas = () => {
 
   // 다중 키보드 이벤트 설정 (더 확실하게)
   setupKeyboardEvents()
+
+  // 저장된 Zone 정보 불러오기
+  await loadSavedZones()
 }
 
 // 키보드 이벤트 설정 (다중 방법)
@@ -2181,6 +2187,202 @@ const clearCanvas = () => {
   floorplanStore.setCanvasSize({ width: canvasWidth, height: canvasHeight })
 }
 
+// 평면도 저장 (백엔드 API로 Zone 정보 전송)
+const saveFloorPlan = async () => {
+  if (!fabricCanvas) {
+    alert('저장할 플로어플랜이 없습니다.')
+    return
+  }
+
+  try {
+    // 현재 캔버스에 그려진 Zone들 수집
+    const zones = fabricCanvas.getObjects().filter((obj: any) => 
+      obj.userData?.type === 'zone-floor'
+    )
+
+    if (zones.length === 0) {
+      alert('저장할 Zone이 없습니다. Zone을 먼저 생성해주세요.')
+      return
+    }
+
+    console.log('💾 저장할 Zone 개수:', zones.length)
+
+    // Zone 정보를 백엔드 형식으로 변환
+    const zonesToSave = zones.map((zone: any) => {
+      const scale = 40 // 1m = 40px
+      
+      // 기본 회색 바닥의 위치를 찾기
+      const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+        obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+      )
+      
+      if (!defaultFloor) {
+        throw new Error('기본 바닥을 찾을 수 없습니다.')
+      }
+      
+      // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 좌표 변환
+      const baseX = defaultFloor.left
+      const baseY = defaultFloor.top
+      
+      // Zone의 실제 위치를 미터 단위로 계산
+      const zoneX = (zone.left - baseX) / scale
+      const zoneY = (zone.top - baseY) / scale
+      const zoneWidth = zone.getScaledWidth() / scale
+      const zoneHeight = zone.getScaledHeight() / scale
+      
+      return {
+        x: Math.round(zoneX * 100) / 100, // 소수점 2자리까지
+        y: Math.round(zoneY * 100) / 100,
+        width: Math.round(zoneWidth * 100) / 100,
+        height: Math.round(zoneHeight * 100) / 100,
+        color: zone.fill || '#FFE082' // 기본 색상
+      }
+    })
+
+    console.log('💾 변환된 Zone 데이터:', zonesToSave)
+
+    // 백엔드 API로 Zone 정보 전송
+    const response = await fetch('http://localhost:8080/api/zones/bulk', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(zonesToSave)
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const result = await response.json()
+    console.log('✅ Zone 저장 성공:', result)
+    
+    // 성공 메시지 표시
+    alert(`성공적으로 ${zonesToSave.length}개의 Zone을 저장했습니다!`)
+    
+    // 저장된 Zone들의 ID를 Store에 업데이트 (선택사항)
+    // 이 부분은 백엔드 응답에 따라 구현 가능
+    
+  } catch (error) {
+    console.error('❌ Zone 저장 실패:', error)
+    alert(`Zone 저장에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
+  }
+}
+
+// 저장된 Zone 정보 불러오기
+const loadSavedZones = async () => {
+  if (!fabricCanvas) return
+
+  try {
+    console.log('🔄 저장된 Zone 정보 불러오기 시작...')
+    
+    // 백엔드 API에서 저장된 Zone 정보 가져오기
+    const response = await fetch('http://localhost:8080/api/zones')
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.log('📝 저장된 Zone이 없습니다.')
+        return
+      }
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const savedZones = await response.json()
+    console.log('✅ 불러온 Zone 정보:', savedZones)
+
+    if (savedZones.length === 0) {
+      console.log('📝 저장된 Zone이 없습니다.')
+      return
+    }
+
+    // 각 Zone을 캔버스에 그리기
+    savedZones.forEach((zoneData: any) => {
+      createZoneFromSavedData(zoneData)
+    })
+
+    console.log(`✅ ${savedZones.length}개의 Zone을 성공적으로 불러왔습니다.`)
+    
+  } catch (error) {
+    console.error('❌ Zone 정보 불러오기 실패:', error)
+    // 에러가 발생해도 기본 기능은 계속 동작하도록 함
+  }
+}
+
+// 저장된 데이터로부터 Zone 생성
+const createZoneFromSavedData = (zoneData: any) => {
+  if (!fabricCanvas) return
+
+  const scale = 40 // 1m = 40px
+
+  // 기본 회색 바닥의 위치를 찾기
+  const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+    obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+  )
+
+  if (!defaultFloor) {
+    console.error('기본 바닥을 찾을 수 없습니다.')
+    return
+  }
+
+  // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 Zone 위치 계산
+  const baseX = defaultFloor.left
+  const baseY = defaultFloor.top
+  const zoneLeft = baseX + (zoneData.x * scale)
+  const zoneTop = baseY + (zoneData.y * scale)
+  const zoneWidthPx = zoneData.width * scale
+  const zoneHeightPx = zoneData.height * scale
+
+  // Zone 바닥 생성
+  const zoneId = `saved-${zoneData.id || Date.now()}`
+  const zoneRect = new fabric.Rect({
+    left: zoneLeft,
+    top: zoneTop,
+    width: zoneWidthPx,
+    height: zoneHeightPx,
+    fill: zoneData.color || '#FFE082',
+    stroke: zoneData.color || '#FFE082',
+    strokeWidth: 2,
+    selectable: true,
+    hasControls: true,
+    lockRotation: true,
+    evented: true
+  })
+  zoneRect.userData = { type: 'zone-floor', zoneId, isZone: true, isSaved: true }
+  fabricCanvas.add(zoneRect)
+
+  // Zone을 기본 바닥보다 위에 표시하되, 다른 오브젝트보다는 아래에 배치
+  const allObjects = fabricCanvas.getObjects()
+  const floorObjects = allObjects.filter((obj: any) => obj.userData?.type === 'room-floor')
+  const maxFloorIndex = floorObjects.length > 0 ?
+    Math.max(...floorObjects.map((obj: any) => allObjects.indexOf(obj))) : -1
+
+  if (maxFloorIndex >= 0) {
+    fabricCanvas.moveTo(zoneRect, maxFloorIndex + 1)
+  }
+
+  // Zone 사이즈 라벨 추가
+  addOrUpdateZoneSizeLabel(zoneRect)
+
+  // Zone 이동/리사이즈 처리
+  zoneRect.on('moving', () => handleZoneMoving(zoneRect))
+  zoneRect.on('modified', () => handleZoneModified(zoneRect))
+  zoneRect.on('selected', () => { selectedObject.value = zoneRect })
+  zoneRect.on('deselected', () => { if (selectedObject.value === zoneRect) selectedObject.value = null })
+
+  // Store에 Zone 정보 추가
+  floorplanStore.addFloor({
+    id: zoneId,
+    width: zoneData.width,
+    height: zoneData.height,
+    boundsPx: { left: zoneLeft, top: zoneTop, right: zoneLeft + zoneWidthPx, bottom: zoneTop + zoneHeightPx },
+    color: zoneData.color || '#FFE082',
+    isZone: true,
+    zonePosition: { x: zoneData.x, y: zoneData.y }
+  })
+
+  fabricCanvas.renderAll()
+}
+
 // 평면도 내보내기
 const exportFloorPlan = () => {
   if (!fabricCanvas) return
@@ -2441,8 +2643,8 @@ watch(
   { deep: true }
 )
 
-onMounted(() => {
-  initCanvas()
+onMounted(async () => {
+  await initCanvas()
   window.addEventListener('resize', handleResize)
   window.addEventListener('placeObject', handlePlaceObject)
 
@@ -2688,6 +2890,15 @@ onUnmounted(() => {
 .btn-danger:disabled {
   background: #bdc3c7;
   color: #7f8c8d;
+}
+
+.btn-success {
+  background: #27ae60;
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #229954;
 }
 
 .canvas-wrapper {
