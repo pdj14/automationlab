@@ -518,8 +518,6 @@ const initCanvas = async () => {
   fabricCanvas.on('object:modified', (e: any) => {
     const modifiedObject = e.target
     if (modifiedObject && modifiedObject.userData?.type === 'placed-object') {
-      // 소수점 2자리 제한 적용
-      applyDecimalPrecision(modifiedObject)
       updatePlacedObjectInStore(modifiedObject)
 
       // 상자가 이동하거나 회전한 경우 그 위의 장비들도 함께 이동/회전
@@ -916,15 +914,11 @@ const setupWallDrawing = () => {
   fabricCanvas.on('object:modified', (e: any) => {
     const modifiedObject = e.target
     if (modifiedObject && (modifiedObject.userData?.type === 'interior-wall' || modifiedObject.userData?.type === 'exterior-wall')) {
-      // 소수점 2자리 제한 적용
-      applyDecimalPrecision(modifiedObject)
       const wallType = modifiedObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
       updateInteriorWallInList(modifiedObject)
     } else if (modifiedObject && modifiedObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(modifiedObject)
     } else if (modifiedObject && modifiedObject.userData?.type === 'zone-floor') {
-      // 소수점 2자리 제한 적용
-      applyDecimalPrecision(modifiedObject)
       handleZoneModified(modifiedObject)
     }
   })
@@ -932,17 +926,11 @@ const setupWallDrawing = () => {
   fabricCanvas.on('object:moving', (e: any) => {
     const movingObject = e.target
     if (movingObject && (movingObject.userData?.type === 'interior-wall' || movingObject.userData?.type === 'exterior-wall')) {
-      // 이동 중에도 소수점 2자리 제한 적용
-      applyDecimalPrecision(movingObject)
       const wallType = movingObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
       updateInteriorWallInList(movingObject)
     } else if (movingObject && movingObject.userData?.type === 'placed-object') {
-      // 이동 중에도 소수점 2자리 제한 적용
-      applyDecimalPrecision(movingObject)
       updatePlacedObjectInStore(movingObject)
     } else if (movingObject && movingObject.userData?.type === 'zone-floor') {
-      // 이동 중에도 소수점 2자리 제한 적용
-      applyDecimalPrecision(movingObject)
       handleZoneMoving(movingObject)
     }
   })
@@ -950,8 +938,6 @@ const setupWallDrawing = () => {
   fabricCanvas.on('object:scaling', (e: any) => {
     const scalingObject = e.target
     if (scalingObject && (scalingObject.userData?.type === 'interior-wall' || scalingObject.userData?.type === 'exterior-wall')) {
-      // 크기 조정 중에도 소수점 2자리 제한 적용
-      applyDecimalPrecision(scalingObject)
       const wallType = scalingObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
       updateInteriorWallInList(scalingObject)
     }
@@ -960,13 +946,9 @@ const setupWallDrawing = () => {
   fabricCanvas.on('object:rotating', (e: any) => {
     const rotatingObject = e.target
     if (rotatingObject && (rotatingObject.userData?.type === 'interior-wall' || rotatingObject.userData?.type === 'exterior-wall')) {
-      // 회전 중에도 소수점 2자리 제한 적용
-      applyDecimalPrecision(rotatingObject)
       const wallType = rotatingObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
       updateInteriorWallInList(rotatingObject)
     } else if (rotatingObject && rotatingObject.userData?.type === 'placed-object') {
-      // 회전 중에도 소수점 2자리 제한 적용
-      applyDecimalPrecision(rotatingObject)
       updatePlacedObjectInStore(rotatingObject)
     }
   })
@@ -1031,38 +1013,9 @@ const setupWallDrawing = () => {
   })
 }
 
-// 소수점 2자리 제한을 적용하는 함수
-const applyDecimalPrecision = (object: any) => {
-  if (!object) return
-  
-  // 위치를 소수점 2자리로 제한
-  if (object.left !== undefined) {
-    object.left = Math.round(object.left * 100) / 100
-  }
-  if (object.top !== undefined) {
-    object.top = Math.round(object.top * 100) / 100
-  }
-  
-  // 크기를 소수점 2자리로 제한
-  if (object.width !== undefined) {
-    object.width = Math.round(object.width * 100) / 100
-  }
-  if (object.height !== undefined) {
-    object.height = Math.round(object.height * 100) / 100
-  }
-  
-  // 스케일을 소수점 2자리로 제한
-  if (object.scaleX !== undefined) {
-    object.scaleX = Math.round(object.scaleX * 100) / 100
-  }
-  if (object.scaleY !== undefined) {
-    object.scaleY = Math.round(object.scaleY * 100) / 100
-  }
-  
-  // 회전을 소수점 2자리로 제한
-  if (object.angle !== undefined) {
-    object.angle = Math.round(object.angle * 100) / 100
-  }
+// 소수점 2자리로 반올림하는 헬퍼 함수 (값만 반환, 오브젝트 수정 안함)
+const roundToTwoDecimals = (value: number): number => {
+  return Math.round(value * 100) / 100
 }
 
 // Store를 사용한 벽 정보 업데이트 (내부벽/외부벽 모두 처리)
@@ -1294,11 +1247,11 @@ const drawWallFromCoordinates = () => {
   
   const scale = 40 // 1m = 40px
   
-  // 입력값을 소수점 2자리로 제한
-  const roundedStartX = Math.round(wallStartX.value * 100) / 100
-  const roundedStartY = Math.round(wallStartY.value * 100) / 100
-  const roundedEndX = Math.round(wallEndX.value * 100) / 100
-  const roundedEndY = Math.round(wallEndY.value * 100) / 100
+  // 원본 입력값 사용 (반올림하지 않음)
+  const startXValue = wallStartX.value
+  const startYValue = wallStartY.value
+  const endXValue = wallEndX.value
+  const endYValue = wallEndY.value
   
   // 기본 회색 바닥의 위치를 찾기
   const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
@@ -1315,10 +1268,10 @@ const drawWallFromCoordinates = () => {
   const baseY = defaultFloor.top
   
   // 미터 단위를 픽셀 단위로 변환
-  const startX = baseX + (roundedStartX * scale)
-  const startY = baseY + (roundedStartY * scale)
-  const endX = baseX + (roundedEndX * scale)
-  const endY = baseY + (roundedEndY * scale)
+  const startX = baseX + (startXValue * scale)
+  const startY = baseY + (startYValue * scale)
+  const endX = baseX + (endXValue * scale)
+  const endY = baseY + (endYValue * scale)
   
   // 벽 그리기
   addInteriorWall({ x: startX, y: startY }, { x: endX, y: endY })
@@ -1598,11 +1551,11 @@ const createZone = () => {
 
   const scale = 40 // 1m = 40px
 
-  // 입력값을 소수점 2자리로 제한
-  const roundedZoneX = Math.round(zoneX.value * 100) / 100
-  const roundedZoneY = Math.round(zoneY.value * 100) / 100
-  const roundedZoneWidth = Math.round(zoneWidth.value * 100) / 100
-  const roundedZoneHeight = Math.round(zoneHeight.value * 100) / 100
+  // 원본 입력값 사용 (반올림하지 않음)
+  const zoneXValue = zoneX.value
+  const zoneYValue = zoneY.value
+  const zoneWidthValue = zoneWidth.value
+  const zoneHeightValue = zoneHeight.value
 
   // 기본 회색 바닥의 위치를 찾기
   const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
@@ -1617,10 +1570,10 @@ const createZone = () => {
   // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 Zone 위치 계산
   const baseX = defaultFloor.left
   const baseY = defaultFloor.top
-  const zoneLeft = baseX + (roundedZoneX * scale)
-  const zoneTop = baseY + (roundedZoneY * scale)
-  const zoneWidthPx = roundedZoneWidth * scale
-  const zoneHeightPx = roundedZoneHeight * scale
+  const zoneLeft = baseX + (zoneXValue * scale)
+  const zoneTop = baseY + (zoneYValue * scale)
+  const zoneWidthPx = zoneWidthValue * scale
+  const zoneHeightPx = zoneHeightValue * scale
 
   // Zone 바닥 생성
   const zoneId = Date.now().toString()
@@ -1637,7 +1590,14 @@ const createZone = () => {
     lockRotation: true,
     evented: true
   })
-    ; (zoneRect as any).userData = { type: 'zone-floor', zoneId, isZone: true, isNew: true }
+    ; (zoneRect as any).userData = { 
+      type: 'zone-floor', 
+      zoneId, 
+      isZone: true, 
+      isNew: true,
+      originalWidth: zoneWidthValue,  // 원본 크기 저장
+      originalHeight: zoneHeightValue // 원본 크기 저장
+    }
   fabricCanvas.add(zoneRect)
 
   // Zone을 기본 바닥보다 위에 표시하되, 다른 오브젝트보다는 아래에 배치
@@ -1666,12 +1626,12 @@ const createZone = () => {
   // Store에 Zone 정보 추가
   floorplanStore.addFloor({
     id: zoneId,
-    width: roundedZoneWidth,
-    height: roundedZoneHeight,
+    width: zoneWidthValue,
+    height: zoneHeightValue,
     boundsPx: { left: zoneLeft, top: zoneTop, right: zoneLeft + zoneWidthPx, bottom: zoneTop + zoneHeightPx },
     color: selectedFloorColor.value.hex,
     isZone: true,
-    zonePosition: { x: roundedZoneX, y: roundedZoneY }
+    zonePosition: { x: zoneXValue, y: zoneYValue }
   })
 
   fabricCanvas.renderAll()
@@ -1723,7 +1683,7 @@ const addOrUpdateZoneSizeLabel = (zoneRect: any) => {
 const handleZoneMoving = (zoneRect: any) => {
   addOrUpdateZoneSizeLabel(zoneRect)
   
-  // Store에 Zone 위치 업데이트
+  // Store에 Zone 위치 업데이트 (크기는 변경되지 않음)
   const zoneId = zoneRect.userData?.zoneId
   if (zoneId) {
     const scale = 40 // 1m = 40px
@@ -1748,6 +1708,11 @@ const handleZoneModified = (zoneRect: any) => {
     const scale = 40 // 1m = 40px
     const newWidth = zoneRect.getScaledWidth() / scale
     const newHeight = zoneRect.getScaledHeight() / scale
+    
+    // userData에 원본 크기 업데이트
+    zoneRect.userData.originalWidth = newWidth
+    zoneRect.userData.originalHeight = newHeight
+    
     const newBounds = {
       left: zoneRect.left,
       top: zoneRect.top,
@@ -2454,8 +2419,10 @@ const saveFloorPlan = async () => {
       // Zone의 실제 위치를 미터 단위로 계산
       const zoneX = (zone.left - baseX) / scale
       const zoneY = (zone.top - baseY) / scale
-      const zoneWidth = zone.getScaledWidth() / scale
-      const zoneHeight = zone.getScaledHeight() / scale
+      
+      // 원본 크기 사용 (userData에 저장된 값)
+      const zoneWidth = zone.userData?.originalWidth || (zone.getScaledWidth() / scale)
+      const zoneHeight = zone.userData?.originalHeight || (zone.getScaledHeight() / scale)
       
       return {
         id: zone.userData?.zoneId || undefined, // 기존 ID가 있으면 유지
