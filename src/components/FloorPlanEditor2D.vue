@@ -7,19 +7,19 @@
         <div class="size-inputs">
           <div class="input-group">
             <label>X (m):</label>
-            <input v-model.number="zoneX" type="number" min="0" max="100" step="0.5" placeholder="X 위치" />
+            <input v-model.number="zoneX" type="number" min="0" max="100" step="0.01" placeholder="X 위치" />
           </div>
           <div class="input-group">
             <label>Y (m):</label>
-            <input v-model.number="zoneY" type="number" min="0" max="70" step="0.5" placeholder="Y 위치" />
+            <input v-model.number="zoneY" type="number" min="0" max="70" step="0.01" placeholder="Y 위치" />
           </div>
           <div class="input-group">
             <label>Width (m):</label>
-            <input v-model.number="zoneWidth" type="number" min="1" max="100" step="0.5" placeholder="가로" />
+            <input v-model.number="zoneWidth" type="number" min="0.01" max="100" step="0.01" placeholder="가로" />
           </div>
           <div class="input-group">
             <label>Height (m):</label>
-            <input v-model.number="zoneHeight" type="number" min="1" max="70" step="0.5" placeholder="세로" />
+            <input v-model.number="zoneHeight" type="number" min="0.01" max="70" step="0.01" placeholder="세로" />
           </div>
           <div class="color-swatches">
             <button v-for="c in floorColors" :key="c.hex" type="button" class="swatch"
@@ -58,20 +58,20 @@
             <div class="coordinate-group">
               <label>Start Point:</label>
               <div class="coordinate-pair">
-                <input v-model.number="wallStartX" type="number" min="0" max="100" step="0.5" placeholder="X (m)" />
-                <input v-model.number="wallStartY" type="number" min="0" max="70" step="0.5" placeholder="Y (m)" />
+                <input v-model.number="wallStartX" type="number" min="0" max="100" step="0.01" placeholder="X (m)" />
+                <input v-model.number="wallStartY" type="number" min="0" max="70" step="0.01" placeholder="Y (m)" />
               </div>
             </div>
-            <div class="coordinate-group">
-              <label>End Point:</label>
-              <div class="coordinate-pair">
-                <input v-model.number="wallEndX" type="number" min="0" max="100" step="0.5" placeholder="X (m)" />
-                <input v-model.number="wallEndY" type="number" min="0" max="70" step="0.5" placeholder="Y (m)" />
+                          <div class="coordinate-group">
+                <label>End Point:</label>
+                <div class="coordinate-pair">
+                  <input v-model.number="wallEndX" type="number" min="0" max="100" step="0.01" placeholder="X (m)" />
+                  <input v-model.number="wallEndY" type="number" min="0" max="70" step="0.01" placeholder="Y (m)" />
+                </div>
               </div>
-            </div>
-            <button @click="drawWallFromCoordinates" class="btn btn-primary" :disabled="!isValidWallCoordinates">
-              🧱 Draw Wall
-            </button>
+              <button @click="drawWallFromCoordinates" class="btn btn-primary" :disabled="!isValidWallCoordinates">
+                🧱 Draw Wall
+              </button>
           </div>
         </div>
         <div v-if="selectedObject || selectedObjects.length > 0" class="selection-info">
@@ -143,15 +143,112 @@
 
     <!-- 상태바 -->
     <div class="statusbar">
-      <span>📐 Grid: {{ GRID_WIDTH }}m × {{ GRID_HEIGHT }}m</span>
-      <span>🏢 Base Floor: {{ roomWidth }}m × {{ roomHeight }}m</span>
-      <span>🏗️ Zone: X{{ zoneX }}m Y{{ zoneY }}m W{{ zoneWidth }}m H{{ zoneHeight }}m</span>
+      <span>📐 Grid: {{ (GRID_WIDTH * 100).toFixed(0) }}cm × {{ (GRID_HEIGHT * 100).toFixed(0) }}cm</span>
+      <span>🏢 Base Floor: {{ (roomWidth * 100).toFixed(0) }}cm × {{ (roomHeight * 100).toFixed(0) }}cm</span>
+      <span>🏗️ Zone: X{{ zoneX.toFixed(2) }}m Y{{ zoneY.toFixed(2) }}m W{{ zoneWidth.toFixed(2) }}m H{{ zoneHeight.toFixed(2) }}m</span>
       <span>�️ Tool : {{ getCurrentToolName() }} {{ currentTool === 'select' ? '(Edit Mode)' : '(Draw Mode)' }}</span>
       <span>� Griud: 1칸 = 1m</span>
       <span>�️ oMouse: ({{ mousePosition.x }}, {{ mousePosition.y }})</span>
       <span>� Zoom : {{ (zoom * 100).toFixed(0) }}%</span>
       <span>📱 Pan: ({{ pan.x.toFixed(0) }}, {{ pan.y.toFixed(0) }})</span>
+      <span v-if="floorplanStore.isLoadingZones" class="loading-indicator">🔄 Zone 로딩 중...</span>
+      <span v-if="floorplanStore.zones.length > 0" class="zone-count-indicator">🏗️ 저장된 Zone: {{ floorplanStore.zones.length }}개</span>
+      <span v-if="floorplanStore.isLoadingWalls" class="loading-indicator">🔄 Wall 로딩 중...</span>
+      <span v-if="floorplanStore.walls.length > 0" class="wall-count-indicator">🧱 저장된 Wall: {{ floorplanStore.walls.length }}개</span>
       <span v-if="boxPlacementMode" class="box-mode-indicator">📦 Box Mode: 장비를 상자 위에 배치할 수 있습니다</span>
+    </div>
+
+    <!-- Zone 변경사항 확인 팝업 -->
+    <div v-if="showChangeConfirmDialog" class="change-confirm-overlay">
+      <div class="change-confirm-dialog">
+        <div class="dialog-header">
+          <h3>🏗️ Zone 변경사항 확인</h3>
+          <button @click="closeChangeConfirmDialog" class="close-btn">×</button>
+        </div>
+        
+        <div class="dialog-content">
+          <!-- Zone 변경사항 -->
+          <div v-if="zoneChangeSummary.toCreate.length > 0" class="change-section">
+            <h4>➕ 새로 생성할 Zone ({{ zoneChangeSummary.toCreate.length }}개)</h4>
+            <div class="zone-list">
+              <div v-for="(zone, index) in zoneChangeSummary.toCreate" :key="`create-${index}`" class="zone-item">
+                <span class="zone-info">📍 ({{ zone.x.toFixed(2) }}m, {{ zone.y.toFixed(2) }}m) {{ zone.width.toFixed(2) }}m × {{ zone.height.toFixed(2) }}m</span>
+                <span class="zone-color" :style="{ backgroundColor: zone.color }"></span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="zoneChangeSummary.toUpdate.length > 0" class="change-section">
+            <h4>🔄 업데이트할 Zone ({{ zoneChangeSummary.toUpdate.length }}개)</h4>
+            <div class="zone-list">
+              <div v-for="update in zoneChangeSummary.toUpdate" :key="`update-${update.id}`" class="zone-item">
+                <div class="update-details">
+                  <span class="zone-id">ID: {{ update.id }}</span>
+                  <span class="zone-info">📍 ({{ update.newData.x.toFixed(2) }}m, {{ update.newData.y.toFixed(2) }}m) {{ update.newData.width.toFixed(2) }}m × {{ update.newData.height.toFixed(2) }}m</span>
+                  <span class="zone-color" :style="{ backgroundColor: update.newData.color }"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="zoneChangeSummary.toDelete.length > 0" class="change-section">
+            <h4>🗑️ 삭제할 Zone ({{ zoneChangeSummary.toDelete.length }}개)</h4>
+            <div class="zone-list">
+              <div v-for="zone in zoneChangeSummary.toDelete" :key="`delete-${zone.id}`" class="zone-item">
+                <span class="zone-info">📍 ({{ zone.x.toFixed(2) }}m, {{ zone.y.toFixed(2) }}m) {{ zone.width.toFixed(2) }}m × {{ zone.height.toFixed(2) }}m</span>
+                <span class="zone-color" :style="{ backgroundColor: zone.color }"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Wall 변경사항 -->
+          <div v-if="wallChangeSummary.toCreate.length > 0" class="change-section">
+            <h4>🧱 새로 생성할 Wall ({{ wallChangeSummary.toCreate.length }}개)</h4>
+            <div class="wall-list">
+              <div v-for="(wall, index) in wallChangeSummary.toCreate" :key="`create-wall-${index}`" class="wall-item">
+                <span class="wall-info">📍 ({{ wall.startX.toFixed(2) }}m, {{ wall.startY.toFixed(2) }}m) → ({{ wall.endX.toFixed(2) }}m, {{ wall.endY.toFixed(2) }}m) [{{ wall.type }}]</span>
+                <span class="wall-color" :style="{ backgroundColor: wall.color }"></span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="wallChangeSummary.toUpdate.length > 0" class="change-section">
+            <h4>🔄 업데이트할 Wall ({{ wallChangeSummary.toUpdate.length }}개)</h4>
+            <div class="wall-list">
+              <div v-for="update in wallChangeSummary.toUpdate" :key="`update-wall-${update.id}`" class="wall-item">
+                <div class="update-details">
+                  <span class="wall-id">ID: {{ update.id }}</span>
+                  <span class="wall-info">📍 ({{ update.newData.startX.toFixed(2) }}m, {{ update.newData.startY.toFixed(2) }}m) → ({{ update.newData.endX.toFixed(2) }}m, {{ update.newData.endY.toFixed(2) }}m) [{{ update.newData.type }}]</span>
+                  <span class="wall-color" :style="{ backgroundColor: update.newData.color }"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="wallChangeSummary.toDelete.length > 0" class="change-section">
+            <h4>🗑️ 삭제할 Wall ({{ wallChangeSummary.toDelete.length }}개)</h4>
+            <div class="wall-list">
+              <div v-for="wall in wallChangeSummary.toDelete" :key="`delete-wall-${wall.id}`" class="wall-item">
+                <span class="wall-info">📍 ({{ wall.startX.toFixed(2) }}m, {{ wall.startY.toFixed(2) }}m) → ({{ wall.endX.toFixed(2) }}m, {{ wall.endY.toFixed(2) }}m) [{{ wall.type }}]</span>
+                <span class="wall-color" :style="{ backgroundColor: wall.color }"></span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="zoneChangeSummary.toCreate.length === 0 && zoneChangeSummary.toUpdate.length === 0 && zoneChangeSummary.toDelete.length === 0 && 
+                      wallChangeSummary.toCreate.length === 0 && wallChangeSummary.toUpdate.length === 0 && wallChangeSummary.toDelete.length === 0" class="no-changes">
+            <p>✅ 변경사항이 없습니다.</p>
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <button @click="closeChangeConfirmDialog" class="btn btn-secondary">취소</button>
+          <button @click="confirmAndSaveZones" class="btn btn-primary" :disabled="zoneChangeSummary.toCreate.length === 0 && zoneChangeSummary.toUpdate.length === 0 && zoneChangeSummary.toDelete.length === 0 && 
+                                                                        wallChangeSummary.toCreate.length === 0 && wallChangeSummary.toUpdate.length === 0 && wallChangeSummary.toDelete.length === 0">
+            💾 변경사항 저장
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -160,6 +257,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import * as fabricLib from 'fabric'
 import { useFloorplanStore } from '../stores/floorplanStore'
+import axios from 'axios'
 
 // Fabric.js v5 호환성을 위한 처리
 const fabric = (fabricLib as any).fabric || fabricLib
@@ -213,6 +311,28 @@ const selectedObject = ref<any>(null)
 const selectedObjects = ref<any[]>([]) // 멀티 선택을 위한 배열
 const selectedBox = ref<any>(null) // 선택된 상자
 const boxPlacementMode = ref(false) // 상자 위 장비 배치 모드
+
+// Zone과 Wall 변경사항 확인 팝업 관련 상태
+const showChangeConfirmDialog = ref(false)
+const zoneChangeSummary = ref<{
+  toCreate: any[]
+  toUpdate: { id: string; oldData: any; newData: any }[]
+  toDelete: any[]
+}>({
+  toCreate: [],
+  toUpdate: [],
+  toDelete: []
+})
+
+const wallChangeSummary = ref<{
+  toCreate: any[]
+  toUpdate: { id: string; oldData: any; newData: any }[]
+  toDelete: any[]
+}>({
+  toCreate: [],
+  toUpdate: [],
+  toDelete: []
+})
 
 // 확대/축소 및 이동 관련 상태
 const zoom = ref(0.4) // 초기 zoom 40% (Default Zoom)
@@ -398,6 +518,8 @@ const initCanvas = async () => {
   fabricCanvas.on('object:modified', (e: any) => {
     const modifiedObject = e.target
     if (modifiedObject && modifiedObject.userData?.type === 'placed-object') {
+      // 소수점 2자리 제한 적용
+      applyDecimalPrecision(modifiedObject)
       updatePlacedObjectInStore(modifiedObject)
 
       // 상자가 이동하거나 회전한 경우 그 위의 장비들도 함께 이동/회전
@@ -416,8 +538,11 @@ const initCanvas = async () => {
   // 다중 키보드 이벤트 설정 (더 확실하게)
   setupKeyboardEvents()
 
-  // 저장된 Zone 정보 불러오기
-  await loadSavedZones()
+  // 저장된 Zone과 Wall 정보 불러오기
+  await Promise.all([
+    loadSavedZones(),
+    loadSavedWalls()
+  ])
 }
 
 // 키보드 이벤트 설정 (다중 방법)
@@ -791,11 +916,15 @@ const setupWallDrawing = () => {
   fabricCanvas.on('object:modified', (e: any) => {
     const modifiedObject = e.target
     if (modifiedObject && (modifiedObject.userData?.type === 'interior-wall' || modifiedObject.userData?.type === 'exterior-wall')) {
+      // 소수점 2자리 제한 적용
+      applyDecimalPrecision(modifiedObject)
       const wallType = modifiedObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
       updateInteriorWallInList(modifiedObject)
     } else if (modifiedObject && modifiedObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(modifiedObject)
     } else if (modifiedObject && modifiedObject.userData?.type === 'zone-floor') {
+      // 소수점 2자리 제한 적용
+      applyDecimalPrecision(modifiedObject)
       handleZoneModified(modifiedObject)
     }
   })
@@ -803,11 +932,17 @@ const setupWallDrawing = () => {
   fabricCanvas.on('object:moving', (e: any) => {
     const movingObject = e.target
     if (movingObject && (movingObject.userData?.type === 'interior-wall' || movingObject.userData?.type === 'exterior-wall')) {
+      // 이동 중에도 소수점 2자리 제한 적용
+      applyDecimalPrecision(movingObject)
       const wallType = movingObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
       updateInteriorWallInList(movingObject)
     } else if (movingObject && movingObject.userData?.type === 'placed-object') {
+      // 이동 중에도 소수점 2자리 제한 적용
+      applyDecimalPrecision(movingObject)
       updatePlacedObjectInStore(movingObject)
     } else if (movingObject && movingObject.userData?.type === 'zone-floor') {
+      // 이동 중에도 소수점 2자리 제한 적용
+      applyDecimalPrecision(movingObject)
       handleZoneMoving(movingObject)
     }
   })
@@ -815,6 +950,8 @@ const setupWallDrawing = () => {
   fabricCanvas.on('object:scaling', (e: any) => {
     const scalingObject = e.target
     if (scalingObject && (scalingObject.userData?.type === 'interior-wall' || scalingObject.userData?.type === 'exterior-wall')) {
+      // 크기 조정 중에도 소수점 2자리 제한 적용
+      applyDecimalPrecision(scalingObject)
       const wallType = scalingObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
       updateInteriorWallInList(scalingObject)
     }
@@ -823,9 +960,13 @@ const setupWallDrawing = () => {
   fabricCanvas.on('object:rotating', (e: any) => {
     const rotatingObject = e.target
     if (rotatingObject && (rotatingObject.userData?.type === 'interior-wall' || rotatingObject.userData?.type === 'exterior-wall')) {
+      // 회전 중에도 소수점 2자리 제한 적용
+      applyDecimalPrecision(rotatingObject)
       const wallType = rotatingObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
       updateInteriorWallInList(rotatingObject)
     } else if (rotatingObject && rotatingObject.userData?.type === 'placed-object') {
+      // 회전 중에도 소수점 2자리 제한 적용
+      applyDecimalPrecision(rotatingObject)
       updatePlacedObjectInStore(rotatingObject)
     }
   })
@@ -888,6 +1029,40 @@ const setupWallDrawing = () => {
     startPoint = null
     currentLine = null
   })
+}
+
+// 소수점 2자리 제한을 적용하는 함수
+const applyDecimalPrecision = (object: any) => {
+  if (!object) return
+  
+  // 위치를 소수점 2자리로 제한
+  if (object.left !== undefined) {
+    object.left = Math.round(object.left * 100) / 100
+  }
+  if (object.top !== undefined) {
+    object.top = Math.round(object.top * 100) / 100
+  }
+  
+  // 크기를 소수점 2자리로 제한
+  if (object.width !== undefined) {
+    object.width = Math.round(object.width * 100) / 100
+  }
+  if (object.height !== undefined) {
+    object.height = Math.round(object.height * 100) / 100
+  }
+  
+  // 스케일을 소수점 2자리로 제한
+  if (object.scaleX !== undefined) {
+    object.scaleX = Math.round(object.scaleX * 100) / 100
+  }
+  if (object.scaleY !== undefined) {
+    object.scaleY = Math.round(object.scaleY * 100) / 100
+  }
+  
+  // 회전을 소수점 2자리로 제한
+  if (object.angle !== undefined) {
+    object.angle = Math.round(object.angle * 100) / 100
+  }
 }
 
 // Store를 사용한 벽 정보 업데이트 (내부벽/외부벽 모두 처리)
@@ -1119,6 +1294,12 @@ const drawWallFromCoordinates = () => {
   
   const scale = 40 // 1m = 40px
   
+  // 입력값을 소수점 2자리로 제한
+  const roundedStartX = Math.round(wallStartX.value * 100) / 100
+  const roundedStartY = Math.round(wallStartY.value * 100) / 100
+  const roundedEndX = Math.round(wallEndX.value * 100) / 100
+  const roundedEndY = Math.round(wallEndY.value * 100) / 100
+  
   // 기본 회색 바닥의 위치를 찾기
   const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
     obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
@@ -1134,10 +1315,10 @@ const drawWallFromCoordinates = () => {
   const baseY = defaultFloor.top
   
   // 미터 단위를 픽셀 단위로 변환
-  const startX = baseX + (wallStartX.value * scale)
-  const startY = baseY + (wallStartY.value * scale)
-  const endX = baseX + (wallEndX.value * scale)
-  const endY = baseY + (wallEndY.value * scale)
+  const startX = baseX + (roundedStartX * scale)
+  const startY = baseY + (roundedStartY * scale)
+  const endX = baseX + (roundedEndX * scale)
+  const endY = baseY + (roundedEndY * scale)
   
   // 벽 그리기
   addInteriorWall({ x: startX, y: startY }, { x: endX, y: endY })
@@ -1146,11 +1327,11 @@ const drawWallFromCoordinates = () => {
   console.log('🔄 좌표 입력으로 벽 그리기 완료 - Select 모드로 자동 전환')
   setTool('select')
   
-  // 입력 필드 초기화
-  wallStartX.value = 0
-  wallStartY.value = 0
-  wallEndX.value = 10
-  wallEndY.value = 0
+  // 입력 필드 초기화 (소수점 2자리 제한)
+  wallStartX.value = 0.00
+  wallStartY.value = 0.00
+  wallEndX.value = 10.00
+  wallEndY.value = 0.00
 }
 
 // Store를 사용한 내부 벽 추가
@@ -1417,6 +1598,12 @@ const createZone = () => {
 
   const scale = 40 // 1m = 40px
 
+  // 입력값을 소수점 2자리로 제한
+  const roundedZoneX = Math.round(zoneX.value * 100) / 100
+  const roundedZoneY = Math.round(zoneY.value * 100) / 100
+  const roundedZoneWidth = Math.round(zoneWidth.value * 100) / 100
+  const roundedZoneHeight = Math.round(zoneHeight.value * 100) / 100
+
   // 기본 회색 바닥의 위치를 찾기
   const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
     obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
@@ -1430,10 +1617,10 @@ const createZone = () => {
   // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 Zone 위치 계산
   const baseX = defaultFloor.left
   const baseY = defaultFloor.top
-  const zoneLeft = baseX + (zoneX.value * scale)
-  const zoneTop = baseY + (zoneY.value * scale)
-  const zoneWidthPx = zoneWidth.value * scale
-  const zoneHeightPx = zoneHeight.value * scale
+  const zoneLeft = baseX + (roundedZoneX * scale)
+  const zoneTop = baseY + (roundedZoneY * scale)
+  const zoneWidthPx = roundedZoneWidth * scale
+  const zoneHeightPx = roundedZoneHeight * scale
 
   // Zone 바닥 생성
   const zoneId = Date.now().toString()
@@ -1450,7 +1637,7 @@ const createZone = () => {
     lockRotation: true,
     evented: true
   })
-    ; (zoneRect as any).userData = { type: 'zone-floor', zoneId, isZone: true }
+    ; (zoneRect as any).userData = { type: 'zone-floor', zoneId, isZone: true, isNew: true }
   fabricCanvas.add(zoneRect)
 
   // Zone을 기본 바닥보다 위에 표시하되, 다른 오브젝트보다는 아래에 배치
@@ -1479,15 +1666,21 @@ const createZone = () => {
   // Store에 Zone 정보 추가
   floorplanStore.addFloor({
     id: zoneId,
-    width: zoneWidth.value,
-    height: zoneHeight.value,
+    width: roundedZoneWidth,
+    height: roundedZoneHeight,
     boundsPx: { left: zoneLeft, top: zoneTop, right: zoneLeft + zoneWidthPx, bottom: zoneTop + zoneHeightPx },
     color: selectedFloorColor.value.hex,
     isZone: true,
-    zonePosition: { x: zoneX.value, y: zoneY.value }
+    zonePosition: { x: roundedZoneX, y: roundedZoneY }
   })
 
   fabricCanvas.renderAll()
+  
+  // Zone 생성 후 입력 필드 초기화 (소수점 2자리 제한)
+  zoneX.value = 0.00
+  zoneY.value = 0.00
+  zoneWidth.value = 10.00
+  zoneHeight.value = 10.00
 }
 
 // Zone 사이즈 라벨 생성/업데이트
@@ -1497,7 +1690,7 @@ const addOrUpdateZoneSizeLabel = (zoneRect: any) => {
   const widthM = (zoneRect.width * zoneRect.scaleX) / scale
   const heightM = (zoneRect.height * zoneRect.scaleY) / scale
   const area = Math.round(widthM * heightM * 100) / 100
-  const labelText = `Zone: ${widthM.toFixed(1)}m × ${heightM.toFixed(1)}m | ${area.toFixed(1)}m²`
+  const labelText = `Zone: ${widthM.toFixed(2)}m × ${heightM.toFixed(2)}m | ${area.toFixed(2)}m²`
 
   // 기존 라벨 찾기
   const zoneId = zoneRect.userData?.zoneId
@@ -1720,7 +1913,7 @@ const addWallLengthLabel = (wall: any, start: { x: number, y: number }, end: { x
   // 벽 길이 계산 (픽셀을 미터로 변환)
   const lengthPx = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2))
   const lengthM = lengthPx / 40 // 1m = 40px
-  const lengthText = lengthM.toFixed(1) + 'm'
+  const lengthText = lengthM.toFixed(2) + 'm'
 
   // 벽의 중점 계산
   const centerX = (start.x + end.x) / 2
@@ -2180,11 +2373,45 @@ const clearCanvas = () => {
   // Store 초기화
   floorplanStore.clearRoom()
   floorplanStore.clearPlacedObjects()
+  floorplanStore.clearZones()
+  floorplanStore.clearWalls()
 
   // 캔버스 크기 정보 업데이트
   const canvasWidth = fabricCanvas.width || 800
   const canvasHeight = fabricCanvas.height || 600
   floorplanStore.setCanvasSize({ width: canvasWidth, height: canvasHeight })
+}
+
+// Zone 변경사항 확인 팝업 닫기
+const closeChangeConfirmDialog = () => {
+  showChangeConfirmDialog.value = false
+}
+
+// Zone과 Wall 변경사항 확인 및 저장
+const confirmAndSaveZones = async () => {
+  try {
+    // Zone과 Wall 동기화를 병렬로 실행
+    const [zoneSuccess, wallSuccess] = await Promise.all([
+      floorplanStore.syncZones(zoneChangeSummary.value),
+      floorplanStore.syncWalls(wallChangeSummary.value)
+    ])
+    
+    if (zoneSuccess && wallSuccess) {
+      // 성공 시 최신 데이터 다시 로드
+      await Promise.all([
+        loadSavedZones(),
+        loadSavedWalls()
+      ])
+      alert('✅ Zone과 Wall 변경사항이 성공적으로 저장되었습니다!')
+    } else {
+      alert('❌ 저장 중 오류가 발생했습니다.')
+    }
+  } catch (error) {
+    console.error('저장 실패:', error)
+    alert('❌ 저장 중 오류가 발생했습니다.')
+  } finally {
+    closeChangeConfirmDialog()
+  }
 }
 
 // 평면도 저장 (백엔드 API로 Zone 정보 전송)
@@ -2231,7 +2458,8 @@ const saveFloorPlan = async () => {
       const zoneHeight = zone.getScaledHeight() / scale
       
       return {
-        x: Math.round(zoneX * 100) / 100, // 소수점 2자리까지
+        id: zone.userData?.zoneId || undefined, // 기존 ID가 있으면 유지
+        x: Math.round(zoneX * 100) / 100, // 소수점 2자리까지 (1cm 정밀도)
         y: Math.round(zoneY * 100) / 100,
         width: Math.round(zoneWidth * 100) / 100,
         height: Math.round(zoneHeight * 100) / 100,
@@ -2241,31 +2469,156 @@ const saveFloorPlan = async () => {
 
     console.log('💾 변환된 Zone 데이터:', zonesToSave)
 
-    // 백엔드 API로 Zone 정보 전송
-    const response = await fetch('http://localhost:8080/api/zones/bulk', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(zonesToSave)
+    // 현재 캔버스에 그려진 Wall들 수집
+    const walls = fabricCanvas.getObjects().filter((obj: any) => 
+      obj.userData?.type === 'interior-wall' || obj.userData?.type === 'exterior-wall'
+    )
+
+    console.log('🧱 저장할 Wall 개수:', walls.length)
+
+    // Wall 정보를 백엔드 형식으로 변환
+    const wallsToSave = walls.map((wall: any) => {
+      const scale = 40 // 1m = 40px
+      
+      // 기본 회색 바닥의 위치를 찾기
+      const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+        obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+      )
+      
+      if (!defaultFloor) {
+        throw new Error('기본 바닥을 찾을 수 없습니다.')
+      }
+      
+      // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 Wall 위치 계산
+      const baseX = defaultFloor.left
+      const baseY = defaultFloor.top
+      
+      // Wall의 시작점과 끝점을 미터 단위로 계산
+      const startX = (wall.x1 - baseX) / scale
+      const startY = (wall.y1 - baseY) / scale
+      const endX = (wall.x2 - baseX) / scale
+      const endY = (wall.y2 - baseY) / scale
+      
+      return {
+        id: wall.userData?.id || undefined, // 기존 ID가 있으면 유지
+        startX: Math.round(startX * 100) / 100, // 소수점 2자리까지 (1cm 정밀도)
+        startY: Math.round(startY * 100) / 100,
+        endX: Math.round(endX * 100) / 100,
+        endY: Math.round(endY * 100) / 100,
+        type: wall.userData?.type === 'exterior-wall' ? 'exterior' : 'interior',
+        color: wall.stroke || '#666666'
+      }
     })
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+    console.log('🧱 변환된 Wall 데이터:', wallsToSave)
+
+    // 백엔드에서 최신 Zone과 Wall 데이터 가져오기
+    const [zonesResponse, wallsResponse] = await Promise.all([
+      axios.get('http://localhost:8080/api/zones'),
+      axios.get('http://localhost:8080/api/walls')
+    ])
+    
+    const savedZones = zonesResponse.data
+    const savedWalls = wallsResponse.data
+
+    // Store의 analyzeZoneChanges와 analyzeWallChanges 함수로 변경사항 분석
+    const zoneChanges = floorplanStore.analyzeZoneChanges(zonesToSave, savedZones)
+    const wallChanges = floorplanStore.analyzeWallChanges(wallsToSave, savedWalls)
+    
+    zoneChangeSummary.value = zoneChanges
+    wallChangeSummary.value = wallChanges
+
+    console.log('🔍 Zone 변경사항 분석 결과:', zoneChanges)
+    console.log('🔍 Wall 변경사항 분석 결과:', wallChanges)
+
+    // 변경사항이 있으면 팝업 표시
+    const hasChanges = zoneChanges.toCreate.length > 0 || zoneChanges.toUpdate.length > 0 || zoneChanges.toDelete.length > 0 ||
+                      wallChanges.toCreate.length > 0 || wallChanges.toUpdate.length > 0 || wallChanges.toDelete.length > 0
+    
+    if (hasChanges) {
+      showChangeConfirmDialog.value = true
+    } else {
+      alert('✅ 변경사항이 없습니다.')
+    }
+    
+  } catch (error: any) {
+    console.error('❌ Zone 변경사항 분석 실패:', error)
+    
+    let errorMessage = '알 수 없는 오류'
+    
+    // axios 에러 처리
+    if (error.response) {
+      // 서버가 응답했지만 에러 상태 코드
+      errorMessage = `서버 오류 (${error.response.status}): ${error.response.data?.message || error.response.statusText}`
+    } else if (error.request) {
+      // 요청이 전송되었지만 응답이 없음
+      errorMessage = '서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.'
+    } else {
+      // 요청 설정 중 에러
+      errorMessage = error.message || '요청 설정 오류'
+    }
+    
+    alert(`Zone 변경사항 분석에 실패했습니다: ${errorMessage}`)
+  }
+}
+
+// 저장된 Wall 정보 불러오기
+const loadSavedWalls = async () => {
+  if (!fabricCanvas) return
+
+  try {
+    console.log('🔄 저장된 Wall 정보 불러오기 시작...')
+    
+    // Store에서 로딩 상태 설정
+    floorplanStore.setLoadingWalls(true)
+    
+    // 백엔드 API에서 저장된 Wall 정보 가져오기
+    const response = await axios.get('http://localhost:8080/api/walls')
+    
+    const savedWalls = response.data
+    console.log('✅ 불러온 Wall 정보:', savedWalls)
+
+    if (savedWalls.length === 0) {
+      console.log('📝 저장된 Wall이 없습니다.')
+      floorplanStore.setWalls([])
+      floorplanStore.setLoadingWalls(false)
+      return
     }
 
-    const result = await response.json()
-    console.log('✅ Zone 저장 성공:', result)
+    // Store에 Wall 데이터 저장
+    floorplanStore.setWalls(savedWalls)
+
+    // 각 Wall을 캔버스에 그리기
+    savedWalls.forEach((wallData: any) => {
+      createWallFromSavedData(wallData)
+    })
+
+    console.log(`✅ ${savedWalls.length}개의 Wall을 성공적으로 불러왔습니다.`)
     
-    // 성공 메시지 표시
-    alert(`성공적으로 ${zonesToSave.length}개의 Zone을 저장했습니다!`)
+  } catch (error: any) {
+    console.error('❌ Wall 정보 불러오기 실패:', error)
     
-    // 저장된 Zone들의 ID를 Store에 업데이트 (선택사항)
-    // 이 부분은 백엔드 응답에 따라 구현 가능
+    // axios 에러 처리
+    if (error.response) {
+      // 서버가 응답했지만 에러 상태 코드
+      if (error.response.status === 404) {
+        console.log('📝 저장된 Wall이 없습니다.')
+        floorplanStore.setWalls([])
+      } else {
+        console.error('서버 응답 에러:', error.response.status, error.response.data)
+      }
+    } else if (error.request) {
+      // 요청이 전송되었지만 응답이 없음
+      console.error('네트워크 에러: 서버에 연결할 수 없습니다.')
+    } else {
+      // 요청 설정 중 에러
+      console.error('요청 설정 에러:', error.message)
+    }
     
-  } catch (error) {
-    console.error('❌ Zone 저장 실패:', error)
-    alert(`Zone 저장에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
+    // 에러가 발생해도 기본 기능은 계속 동작하도록 함
+  } finally {
+    // 로딩 상태 해제
+    floorplanStore.setLoadingWalls(false)
   }
 }
 
@@ -2276,24 +2629,24 @@ const loadSavedZones = async () => {
   try {
     console.log('🔄 저장된 Zone 정보 불러오기 시작...')
     
-    // 백엔드 API에서 저장된 Zone 정보 가져오기
-    const response = await fetch('http://localhost:8080/api/zones')
+    // Store에서 로딩 상태 설정
+    floorplanStore.setLoadingZones(true)
     
-    if (!response.ok) {
-      if (response.status === 404) {
-        console.log('📝 저장된 Zone이 없습니다.')
-        return
-      }
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const savedZones = await response.json()
+    // 백엔드 API에서 저장된 Zone 정보 가져오기
+    const response = await axios.get('http://localhost:8080/api/zones')
+    
+    const savedZones = response.data
     console.log('✅ 불러온 Zone 정보:', savedZones)
 
     if (savedZones.length === 0) {
       console.log('📝 저장된 Zone이 없습니다.')
+      floorplanStore.setZones([])
+      floorplanStore.setLoadingZones(false)
       return
     }
+
+    // Store에 Zone 데이터 저장
+    floorplanStore.setZones(savedZones)
 
     // 각 Zone을 캔버스에 그리기
     savedZones.forEach((zoneData: any) => {
@@ -2302,10 +2655,114 @@ const loadSavedZones = async () => {
 
     console.log(`✅ ${savedZones.length}개의 Zone을 성공적으로 불러왔습니다.`)
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Zone 정보 불러오기 실패:', error)
+    
+    // axios 에러 처리
+    if (error.response) {
+      // 서버가 응답했지만 에러 상태 코드
+      if (error.response.status === 404) {
+        console.log('📝 저장된 Zone이 없습니다.')
+        floorplanStore.setZones([])
+      } else {
+        console.error('서버 응답 에러:', error.response.status, error.response.data)
+      }
+    } else if (error.request) {
+      // 요청이 전송되었지만 응답이 없음
+      console.error('네트워크 에러: 서버에 연결할 수 없습니다.')
+    } else {
+      // 요청 설정 중 에러
+      console.error('요청 설정 에러:', error.message)
+    }
+    
     // 에러가 발생해도 기본 기능은 계속 동작하도록 함
+  } finally {
+    // 로딩 상태 해제
+    floorplanStore.setLoadingZones(false)
   }
+}
+
+// 저장된 데이터로부터 Wall 생성
+const createWallFromSavedData = (wallData: any) => {
+  if (!fabricCanvas) return
+
+  const scale = 40 // 1m = 40px
+
+  // 기본 회색 바닥의 위치를 찾기
+  const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+    obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+  )
+
+  if (!defaultFloor) {
+    console.error('기본 바닥을 찾을 수 없습니다.')
+    return
+  }
+
+  // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 Wall 위치 계산
+  const baseX = defaultFloor.left
+  const baseY = defaultFloor.top
+  const startX = baseX + (wallData.startX * scale)
+  const startY = baseY + (wallData.startY * scale)
+  const endX = baseX + (wallData.endX * scale)
+  const endY = baseY + (wallData.endY * scale)
+
+  // Wall 생성
+  const wallId = `saved-${wallData.id || Date.now()}`
+  const wall = new fabric.Line([startX, startY, endX, endY], {
+    stroke: wallData.color || '#666666',
+    strokeWidth: 3,
+    strokeLineCap: 'round',
+    selectable: true,
+    evented: true,
+    opacity: 1.0,
+    hoverCursor: 'move',
+    moveCursor: 'move',
+  })
+
+  wall.userData = { 
+    type: wallData.type === 'exterior' ? 'exterior-wall' : 'interior-wall', 
+    id: wallId, 
+    isSaved: true,
+    startX: Math.round(wallData.startX * 100) / 100, // 1cm 정밀도로 반올림
+    startY: Math.round(wallData.startY * 100) / 100,
+    endX: Math.round(wallData.endX * 100) / 100,
+    endY: Math.round(wallData.endY * 100) / 100
+  }
+
+  fabricCanvas.add(wall)
+
+  // Wall 길이 라벨 추가
+  addWallLengthLabel(wall, { x: startX, y: startY }, { x: endX, y: endY })
+
+  // Store에 Wall 정보 추가
+  if (wallData.type === 'exterior') {
+    floorplanStore.addExteriorWall({
+      start: { x: startX, y: startY },
+      end: { x: endX, y: endY },
+      id: wallId
+    })
+  } else {
+    floorplanStore.addInteriorWall({
+      start: { x: startX, y: startY },
+      end: { x: endX, y: endY },
+      id: wallId
+    })
+  }
+
+  // walls 배열에도 추가
+  if (wallData.id) {
+    floorplanStore.addWall({
+      id: wallData.id,
+      startX: Math.round(wallData.startX * 100) / 100, // 1cm 정밀도로 반올림
+      startY: Math.round(wallData.startY * 100) / 100,
+      endX: Math.round(wallData.endX * 100) / 100,
+      endY: Math.round(wallData.endY * 100) / 100,
+      type: wallData.type,
+      color: wallData.color || '#666666'
+    })
+  }
+
+  fabricCanvas.renderAll()
 }
 
 // 저장된 데이터로부터 Zone 생성
@@ -2369,16 +2826,31 @@ const createZoneFromSavedData = (zoneData: any) => {
   zoneRect.on('selected', () => { selectedObject.value = zoneRect })
   zoneRect.on('deselected', () => { if (selectedObject.value === zoneRect) selectedObject.value = null })
 
-  // Store에 Zone 정보 추가
+  // Store에 Zone 정보 추가 (floors와 zones 모두에 추가)
   floorplanStore.addFloor({
     id: zoneId,
-    width: zoneData.width,
-    height: zoneData.height,
+    width: Math.round(zoneData.width * 100) / 100, // 1cm 정밀도로 반올림
+    height: Math.round(zoneData.height * 100) / 100,
     boundsPx: { left: zoneLeft, top: zoneTop, right: zoneLeft + zoneWidthPx, bottom: zoneTop + zoneHeightPx },
     color: zoneData.color || '#FFE082',
     isZone: true,
-    zonePosition: { x: zoneData.x, y: zoneData.y }
+    zonePosition: { 
+      x: Math.round(zoneData.x * 100) / 100, // 1cm 정밀도로 반올림
+      y: Math.round(zoneData.y * 100) / 100 
+    }
   })
+
+  // zones 배열에도 추가
+  if (zoneData.id) {
+    floorplanStore.addZone({
+      id: zoneData.id,
+      x: Math.round(zoneData.x * 100) / 100, // 1cm 정밀도로 반올림
+      y: Math.round(zoneData.y * 100) / 100,
+      width: Math.round(zoneData.width * 100) / 100,
+      height: Math.round(zoneData.height * 100) / 100,
+      color: zoneData.color || '#FFE082'
+    })
+  }
 
   fabricCanvas.renderAll()
 }
@@ -2969,6 +3441,206 @@ onUnmounted(() => {
   border-radius: 4px;
   font-weight: bold;
   animation: pulse 2s infinite;
+}
+
+/* Zone 로딩 상태 표시 스타일 */
+.loading-indicator {
+  background: #3498db;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: bold;
+  animation: pulse 1s infinite;
+}
+
+/* Zone 개수 표시 스타일 */
+.zone-count-indicator {
+  background: #27ae60;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+/* Wall 개수 표시 스타일 */
+.wall-count-indicator {
+  background: #e74c3c;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+/* Zone 변경사항 확인 팝업 스타일 */
+.change-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.change-confirm-dialog {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.dialog-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.close-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.dialog-content {
+  padding: 1.5rem;
+}
+
+.change-section {
+  margin-bottom: 1.5rem;
+}
+
+.change-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.zone-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.zone-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #3498db;
+}
+
+.zone-info {
+  font-size: 0.9rem;
+  color: #495057;
+  font-weight: 500;
+}
+
+.zone-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid #ddd;
+}
+
+/* Wall 관련 스타일 */
+.wall-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wall-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #e74c3c;
+}
+
+.wall-info {
+  font-size: 0.9rem;
+  color: #495057;
+  font-weight: 500;
+}
+
+.wall-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid #ddd;
+}
+
+.wall-id {
+  font-size: 0.8rem;
+  color: #6c757d;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  display: block;
+}
+
+.zone-id {
+  font-size: 0.8rem;
+  color: #6c757d;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  display: block;
+}
+
+.update-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.no-changes {
+  text-align: center;
+  padding: 2rem;
+  color: #27ae60;
+  font-size: 1.1rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 0 0 12px 12px;
 }
 
 /* 벽 좌표 입력 스타일 */
