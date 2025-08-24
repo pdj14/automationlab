@@ -1617,6 +1617,7 @@ const createZone = () => {
       zoneId, 
       isZone: true, 
       isNew: true,
+      isSaved: false, // 새로 생성된 Zone
       originalWidth: zoneWidthValue,  // 원본 크기 저장
       originalHeight: zoneHeightValue // 원본 크기 저장
     }
@@ -2459,7 +2460,7 @@ const saveFloorPlan = async () => {
       }
       
       return {
-        id: zone.userData?.zoneId || undefined, // 기존 ID가 있으면 유지
+        id: zone.userData?.isSaved ? zone.userData?.zoneId : undefined, // 저장된 Zone만 ID 포함
         x: Math.round(zoneX * 100) / 100, // 소수점 2자리까지 (1cm 정밀도)
         y: Math.round(zoneY * 100) / 100,
         width: Math.round(zoneWidth * 100) / 100,
@@ -2844,7 +2845,7 @@ const createZoneFromSavedData = (zoneData: any) => {
   const zoneHeightPx = zoneData.height * scale
 
   // Zone 바닥 생성
-  const zoneId = `saved-${zoneData.id || Date.now()}`
+  const zoneId = zoneData.id // 백엔드의 실제 ID 사용
   const zoneRect = new fabric.Rect({
     left: zoneLeft,
     top: zoneTop,
@@ -2858,7 +2859,14 @@ const createZoneFromSavedData = (zoneData: any) => {
     lockRotation: true,
     evented: true
   })
-  zoneRect.userData = { type: 'zone-floor', zoneId, isZone: true, isSaved: true }
+  zoneRect.userData = { 
+    type: 'zone-floor', 
+    zoneId, // 백엔드 ID 직접 사용
+    isZone: true, 
+    isSaved: true,
+    originalWidth: Math.round(zoneData.width * 100) / 100, // 원본 크기 저장
+    originalHeight: Math.round(zoneData.height * 100) / 100 // 원본 크기 저장
+  }
   fabricCanvas.add(zoneRect)
 
   // Zone을 기본 바닥보다 위에 표시하되, 다른 오브젝트보다는 아래에 배치
@@ -2882,7 +2890,7 @@ const createZoneFromSavedData = (zoneData: any) => {
 
   // Store에 Zone 정보 추가 (floors와 zones 모두에 추가)
   floorplanStore.addFloor({
-    id: zoneId,
+    id: zoneData.id, // 백엔드 ID 직접 사용
     width: Math.round(zoneData.width * 100) / 100, // 1cm 정밀도로 반올림
     height: Math.round(zoneData.height * 100) / 100,
     boundsPx: { left: zoneLeft, top: zoneTop, right: zoneLeft + zoneWidthPx, bottom: zoneTop + zoneHeightPx },

@@ -327,13 +327,19 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     const toUpdate: { id: string; oldData: ZoneData; newData: ZoneData }[] = []
     const toDelete: ZoneData[] = []
 
+    console.log('🔍 Zone 변경사항 분석 시작:')
+    console.log('현재 Zone들:', currentZones)
+    console.log('저장된 Zone들:', savedZones)
+
     // 현재 Zone들을 ID로 맵핑
     const currentZoneMap = new Map<string, ZoneData>()
     currentZones.forEach(zone => {
       if (zone.id) {
         currentZoneMap.set(zone.id, zone)
+        console.log(`현재 Zone ID ${zone.id} 맵핑됨`)
       } else {
         // ID가 없는 Zone은 새로 생성할 대상
+        console.log('ID가 없는 Zone 발견, toCreate에 추가:', zone)
         toCreate.push(zone)
       }
     })
@@ -343,6 +349,7 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     savedZones.forEach(zone => {
       if (zone.id) {
         savedZoneMap.set(zone.id, zone)
+        console.log(`저장된 Zone ID ${zone.id} 맵핑됨`)
       }
     })
 
