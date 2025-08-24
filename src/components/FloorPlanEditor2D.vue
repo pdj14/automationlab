@@ -1037,6 +1037,23 @@ const updateInteriorWallInList = (modifiedWall: any) => {
     const matrix = modifiedWall.calcTransformMatrix()
     startPoint = fabric.util.transformPoint({ x: linePoints.x1, y: linePoints.y1 }, matrix)
     endPoint = fabric.util.transformPoint({ x: linePoints.x2, y: linePoints.y2 }, matrix)
+    
+    // userData의 원본 좌표를 미터 단위로 업데이트
+    const scale = 40 // 1m = 40px
+    const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+      obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+    )
+    
+    if (defaultFloor) {
+      const baseX = defaultFloor.left
+      const baseY = defaultFloor.top
+      
+      // 픽셀 좌표를 미터 단위로 변환하여 userData에 저장
+      modifiedWall.userData.startX = Math.round(((startPoint.x - baseX) / scale) * 100) / 100
+      modifiedWall.userData.startY = Math.round(((startPoint.y - baseY) / scale) * 100) / 100
+      modifiedWall.userData.endX = Math.round(((endPoint.x - baseX) / scale) * 100) / 100
+      modifiedWall.userData.endY = Math.round(((endPoint.y - baseY) / scale) * 100) / 100
+    }
   } else {
     return
   }
@@ -1287,6 +1304,8 @@ const drawWallFromCoordinates = () => {
   wallEndY.value = 0.00
 }
 
+
+
 // Store를 사용한 내부 벽 추가
 const addInteriorWall = (start: { x: number, y: number }, end: { x: number, y: number }) => {
   if (!fabricCanvas) return
@@ -1313,7 +1332,8 @@ const addInteriorWall = (start: { x: number, y: number }, end: { x: number, y: n
     startX: start.x,
     startY: start.y,
     endX: end.x,
-    endY: end.y
+    endY: end.y,
+    isSaved: false // 새로 생성된 Wall
   }
 
   fabricCanvas.add(wall)
@@ -1326,6 +1346,8 @@ const addInteriorWall = (start: { x: number, y: number }, end: { x: number, y: n
   }
 
   floorplanStore.addInteriorWall(wallData)
+  
+
 
   addWallLengthLabel(wall, start, end)
 
@@ -1551,11 +1573,11 @@ const createZone = () => {
 
   const scale = 40 // 1m = 40px
 
-  // 원본 입력값 사용 (반올림하지 않음)
-  const zoneXValue = zoneX.value
-  const zoneYValue = zoneY.value
-  const zoneWidthValue = zoneWidth.value
-  const zoneHeightValue = zoneHeight.value
+  // 원본 입력값 사용 (소수점 2자리까지 정확하게)
+  const zoneXValue = Math.round(zoneX.value * 100) / 100
+  const zoneYValue = Math.round(zoneY.value * 100) / 100
+  const zoneWidthValue = Math.round(zoneWidth.value * 100) / 100
+  const zoneHeightValue = Math.round(zoneHeight.value * 100) / 100
 
   // 기본 회색 바닥의 위치를 찾기
   const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
@@ -1706,12 +1728,18 @@ const handleZoneModified = (zoneRect: any) => {
   const zoneId = zoneRect.userData?.zoneId
   if (zoneId) {
     const scale = 40 // 1m = 40px
-    const newWidth = zoneRect.getScaledWidth() / scale
-    const newHeight = zoneRect.getScaledHeight() / scale
     
-    // userData에 원본 크기 업데이트
-    zoneRect.userData.originalWidth = newWidth
-    zoneRect.userData.originalHeight = newHeight
+    // 더 정확한 크기 계산: width * scaleX, height * scaleY
+    const newWidth = (zoneRect.width * zoneRect.scaleX) / scale
+    const newHeight = (zoneRect.height * zoneRect.scaleY) / scale
+    
+    // 소수점 2자리까지 반올림하여 정확성 향상
+    const roundedWidth = Math.round(newWidth * 100) / 100
+    const roundedHeight = Math.round(newHeight * 100) / 100
+    
+    // userData에 원본 크기 업데이트 (반올림된 값)
+    zoneRect.userData.originalWidth = roundedWidth
+    zoneRect.userData.originalHeight = roundedHeight
     
     const newBounds = {
       left: zoneRect.left,
@@ -1721,8 +1749,8 @@ const handleZoneModified = (zoneRect: any) => {
     }
     
     floorplanStore.updateFloor(zoneId, {
-      width: newWidth,
-      height: newHeight,
+      width: roundedWidth,
+      height: roundedHeight,
       boundsPx: newBounds
     })
   }
@@ -2420,9 +2448,15 @@ const saveFloorPlan = async () => {
       const zoneX = (zone.left - baseX) / scale
       const zoneY = (zone.top - baseY) / scale
       
-      // 원본 크기 사용 (userData에 저장된 값)
-      const zoneWidth = zone.userData?.originalWidth || (zone.getScaledWidth() / scale)
-      const zoneHeight = zone.userData?.originalHeight || (zone.getScaledHeight() / scale)
+      // 원본 크기 사용 (userData에 저장된 값 우선, 없으면 실시간 계산)
+      let zoneWidth = zone.userData?.originalWidth
+      let zoneHeight = zone.userData?.originalHeight
+      
+      // userData에 원본 크기가 없으면 실시간 계산
+      if (zoneWidth === undefined || zoneHeight === undefined) {
+        zoneWidth = (zone.width * zone.scaleX) / scale
+        zoneHeight = (zone.height * zone.scaleY) / scale
+      }
       
       return {
         id: zone.userData?.zoneId || undefined, // 기존 ID가 있으면 유지
@@ -2435,6 +2469,18 @@ const saveFloorPlan = async () => {
     })
 
     console.log('💾 변환된 Zone 데이터:', zonesToSave)
+    
+    // 디버깅: 각 Zone의 상세 정보 출력
+    zonesToSave.forEach((zone: any, index: number) => {
+      console.log(`🔍 Zone ${index + 1}:`, {
+        id: zone.id,
+        x: zone.x,
+        y: zone.y,
+        width: zone.width,
+        height: zone.height,
+        color: zone.color
+      })
+    })
 
     // 현재 캔버스에 그려진 Wall들 수집
     const walls = fabricCanvas.getObjects().filter((obj: any) => 
@@ -2461,13 +2507,14 @@ const saveFloorPlan = async () => {
       const baseY = defaultFloor.top
       
       // Wall의 시작점과 끝점을 미터 단위로 계산
-      const startX = (wall.x1 - baseX) / scale
-      const startY = (wall.y1 - baseY) / scale
-      const endX = (wall.x2 - baseX) / scale
-      const endY = (wall.y2 - baseY) / scale
+      // userData에 저장된 원본 좌표 사용 (이동/수정된 경우에도 정확한 값)
+      const startX = wall.userData?.startX || (wall.x1 - baseX) / scale
+      const startY = wall.userData?.startY || (wall.y1 - baseY) / scale
+      const endX = wall.userData?.endX || (wall.x2 - baseX) / scale
+      const endY = wall.userData?.endY || (wall.y2 - baseY) / scale
       
       return {
-        id: wall.userData?.id || undefined, // 기존 ID가 있으면 유지
+        id: wall.userData?.isSaved ? wall.userData?.id : undefined, // 저장된 Wall만 ID 포함
         startX: Math.round(startX * 100) / 100, // 소수점 2자리까지 (1cm 정밀도)
         startY: Math.round(startY * 100) / 100,
         endX: Math.round(endX * 100) / 100,
@@ -2478,6 +2525,19 @@ const saveFloorPlan = async () => {
     })
 
     console.log('🧱 변환된 Wall 데이터:', wallsToSave)
+    
+    // 디버깅: 각 Wall의 상세 정보 출력
+    wallsToSave.forEach((wall: any, index: number) => {
+      console.log(`🔍 Wall ${index + 1}:`, {
+        id: wall.id,
+        startX: wall.startX,
+        startY: wall.startY,
+        endX: wall.endX,
+        endY: wall.endY,
+        type: wall.type,
+        color: wall.color
+      })
+    })
 
     // 백엔드에서 최신 Zone과 Wall 데이터 가져오기
     const [zonesResponse, wallsResponse] = await Promise.all([
@@ -2487,6 +2547,34 @@ const saveFloorPlan = async () => {
     
     const savedZones = zonesResponse.data
     const savedWalls = wallsResponse.data
+    
+    console.log('💾 백엔드에서 불러온 Zone 데이터:', savedZones)
+    console.log('💾 백엔드에서 불러온 Wall 데이터:', savedWalls)
+    
+    // 디버깅: 백엔드 Zone 데이터 상세 정보 출력
+    savedZones.forEach((zone: any, index: number) => {
+      console.log(`💾 백엔드 Zone ${index + 1}:`, {
+        id: zone.id,
+        x: zone.x,
+        y: zone.y,
+        width: zone.width,
+        height: zone.height,
+        color: zone.color
+      })
+    })
+    
+    // 디버깅: 백엔드 Wall 데이터 상세 정보 출력
+    savedWalls.forEach((wall: any, index: number) => {
+      console.log(`💾 백엔드 Wall ${index + 1}:`, {
+        id: wall.id,
+        startX: wall.startX,
+        startY: wall.startY,
+        endX: wall.endX,
+        endY: wall.endY,
+        type: wall.type,
+        color: wall.color
+      })
+    })
 
     // Store의 analyzeZoneChanges와 analyzeWallChanges 함수로 변경사항 분석
     const zoneChanges = floorplanStore.analyzeZoneChanges(zonesToSave, savedZones)
@@ -2674,7 +2762,6 @@ const createWallFromSavedData = (wallData: any) => {
   const endY = baseY + (wallData.endY * scale)
 
   // Wall 생성
-  const wallId = `saved-${wallData.id || Date.now()}`
   const wall = new fabric.Line([startX, startY, endX, endY], {
     stroke: wallData.color || '#666666',
     strokeWidth: 3,
@@ -2688,7 +2775,7 @@ const createWallFromSavedData = (wallData: any) => {
 
   wall.userData = { 
     type: wallData.type === 'exterior' ? 'exterior-wall' : 'interior-wall', 
-    id: wallId, 
+    id: wallData.id, // 백엔드의 실제 ID 사용
     isSaved: true,
     startX: Math.round(wallData.startX * 100) / 100, // 1cm 정밀도로 반올림
     startY: Math.round(wallData.startY * 100) / 100,
@@ -2706,13 +2793,13 @@ const createWallFromSavedData = (wallData: any) => {
     floorplanStore.addExteriorWall({
       start: { x: startX, y: startY },
       end: { x: endX, y: endY },
-      id: wallId
+      id: wallData.id
     })
   } else {
     floorplanStore.addInteriorWall({
       start: { x: startX, y: startY },
       end: { x: endX, y: endY },
-      id: wallId
+      id: wallData.id
     })
   }
 
