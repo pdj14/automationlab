@@ -73,12 +73,14 @@
         <span>Visible: {{ visibleObjects }}</span>
         <span>Polygons: {{ polygonCount }}</span>
         <span>FPS: {{ fps }}</span>
-                 <span v-if="lodEnabled" class="lod-status">
-           LOD: {{ shouldUseLOD() ? 'ON' : 'OFF' }} (통일된 회색)
-         </span>
-         <span v-else class="lod-status lod-disabled">
-           LOD: OFF
-         </span>
+        <span>Zoom: {{ currentZoom.toFixed(1) }}x (0.2단계, 최대20x)</span>
+        <span>PAN Speed: {{ currentPanSpeed.toFixed(1) }}</span>
+        <span v-if="lodEnabled" class="lod-status">
+          LOD: {{ shouldUseLOD() ? 'ON' : 'OFF' }} (통일된 회색)
+        </span>
+        <span v-else class="lod-status lod-disabled">
+          LOD: OFF
+        </span>
       </div>
     </div>
   </div>
@@ -119,6 +121,11 @@ const cullingEnabled = ref(true)
 const lodEnabled = ref(true)
 const lodThreshold = ref(10) // LOD 활성화 임계값 (보이는 객체 수)
 const statusSpheresVisible = ref(false) // 상태 표시 구체 표시 여부 - 기본값 false
+
+// Zoom 및 PAN 속도 모니터링
+const currentZoom = ref(1.0)
+const currentPanSpeed = ref(3.0)
+const targetZoom = ref(1.0) // 부드러운 Zoom 전환을 위한 목표값
 
 // 3D 팝업 관련 상태
 const raycaster = new THREE.Raycaster()
@@ -264,10 +271,10 @@ const initThreeJS = () => {
     RIGHT: THREE.MOUSE.PAN
   }
   controls.rotateSpeed = 1.0
-  controls.zoomSpeed = 2.0
-  controls.panSpeed = 1.5
+  controls.zoomSpeed = 12.0  // Zoom 속도 극대화 (8.0 -> 12.0)
+  controls.panSpeed = 3.0  // PAN 속도 증가 (1.5 -> 3.0)
   controls.maxDistance = 150
-  controls.minDistance = 0.05
+  controls.minDistance = 0.01  // 더 높은 Zoom을 위해 최소 거리 감소 (0.05 -> 0.01)
   controls.update()
 
   // 조명 설정
@@ -281,6 +288,17 @@ const initThreeJS = () => {
   
   // 클릭 이벤트 리스너 추가
   canvas3d.value.addEventListener('click', handleCanvasClick)
+  
+  // 마우스 이벤트 리스너 추가 (PAN 경험 개선)
+  canvas3d.value.addEventListener('mousedown', handleMouseDown)
+  canvas3d.value.addEventListener('mousemove', handleMouseMove)
+  canvas3d.value.addEventListener('mouseup', handleMouseUp)
+  
+  // 마우스 휠 이벤트 리스너 추가 (Zoom 경험 개선)
+  canvas3d.value.addEventListener('wheel', handleMouseWheel)
+  
+  // 우클릭 컨텍스트 메뉴 비활성화 (PAN 동작 개선)
+  canvas3d.value.addEventListener('contextmenu', (e) => e.preventDefault())
   
   // 렌더링 시작
   animate()
@@ -556,6 +574,12 @@ const animate = (currentTime = 0) => {
   }
   
   try {
+    // Zoom 레벨에 따른 PAN 속도 동적 조정
+    updatePanSpeedBasedOnZoom()
+    
+    // Zoom 및 PAN 속도 모니터링 업데이트
+    updateZoomAndPanInfo()
+    
     controls.update()
     
     // Frustum Culling 업데이트
@@ -602,6 +626,231 @@ const updatePolygonCount = () => {
     polygonCount.value = Math.round(count)
   } catch (error) {
     console.error('❌ updatePolygonCount 오류:', error)
+  }
+}
+
+// 마우스 이벤트 상태 관리
+let isPanning = false
+let lastMousePosition = { x: 0, y: 0 }
+
+// 마우스 이벤트 핸들러들
+const handleMouseDown = (event: MouseEvent) => {
+  if (event.button === 2) { // 우클릭
+    isPanning = true
+    lastMousePosition = { x: event.clientX, y: event.clientY }
+    event.preventDefault()
+  }
+}
+
+const handleMouseMove = (event: MouseEvent) => {
+  if (isPanning && controls) {
+    const deltaX = event.clientX - lastMousePosition.x
+    const deltaY = event.clientY - lastMousePosition.y
+    
+    // 마우스 이동 거리에 따른 PAN 속도 조정
+    const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+    if (moveDistance > 1) { // 1px 이상 이동했을 때만 PAN 적용
+      controls.panSpeed = Math.max(controls.panSpeed, moveDistance * 0.1)
+    }
+    
+    lastMousePosition = { x: event.clientX, y: event.clientY }
+  }
+}
+
+const handleMouseUp = (event: MouseEvent) => {
+  if (event.button === 2) { // 우클릭
+    isPanning = false
+  }
+}
+
+const handleMouseWheel = (event: WheelEvent) => {
+  if (!controls || !camera) return
+  
+  // 휠 델타에 따른 Zoom 속도 조정
+  const delta = event.deltaY
+  const currentDistance = camera.position.distanceTo(controls.target)
+  
+  // Zoom 레벨에 따른 추가 속도 보정
+  let zoomMultiplier = 1.0
+  
+  if (currentDistance < 5) {
+    // 매우 가까운 경우 (극도로 확대) - Zoom 속도 극대화
+    zoomMultiplier = 20.0
+  } else if (currentDistance < 15) {
+    // 가까운 경우 (대폭 확대) - Zoom 속도 대폭 증가
+    zoomMultiplier = 12.0
+  } else if (currentDistance < 30) {
+    // 중간 거리 (확대) - Zoom 속도 증가
+    zoomMultiplier = 8.0
+  } else if (currentDistance < 60) {
+    // 보통 거리 - 기본 속도
+    zoomMultiplier = 5.0
+  }
+  
+  // 휠 델타가 클수록 더 빠른 Zoom
+  const speedMultiplier = Math.min(Math.abs(delta) / 100, 2.0)
+  
+  // 최종 Zoom 속도 계산
+  controls.zoomSpeed = 4.0 * zoomMultiplier * speedMultiplier
+  
+  // Zoom 동작 후 속도 재조정을 위해 약간의 지연
+  setTimeout(() => {
+    updatePanSpeedBasedOnZoom()
+  }, 50)
+}
+
+// Zoom 레벨에 따른 PAN 및 Zoom 속도 동적 조정 - 0.2 배수 단계에 맞춰 조정
+const updatePanSpeedBasedOnZoom = () => {
+  if (!controls || !camera) return
+  
+  // 카메라와 타겟 사이의 거리 계산
+  const distance = camera.position.distanceTo(controls.target)
+  
+  // 기본 속도들
+  const basePanSpeed = 3.0
+  const baseZoomSpeed = 8.0
+  
+  // 0.2 배수 Zoom 단계에 맞춘 PAN 속도 조정
+  // Zoom이 높을수록 (가까운 거리) PAN 속도를 느리게, Zoom이 낮을수록 (먼 거리) PAN 속도를 빠르게
+  let adjustedPanSpeed = basePanSpeed
+  
+  if (distance < 0.5) {
+    // 극도 확대 (15x~20x) - PAN 속도 극도 감소 (매우 정밀한 조작)
+    adjustedPanSpeed = basePanSpeed * 0.1
+  } else if (distance < 1) {
+    // 극도 확대 (12x~15x) - PAN 속도 대폭 감소 (정밀한 조작)
+    adjustedPanSpeed = basePanSpeed * 0.15
+  } else if (distance < 2) {
+    // 대폭 확대 (8x~12x) - PAN 속도 대폭 감소 (정밀한 조작)
+    adjustedPanSpeed = basePanSpeed * 0.2
+  } else if (distance < 5) {
+    // 확대 (4x~8x) - PAN 속도 감소
+    adjustedPanSpeed = basePanSpeed * 0.4
+  } else if (distance < 10) {
+    // 약간 확대 (2.5x~4x) - PAN 속도 약간 감소
+    adjustedPanSpeed = basePanSpeed * 0.6
+  } else if (distance < 20) {
+    // 보통 (1.5x~2.5x) - 기본 PAN 속도
+    adjustedPanSpeed = basePanSpeed
+  } else if (distance < 40) {
+    // 축소 (0.8x~1.5x) - PAN 속도 약간 증가
+    adjustedPanSpeed = basePanSpeed * 1.8
+  } else if (distance < 80) {
+    // 대폭 축소 (0.4x~0.8x) - PAN 속도 증가
+    adjustedPanSpeed = basePanSpeed * 2.5
+  } else {
+    // 극도 축소 (0.2x~0.4x) - PAN 속도 대폭 증가
+    adjustedPanSpeed = basePanSpeed * 4.0
+  }
+  
+  // 0.2 배수 Zoom 단계에 맞춘 Zoom 속도 조정
+  // Zoom이 높을수록 (가까운 거리) Zoom 속도를 느리게, Zoom이 낮을수록 (먼 거리) Zoom 속도를 빠르게
+  let adjustedZoomSpeed = baseZoomSpeed
+  
+  if (distance < 1) {
+    // 극도 가까운 거리 (15x~20x) - Zoom 속도 극도 감소 (매우 정밀한 조정)
+    adjustedZoomSpeed = baseZoomSpeed * 0.3
+  } else if (distance < 3) {
+    // 가까운 거리 (8x~15x) - Zoom 속도 감소 (정밀한 조정)
+    adjustedZoomSpeed = baseZoomSpeed * 0.5
+  } else if (distance < 8) {
+    // 중간-가까운 거리 (4x~8x) - Zoom 속도 약간 감소
+    adjustedZoomSpeed = baseZoomSpeed * 0.7
+  } else if (distance < 15) {
+    // 중간 거리 (2.5x~4x) - 기본 Zoom 속도
+    adjustedZoomSpeed = baseZoomSpeed
+  } else if (distance > 50) {
+    // 먼 거리 (0.2x~1.5x) - Zoom 속도 증가 (빠른 조정)
+    adjustedZoomSpeed = baseZoomSpeed * 2.0
+  } else {
+    // 중간 거리 - 기본 Zoom 속도
+    adjustedZoomSpeed = baseZoomSpeed
+  }
+  
+  controls.panSpeed = adjustedPanSpeed
+  controls.zoomSpeed = adjustedZoomSpeed
+}
+
+// Zoom 및 PAN 속도 정보 업데이트
+const updateZoomAndPanInfo = () => {
+  if (!controls || !camera) return
+  
+  try {
+    // 현재 Zoom 레벨 계산 (카메라와 타겟 사이의 거리 기반)
+    const distance = camera.position.distanceTo(controls.target)
+    const baseDistance = 15 // 기본 거리 (카메라 초기 위치)
+    
+    // 0.2 배수 단계별 Zoom 계산 - 더 체계적이고 예측 가능한 Zoom
+    // 거리가 가까울수록 Zoom이 높아지도록 (0.2x ~ 20x 범위)
+    let zoomLevel = 1.0
+    
+    if (distance <= 0) {
+      // 극도로 가까운 경우 (최대 확대)
+      zoomLevel = 20.0
+    } else if (distance < 0.5) {
+      // 극도로 가까운 경우 (극도 확대)
+      zoomLevel = 20.0 / (distance + 0.02)
+    } else if (distance < 1) {
+      // 매우 가까운 경우 (대폭 확대)
+      zoomLevel = 15.0 / (distance + 0.05)
+    } else if (distance < 2) {
+      // 가까운 경우 (확대)
+      zoomLevel = 12.0 / (distance + 0.1)
+    } else if (distance < 3) {
+      // 중간-가까운 경우 (약간 확대)
+      zoomLevel = 10.0 / (distance + 0.2)
+    } else if (distance < 5) {
+      // 보통-가까운 경우 (약간 확대)
+      zoomLevel = 8.0 / (distance + 0.5)
+    } else if (distance < 8) {
+      // 기본 거리 근처 (약간 확대)
+      zoomLevel = 6.0 / (distance + 1.0)
+    } else if (distance < 12) {
+      // 기본 거리 근처 (약간 확대)
+      zoomLevel = 4.0 / (distance + 1.5)
+    } else if (distance < baseDistance) {
+      // 기본 거리 근처 (약간 확대)
+      zoomLevel = 3.0 / (distance + 2.0)
+    } else if (distance < 20) {
+      // 기본 거리보다 약간 먼 경우 (약간 축소)
+      zoomLevel = 2.5 / (distance / baseDistance)
+    } else if (distance < 30) {
+      // 기본 거리보다 먼 경우 (축소)
+      zoomLevel = 2.0 / (distance / 25.0)
+    } else if (distance < 45) {
+      // 먼 경우 (약간 축소)
+      zoomLevel = 1.5 / (distance / 35.0)
+    } else if (distance < 70) {
+      // 매우 먼 경우 (축소)
+      zoomLevel = 1.0 / (distance / 50.0)
+    } else if (distance < 100) {
+      // 극도로 먼 경우 (대폭 축소)
+      zoomLevel = 0.6 / (distance / 70.0)
+    } else {
+      // 극도로 먼 경우 (극도 축소)
+      zoomLevel = 0.2 / (distance / 100.0)
+    }
+    
+    // Zoom 수치를 합리적인 범위로 제한 (0.2x ~ 20x)
+    zoomLevel = Math.max(0.2, Math.min(zoomLevel, 20.0))
+    
+    // 0.2 배수 단계로 반올림하여 더 체계적인 Zoom 제공
+    zoomLevel = Math.round(zoomLevel * 5) / 5
+    
+    // 부드러운 Zoom 전환을 위한 보간 적용
+    targetZoom.value = zoomLevel
+    currentZoom.value += (targetZoom.value - currentZoom.value) * 0.12 // 12% 보간으로 더 부드럽게
+    
+    // NaN이나 Infinity 방지
+    if (!isFinite(currentZoom.value)) {
+      currentZoom.value = 1.0
+    }
+    
+    // PAN 속도 업데이트
+    currentPanSpeed.value = controls.panSpeed
+    
+  } catch (error) {
+    console.error('❌ updateZoomAndPanInfo 오류:', error)
   }
 }
 
@@ -2011,6 +2260,10 @@ onUnmounted(() => {
   // 클릭 이벤트 리스너 제거
   if (canvas3d.value) {
     canvas3d.value.removeEventListener('click', handleCanvasClick)
+    canvas3d.value.removeEventListener('mousedown', handleMouseDown)
+    canvas3d.value.removeEventListener('mousemove', handleMouseMove)
+    canvas3d.value.removeEventListener('mouseup', handleMouseUp)
+    canvas3d.value.removeEventListener('wheel', handleMouseWheel)
   }
   
   // 3D 팝업 제거
@@ -2171,6 +2424,25 @@ onMounted(() => {
   gap: 1rem;
   font-size: 0.85rem;
   color: #666;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.stats span {
+  padding: 0.25rem 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+  white-space: nowrap;
+}
+
+.stats span:nth-child(4),
+.stats span:nth-child(5),
+.stats span:nth-child(6) {
+  background: #e3f2fd;
+  border-color: #2196f3;
+  color: #1976d2;
+  font-weight: 600;
 }
 
 .lod-status {
