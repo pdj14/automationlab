@@ -207,7 +207,6 @@
             <div class="wall-list">
               <div v-for="(wall, index) in wallChangeSummary.toCreate" :key="`create-wall-${index}`" class="wall-item">
                 <span class="wall-info">📍 ({{ wall.startX.toFixed(2) }}m, {{ wall.startY.toFixed(2) }}m) → ({{ wall.endX.toFixed(2) }}m, {{ wall.endY.toFixed(2) }}m) [{{ wall.type }}]</span>
-                <span class="wall-color" :style="{ backgroundColor: wall.color }"></span>
               </div>
             </div>
           </div>
@@ -219,7 +218,6 @@
                 <div class="update-details">
                   <span class="wall-id">ID: {{ update.id }}</span>
                   <span class="wall-info">📍 ({{ update.newData.startX.toFixed(2) }}m, {{ update.newData.startY.toFixed(2) }}m) → ({{ update.newData.endX.toFixed(2) }}m, {{ update.newData.endY.toFixed(2) }}m) [{{ update.newData.type }}]</span>
-                  <span class="wall-color" :style="{ backgroundColor: update.newData.color }"></span>
                 </div>
               </div>
             </div>
@@ -230,7 +228,6 @@
             <div class="wall-list">
               <div v-for="wall in wallChangeSummary.toDelete" :key="`delete-wall-${wall.id}`" class="wall-item">
                 <span class="wall-info">📍 ({{ wall.startX.toFixed(2) }}m, {{ wall.startY.toFixed(2) }}m) → ({{ wall.endX.toFixed(2) }}m, {{ wall.endY.toFixed(2) }}m) [{{ wall.type }}]</span>
-                <span class="wall-color" :style="{ backgroundColor: wall.color }"></span>
               </div>
             </div>
           </div>
@@ -2391,7 +2388,10 @@ const confirmAndSaveZones = async () => {
     ])
     
     if (zoneSuccess && wallSuccess) {
-      // 성공 시 최신 데이터 다시 로드
+      // 기존 데이터 초기화
+      await clearCanvasData()
+      
+      // 성공 시 최신 데이터 다시 로드 (mount 시와 동일하게)
       await Promise.all([
         loadSavedZones(),
         loadSavedWalls()
@@ -2405,6 +2405,40 @@ const confirmAndSaveZones = async () => {
     alert('❌ 저장 중 오류가 발생했습니다.')
   } finally {
     closeChangeConfirmDialog()
+  }
+}
+
+// 캔버스의 Zone과 Wall 데이터 초기화 (기본 바닥과 그리드는 유지)
+const clearCanvasData = async () => {
+  if (!fabricCanvas) return
+  
+  try {
+    console.log('🧹 캔버스 데이터 초기화 시작...')
+    
+    // Zone과 Wall 객체만 제거 (기본 바닥과 그리드는 유지)
+    const objectsToRemove = fabricCanvas.getObjects().filter((obj: any) => {
+      const type = obj.userData?.type
+      return type === 'zone-floor' || 
+             type === 'interior-wall' || 
+             type === 'exterior-wall' ||
+             type === 'placed-object'
+    })
+    
+    // 객체들을 캔버스에서 제거
+    objectsToRemove.forEach((obj: any) => {
+      fabricCanvas.remove(obj)
+    })
+    
+    console.log(`🧹 ${objectsToRemove.length}개의 객체를 캔버스에서 제거했습니다.`)
+    
+    // Store의 Zone과 Wall 데이터도 초기화
+    floorplanStore.setZones([])
+    floorplanStore.setWalls([])
+    
+    console.log('✅ 캔버스 데이터 초기화 완료')
+    
+  } catch (error) {
+    console.error('❌ 캔버스 데이터 초기화 실패:', error)
   }
 }
 
@@ -2520,8 +2554,8 @@ const saveFloorPlan = async () => {
         startY: Math.round(startY * 100) / 100,
         endX: Math.round(endX * 100) / 100,
         endY: Math.round(endY * 100) / 100,
-        type: wall.userData?.type === 'exterior-wall' ? 'exterior' : 'interior',
-        color: wall.stroke || '#666666'
+
+
       }
     })
 
@@ -2534,9 +2568,7 @@ const saveFloorPlan = async () => {
         startX: wall.startX,
         startY: wall.startY,
         endX: wall.endX,
-        endY: wall.endY,
-        type: wall.type,
-        color: wall.color
+        endY: wall.endY
       })
     })
 
@@ -2571,9 +2603,7 @@ const saveFloorPlan = async () => {
         startX: wall.startX,
         startY: wall.startY,
         endX: wall.endX,
-        endY: wall.endY,
-        type: wall.type,
-        color: wall.color
+        endY: wall.endY
       })
     })
 
@@ -2764,7 +2794,7 @@ const createWallFromSavedData = (wallData: any) => {
 
   // Wall 생성
   const wall = new fabric.Line([startX, startY, endX, endY], {
-    stroke: wallData.color || '#666666',
+    stroke: '#666666', // 기본 회색
     strokeWidth: 3,
     strokeLineCap: 'round',
     selectable: true,
@@ -2775,7 +2805,7 @@ const createWallFromSavedData = (wallData: any) => {
   })
 
   wall.userData = { 
-    type: wallData.type === 'exterior' ? 'exterior-wall' : 'interior-wall', 
+    type: 'interior-wall', // 기본값으로 interior-wall 사용
     id: wallData.id, // 백엔드의 실제 ID 사용
     isSaved: true,
     startX: Math.round(wallData.startX * 100) / 100, // 1cm 정밀도로 반올림
@@ -2789,20 +2819,12 @@ const createWallFromSavedData = (wallData: any) => {
   // Wall 길이 라벨 추가
   addWallLengthLabel(wall, { x: startX, y: startY }, { x: endX, y: endY })
 
-  // Store에 Wall 정보 추가
-  if (wallData.type === 'exterior') {
-    floorplanStore.addExteriorWall({
-      start: { x: startX, y: startY },
-      end: { x: endX, y: endY },
-      id: wallData.id
-    })
-  } else {
-    floorplanStore.addInteriorWall({
-      start: { x: startX, y: startY },
-      end: { x: endX, y: endY },
-      id: wallData.id
-    })
-  }
+  // Store에 Wall 정보 추가 (기본적으로 interior wall로 처리)
+  floorplanStore.addInteriorWall({
+    start: { x: startX, y: startY },
+    end: { x: endX, y: endY },
+    id: wallData.id
+  })
 
   // walls 배열에도 추가
   if (wallData.id) {
@@ -2812,8 +2834,8 @@ const createWallFromSavedData = (wallData: any) => {
       startY: Math.round(wallData.startY * 100) / 100,
       endX: Math.round(wallData.endX * 100) / 100,
       endY: Math.round(wallData.endY * 100) / 100,
-      type: wallData.type,
-      color: wallData.color || '#666666'
+
+
     })
   }
 

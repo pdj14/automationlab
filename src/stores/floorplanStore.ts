@@ -87,8 +87,6 @@ interface WallData {
   startY: number
   endX: number
   endY: number
-  type: 'interior' | 'exterior'
-  color?: string
 }
 
 // Wall 변경사항 타입 정의
@@ -295,6 +293,7 @@ export const useFloorplanStore = defineStore('floorplan', () => {
 
   // 부동소수점 정밀도를 고려한 데이터 비교 함수 (1cm 정밀도)
   const isDataEqual = (data1: any, data2: any, precision: number = 0.01): boolean => {
+    console.log('🔍 데이터 비교 시작:', { data1, data2 })
     if (typeof data1 !== typeof data2) return false
     
     if (typeof data1 === 'number') {
@@ -310,11 +309,26 @@ export const useFloorplanStore = defineStore('floorplan', () => {
       const keys1 = Object.keys(data1)
       const keys2 = Object.keys(data2)
       
-      if (keys1.length !== keys2.length) return false
+      // 모든 고유 키를 수집
+      const allKeys = new Set([...keys1, ...keys2])
       
-      return keys1.every(key => {
+      return Array.from(allKeys).every(key => {
         if (key === 'id') return true // ID는 비교하지 않음
-        return isDataEqual(data1[key], data2[key], precision)
+        
+        const value1 = data1[key]
+        const value2 = data2[key]
+        
+        // 한쪽에만 key가 있고 해당 값이 null인 경우는 동일하게 처리
+        if (value1 === null && !(key in data2)) return true
+        if (value2 === null && !(key in data1)) return true
+        
+        // 양쪽 모두 key가 있는 경우만 비교
+        if (key in data1 && key in data2) {
+          return isDataEqual(value1, value2, precision)
+        }
+        
+        // 한쪽에만 key가 있고 값이 null이 아닌 경우는 다름
+        return false
       })
     }
     
