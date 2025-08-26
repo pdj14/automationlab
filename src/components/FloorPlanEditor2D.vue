@@ -4,40 +4,9 @@
     <div class="toolbar">
       <div class="zone-controls">
         <h3>� Zone Creator</h3>
-        <div class="size-inputs">
-          <div class="input-group">
-            <label>X (m):</label>
-            <input v-model.number="zoneX" type="number" min="0" max="100" step="0.01" placeholder="X 위치" />
-          </div>
-          <div class="input-group">
-            <label>Y (m):</label>
-            <input v-model.number="zoneY" type="number" min="0" max="70" step="0.01" placeholder="Y 위치" />
-          </div>
-          <div class="input-group">
-            <label>Width (m):</label>
-            <input v-model.number="zoneWidth" type="number" min="0.01" max="100" step="0.01" placeholder="가로" />
-          </div>
-          <div class="input-group">
-            <label>Height (m):</label>
-            <input v-model.number="zoneHeight" type="number" min="0.01" max="70" step="0.01" placeholder="세로" />
-          </div>
-          <div class="color-section">
-            <div class="color-selector">
-              <label>Zone Color:</label>
-              <button 
-                @click="openColorPicker" 
-                class="color-picker-button"
-                :style="{ backgroundColor: selectedFloorColor.hex }"
-              >
-                <span class="color-preview-text">{{ selectedFloorColor.label }}</span>
-                <span class="color-picker-icon">🎨</span>
-              </button>
-            </div>
-          </div>
-          <button @click="createZone" class="btn btn-primary" :disabled="!isValidZoneSize">
-            🏗️ Create Zone
-          </button>
-        </div>
+        <button @click="openZoneCreatorPopup" class="btn btn-primary zone-create-btn">
+          ➕ ZONE
+        </button>
       </div>
 
 
@@ -393,6 +362,49 @@
         </div>
       </div>
     </div>
+
+    <!-- Zone Creator 팝업 -->
+    <div v-if="showZoneCreatorPopup" class="zone-creator-overlay" @click="closeZoneCreatorPopup">
+      <div class="zone-creator-dialog" @click.stop>
+        <div class="dialog-header">
+          <h3>🏗️ Zone 생성</h3>
+          <button @click="closeZoneCreatorPopup" class="close-btn">×</button>
+        </div>
+        
+        <div class="dialog-content">
+          <div class="zone-inputs">
+            <div class="input-row">
+              <div class="input-group">
+                <label>X (m):</label>
+                <input v-model.number="popupZoneX" type="number" min="0" max="100" step="0.01" placeholder="X 위치" />
+              </div>
+              <div class="input-group">
+                <label>Y (m):</label>
+                <input v-model.number="popupZoneY" type="number" min="0" max="70" step="0.01" placeholder="Y 위치" />
+              </div>
+            </div>
+            <div class="input-row">
+              <div class="input-group">
+                <label>Width (m):</label>
+                <input v-model.number="popupZoneWidth" type="number" min="0.01" max="100" step="0.01" placeholder="가로" />
+              </div>
+              <div class="input-group">
+                <label>Height (m):</label>
+                <input v-model.number="popupZoneHeight" type="number" min="0.01" max="70" step="0.01" placeholder="세로" />
+              </div>
+            </div>
+            <div class="color-section">
+              <AdvancedColorPicker v-model="popupSelectedColor" />
+            </div>
+          </div>
+        </div>
+
+        <div class="dialog-footer">
+          <button @click="closeZoneCreatorPopup" class="btn btn-secondary">취소</button>
+          <button @click="createZoneFromPopup" class="btn btn-primary" :disabled="!isValidPopupZoneSize">확인</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -401,6 +413,7 @@ import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import * as fabricLib from 'fabric'
 import { useFloorplanStore } from '../stores/floorplanStore'
 import axios from 'axios'
+import AdvancedColorPicker from './AdvancedColorPicker.vue'
 
 // Fabric.js v5 호환성을 위한 처리
 const fabric = (fabricLib as any).fabric || fabricLib
@@ -451,6 +464,14 @@ const selectedFloorColor = ref<{ label: string; hex: string; rgba: string }>(flo
 
 // 색상 선택 팝업 관련 상태
 const showColorPicker = ref(false)
+
+// Zone Creator 팝업 관련 상태
+const showZoneCreatorPopup = ref(false)
+const popupZoneX = ref(0)      // 팝업 Zone X 위치 (m)
+const popupZoneY = ref(0)      // 팝업 Zone Y 위치 (m)
+const popupZoneWidth = ref(10) // 팝업 Zone 가로 크기 (m)
+const popupZoneHeight = ref(10) // 팝업 Zone 세로 크기 (m)
+const popupSelectedColor = ref<{ label: string; hex: string; rgba: string }>(floorColors.value[0]) // 기본 색상
 
 // 고급 색상 선택기 관련 상태
 const colorWheelCanvas = ref<HTMLCanvasElement>()
@@ -626,6 +647,49 @@ const closeColorPicker = () => {
   showColorPicker.value = false
 }
 
+// Zone Creator 팝업 관련 함수들
+const openZoneCreatorPopup = () => {
+  showZoneCreatorPopup.value = true
+  // 팝업 열 때 기본값으로 초기화
+  popupZoneX.value = 0
+  popupZoneY.value = 0
+  popupZoneWidth.value = 10
+  popupZoneHeight.value = 10
+  popupSelectedColor.value = selectedFloorColor.value
+}
+
+
+
+const closeZoneCreatorPopup = () => {
+  showZoneCreatorPopup.value = false
+}
+
+// 팝업 Zone 크기 유효성 검사
+const isValidPopupZoneSize = computed(() => {
+  return popupZoneX.value >= 0 && popupZoneY.value >= 0 &&
+    popupZoneWidth.value > 0 && popupZoneHeight.value > 0 &&
+    (popupZoneX.value + popupZoneWidth.value) <= GRID_WIDTH &&
+    (popupZoneY.value + popupZoneHeight.value) <= GRID_HEIGHT
+})
+
+// 팝업에서 Zone 생성
+const createZoneFromPopup = () => {
+  if (!isValidPopupZoneSize.value) return
+  
+  // 기존 Zone 변수들에 팝업 값들을 복사
+  zoneX.value = popupZoneX.value
+  zoneY.value = popupZoneY.value
+  zoneWidth.value = popupZoneWidth.value
+  zoneHeight.value = popupZoneHeight.value
+  selectedFloorColor.value = popupSelectedColor.value
+  
+  // Zone 생성
+  createZone()
+  
+  // 팝업 닫기
+  closeZoneCreatorPopup()
+}
+
 // 색상 휠 그리기 함수
 const drawColorWheel = () => {
   if (!colorWheelCanvas.value) return
@@ -688,6 +752,10 @@ const hsvToRgb = (h: number, s: number, v: number) => {
 
 const confirmColorSelection = () => {
   // 선택된 색상으로 Zone 생성 준비 완료
+  // Zone Creator 팝업이 열려있다면 팝업의 색상도 업데이트
+  if (showZoneCreatorPopup.value) {
+    popupSelectedColor.value = selectedFloorColor.value
+  }
   closeColorPicker()
 }
 
@@ -748,6 +816,11 @@ const updateSelectedFloorColor = () => {
     label: `Custom Color (${hex})`,
     hex: hex,
     rgba: getRGBAString()
+  }
+  
+  // Zone Creator 팝업이 열려있다면 팝업의 색상도 실시간으로 업데이트
+  if (showZoneCreatorPopup.value) {
+    popupSelectedColor.value = selectedFloorColor.value
   }
 }
 
@@ -4229,6 +4302,90 @@ onUnmounted(() => {
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Zone Creator 팝업 스타일 */
+.zone-creator-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.zone-creator-dialog {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  width: 95%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.zone-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.zone-inputs .input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.zone-inputs .input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.zone-inputs .input-group label {
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.zone-inputs .input-group input {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.zone-inputs .input-group input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.zone-create-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.zone-create-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.zone-create-btn:active {
+  transform: translateY(0);
 }
 
 .color-preview-container {
