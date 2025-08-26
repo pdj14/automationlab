@@ -2,107 +2,61 @@
   <div class="editor-2d-container">
     <!-- 존 생성 툴바 -->
     <div class="toolbar">
-      <div class="zone-controls">
-        <h3>� Zone Creator</h3>
-        <button @click="openZoneCreatorPopup" class="btn btn-primary zone-create-btn">
-          ➕ ZONE
-        </button>
+      <div class="left-tool-group">
+        <div class="zone-controls">
+          <h3>🏗️ Zone Creator</h3>
+          <button @click="openZoneCreatorPopup" class="btn btn-primary zone-create-btn">
+            ➕ ZONE
+          </button>
+        </div>
+
+        <div class="wall-tools">
+          <h4>🧱 Wall Tools</h4>
+          <button @click="openWallCreatorPopup" class="btn btn-primary wall-create-btn">
+            ➕ WALL
+          </button>
+        </div>
+      </div>
+
+      <!-- 선택된 객체 정보 -->
+      <div v-if="selectedObject || selectedObjects.length > 0" class="selection-info">
+        <!-- 멀티 선택 정보 -->
+        <div v-if="selectedObjects.length > 1" class="multi-selection-info">
+          <span class="selection-text">✅ {{ selectedObjects.length }}개 객체 선택됨 - Press Delete or click button to remove all</span>
+          <div class="selected-objects-list">
+            <span v-for="(obj, index) in selectedObjects" :key="index" class="selected-object-item">
+              • {{ getObjectDisplayName(obj) }}
+            </span>
+          </div>
+        </div>
+        <!-- 단일 선택 정보 -->
+        <div v-else-if="selectedObject">
+          <span v-if="selectedObject.userData?.type === 'placed-object'" class="selection-text">
+            ✅ Object "{{ selectedObject.userData?.objectName }}" selected - Press Delete or click button to remove
+          </span>
+          <span v-else-if="selectedObject.userData?.type === 'room-floor'" class="selection-text">
+            ✅ Room Floor selected - Press Delete or click button to remove
+          </span>
+          <span v-else-if="selectedObject.userData?.type === 'zone-floor'" class="selection-text">
+            ✅ Zone Floor selected - Press Delete or click button to remove
+          </span>
+          <span v-else class="selection-text">
+            ✅ {{ selectedObject.userData?.type === 'exterior-wall' ? 'Exterior Wall' : 'Interior Wall' }} selected
+            ({{ selectedObject.userData?.position || 'custom' }}) - Press Delete or click button to remove
+          </span>
+        </div>
       </div>
 
 
 
-      <div class="wall-tools">
-        <h4>🧱 Wall Tools</h4>
-        <div class="tool-buttons">
-          <button @click="setTool('select')"
-            :class="['btn', 'btn-secondary', { active: currentTool === 'select' }]" title="Select and Edit Walls">
-            👆 Select
-          </button>
-          <button @click="setTool('wall')"
-            :class="['btn', 'btn-secondary', { active: currentTool === 'wall' }]" title="Draw New Interior Walls">
-            🧱 Draw Wall
-          </button>
-          <button @click="deleteSelectedObject" :disabled="!selectedObject && selectedObjects.length === 0" class="btn btn-danger"
-            title="Delete Selected Object(s)">
-            🗑️ Delete
-          </button>
-        </div>
-        
-        <!-- 벽 그리기 좌표 입력 -->
-        <div v-if="currentTool === 'wall'" class="wall-coordinates">
-          <h5>📍 Wall Coordinates</h5>
-          <div class="coordinate-inputs">
-            <div class="coordinate-group">
-              <label>Start Point:</label>
-              <div class="coordinate-pair">
-                <input v-model.number="wallStartX" type="number" min="0" max="100" step="0.01" placeholder="X (m)" />
-                <input v-model.number="wallStartY" type="number" min="0" max="70" step="0.01" placeholder="Y (m)" />
-              </div>
-            </div>
-                          <div class="coordinate-group">
-                <label>End Point:</label>
-                <div class="coordinate-pair">
-                  <input v-model.number="wallEndX" type="number" min="0" max="100" step="0.01" placeholder="X (m)" />
-                  <input v-model.number="wallEndY" type="number" min="0" max="70" step="0.01" placeholder="Y (m)" />
-                </div>
-              </div>
-              <button @click="drawWallFromCoordinates" class="btn btn-primary" :disabled="!isValidWallCoordinates">
-                🧱 Draw Wall
-              </button>
-          </div>
-        </div>
-        <div v-if="selectedObject || selectedObjects.length > 0" class="selection-info">
-          <!-- 멀티 선택 정보 -->
-          <div v-if="selectedObjects.length > 1" class="multi-selection-info">
-            <small>✅ {{ selectedObjects.length }}개 객체 선택됨 - Press Delete or click button to remove all</small>
-            <div class="selected-objects-list">
-              <small v-for="(obj, index) in selectedObjects" :key="index" class="selected-object-item">
-                • {{ getObjectDisplayName(obj) }}
-              </small>
-            </div>
-          </div>
-          <!-- 단일 선택 정보 -->
-          <div v-else-if="selectedObject">
-            <small v-if="selectedObject.userData?.type === 'placed-object'">
-              ✅ Object "{{ selectedObject.userData?.objectName }}" selected - Press Delete or click button to remove
-            </small>
-            <small v-else-if="selectedObject.userData?.type === 'room-floor'">
-              ✅ Room Floor selected - Press Delete or click button to remove
-            </small>
-            <small v-else-if="selectedObject.userData?.type === 'zone-floor'">
-              ✅ Zone Floor selected - Press Delete or click button to remove
-            </small>
-            <small v-else>
-              ✅ {{ selectedObject.userData?.type === 'exterior-wall' ? 'Exterior Wall' : 'Interior Wall' }} selected
-              ({{ selectedObject.userData?.position || 'custom' }}) - Press Delete or click button to remove
-            </small>
-          </div>
-        </div>
-
-
-
-        <div class="tool-info">
-          <small v-if="currentTool === 'select'">
-            🛠️ <strong>Select Mode:</strong> Click walls or objects to select and move them. Use Delete to remove
-            selected items.
-          </small>
-          <small v-else-if="currentTool === 'wall'">
-            🛠️ <strong>Draw Mode (Active):</strong> Click and drag on canvas to draw new walls, or input exact coordinates below. Existing items are not selectable.
-          </small>
-        </div>
-
-        <!-- 디버깅용 정보 -->
-        <div v-if="currentTool === 'wall'" class="debug-info">
-          <small>🐛 Debug: Tool = "{{ currentTool }}", Canvas = {{ !!fabricCanvas ? 'Ready' : 'Not Ready' }}</small>
-        </div>
-      </div>
-
-      <div class="tool-group">
-        <button @click="resetView" class="btn btn-secondary" title="Reset zoom and pan">
-          🔍 Reset View
-        </button>
-        <button @click="clearCanvas" class="btn btn-secondary">
+      <!-- 우측 정렬된 도구 그룹 -->
+      <div class="right-tool-group">
+        <button @click="clearCanvas" class="btn btn-warning">
           🗑️ Clear
+        </button>
+        <button @click="deleteSelectedObject" :disabled="!selectedObject && selectedObjects.length === 0" class="btn btn-danger"
+          title="Delete Selected Object(s)">
+          🗑️ Objects Delete
         </button>
         <button @click="saveFloorPlan" class="btn btn-success" title="Save floor plan to backend">
           💾 Save
@@ -405,6 +359,58 @@
         </div>
       </div>
     </div>
+
+    <!-- Wall Creator 팝업 -->
+    <div v-if="showWallCreatorPopup" class="wall-creator-overlay" @click="closeWallCreatorPopup">
+      <div class="wall-creator-dialog" @click.stop>
+        <div class="dialog-header">
+          <h3>🧱 Wall 생성</h3>
+          <button @click="closeWallCreatorPopup" class="close-btn">×</button>
+        </div>
+        
+        <div class="dialog-content">
+          <div class="wall-inputs">
+            <div class="input-row">
+              <div class="input-group">
+                <label>Start Point X (m):</label>
+                <input v-model.number="popupWallStartX" type="number" min="0" max="100" step="0.01" placeholder="X 시작점" />
+              </div>
+              <div class="input-group">
+                <label>Start Point Y (m):</label>
+                <input v-model.number="popupWallStartY" type="number" min="0" max="70" step="0.01" placeholder="Y 시작점" />
+              </div>
+            </div>
+            <div class="input-row">
+              <div class="input-group">
+                <label>End Point X (m):</label>
+                <input v-model.number="popupWallEndX" type="number" min="0" max="100" step="0.01" placeholder="X 끝점" />
+              </div>
+              <div class="input-group">
+                <label>End Point Y (m):</label>
+                <input v-model.number="popupWallEndY" type="number" min="0" max="70" step="0.01" placeholder="Y 끝점" />
+              </div>
+            </div>
+            <div class="checkbox-section">
+              <div class="checkbox-group">
+                <input 
+                  v-model="popupWallIsClass" 
+                  type="checkbox" 
+                  id="wallIsClass" 
+                  class="wall-checkbox"
+                />
+                <label for="wallIsClass">isClass</label>
+                <small class="checkbox-description">(Default: False)</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dialog-footer">
+          <button @click="closeWallCreatorPopup" class="btn btn-secondary">취소</button>
+          <button @click="createWallFromPopup" class="btn btn-primary" :disabled="!isValidPopupWallCoordinates">확인</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -472,6 +478,14 @@ const popupZoneY = ref(0)      // 팝업 Zone Y 위치 (m)
 const popupZoneWidth = ref(10) // 팝업 Zone 가로 크기 (m)
 const popupZoneHeight = ref(10) // 팝업 Zone 세로 크기 (m)
 const popupSelectedColor = ref<{ label: string; hex: string; rgba: string }>(floorColors.value[0]) // 기본 색상
+
+// Wall Creator 팝업 관련 상태
+const showWallCreatorPopup = ref(false)
+const popupWallStartX = ref(0)  // 팝업 Wall 시작점 X (m)
+const popupWallStartY = ref(0)  // 팝업 Wall 시작점 Y (m)
+const popupWallEndX = ref(10)   // 팝업 Wall 끝점 X (m)
+const popupWallEndY = ref(0)    // 팝업 Wall 끝점 Y (m)
+const popupWallIsClass = ref(false) // 팝업 Wall isClass 옵션
 
 // 고급 색상 선택기 관련 상태
 const colorWheelCanvas = ref<HTMLCanvasElement>()
@@ -688,6 +702,47 @@ const createZoneFromPopup = () => {
   
   // 팝업 닫기
   closeZoneCreatorPopup()
+}
+
+// Wall Creator 팝업 관련 함수들
+const openWallCreatorPopup = () => {
+  showWallCreatorPopup.value = true
+  // 팝업 열 때 기본값으로 초기화
+  popupWallStartX.value = 0
+  popupWallStartY.value = 0
+  popupWallEndX.value = 10
+  popupWallEndY.value = 0
+  popupWallIsClass.value = false
+}
+
+const closeWallCreatorPopup = () => {
+  showWallCreatorPopup.value = false
+}
+
+// 팝업 Wall 좌표 유효성 검사
+const isValidPopupWallCoordinates = computed(() => {
+  return popupWallStartX.value >= 0 && popupWallStartY.value >= 0 &&
+    popupWallEndX.value >= 0 && popupWallEndY.value >= 0 &&
+    popupWallStartX.value <= GRID_WIDTH && popupWallStartY.value <= GRID_HEIGHT &&
+    popupWallEndX.value <= GRID_WIDTH && popupWallEndY.value <= GRID_HEIGHT &&
+    (popupWallStartX.value !== popupWallEndX.value || popupWallStartY.value !== popupWallEndY.value) // 시작점과 끝점이 다르야 함
+})
+
+// 팝업에서 Wall 생성
+const createWallFromPopup = () => {
+  if (!isValidPopupWallCoordinates.value) return
+  
+  // 기존 Wall 변수들에 팝업 값들을 복사
+  wallStartX.value = popupWallStartX.value
+  wallStartY.value = popupWallStartY.value
+  wallEndX.value = popupWallEndX.value
+  wallEndY.value = popupWallEndY.value
+  
+  // Wall 생성 (isClass 옵션 포함)
+  createWallFromCoordinatesWithClass()
+  
+  // 팝업 닫기
+  closeWallCreatorPopup()
 }
 
 // 색상 휠 그리기 함수
@@ -1880,6 +1935,45 @@ const drawWallFromCoordinates = () => {
   wallEndY.value = 0.00
 }
 
+// 팝업에서 Wall 생성 (isClass 옵션 포함)
+const createWallFromCoordinatesWithClass = () => {
+  if (!fabricCanvas) return
+  
+  const scale = 40 // 1m = 40px
+  
+  // 원본 입력값 사용 (반올림하지 않음)
+  const startXValue = wallStartX.value
+  const startYValue = wallStartY.value
+  const endXValue = wallEndX.value
+  const endYValue = wallEndY.value
+  
+  // 기본 회색 바닥의 위치를 찾기
+  const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+    obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+  )
+  
+  if (!defaultFloor) {
+    console.error('기본 바닥을 찾을 수 없습니다.')
+    return
+  }
+  
+  // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 좌표 변환
+  const baseX = defaultFloor.left
+  const baseY = defaultFloor.top
+  
+  // 미터 단위를 픽셀 단위로 변환
+  const startX = baseX + (startXValue * scale)
+  const startY = baseY + (startYValue * scale)
+  const endX = baseX + (endXValue * scale)
+  const endY = baseY + (endYValue * scale)
+  
+  // 벽 그리기 (isClass 옵션 포함)
+  addInteriorWallWithClass({ x: startX, y: startY }, { x: endX, y: endY }, popupWallIsClass.value)
+  
+  // 벽 그리기 완료 후 자동으로 Select 모드로 전환
+  setTool('select')
+}
+
 
 
 // Store를 사용한 내부 벽 추가
@@ -1919,6 +2013,57 @@ const addInteriorWall = (start: { x: number, y: number }, end: { x: number, y: n
     start: { x: start.x, y: start.y },
     end: { x: end.x, y: end.y },
     id: wallId
+  }
+
+  floorplanStore.addInteriorWall(wallData)
+  
+
+
+  addWallLengthLabel(wall, start, end)
+
+  // 새로 생성된 벽의 선택 가능 여부를 현재 툴에 맞게 설정
+  updateWallSelectability()
+}
+
+// Store를 사용한 내부 벽 추가 (isClass 옵션 포함)
+const addInteriorWallWithClass = (start: { x: number, y: number }, end: { x: number, y: number }, isClass: boolean) => {
+  if (!fabricCanvas) return
+
+  // 현재 툴에 따라 선택 가능 여부 및 시각적 스타일 결정
+  const isSelectMode = currentTool.value === 'select'
+
+  const wall = new fabric.Line([start.x, start.y, end.x, end.y], {
+    stroke: isSelectMode ? '#444444' : '#666666', // Select 모드: 더 진한 회색, Draw 모드: 진한 회색
+    strokeWidth: 3,
+    strokeLineCap: 'round',
+    selectable: isSelectMode,
+    evented: isSelectMode,
+    opacity: isSelectMode ? 1.0 : 0.7, // Select 모드: 불투명, Draw 모드: 반투명
+    hoverCursor: isSelectMode ? 'move' : 'default',
+    moveCursor: isSelectMode ? 'move' : 'default',
+  })
+
+  // 더 상세한 식별 정보 추가 (isClass 포함)
+  const wallId = Date.now() + Math.random() // 고유 ID
+  wall.userData = {
+    type: 'interior-wall',
+    id: wallId,
+    startX: start.x,
+    startY: start.y,
+    endX: end.x,
+    endY: end.y,
+    isClass: isClass, // isClass 옵션 추가
+    isSaved: false // 새로 생성된 Wall
+  }
+
+  fabricCanvas.add(wall)
+
+  // Store에 내부 벽 추가 (isClass 포함)
+  const wallData = {
+    start: { x: start.x, y: start.y },
+    end: { x: end.x, y: end.y },
+    id: wallId,
+    isClass: isClass // isClass 옵션 추가
   }
 
   floorplanStore.addInteriorWall(wallData)
@@ -4388,6 +4533,177 @@ onUnmounted(() => {
   transform: translateY(0);
 }
 
+/* Wall Creator 팝업 스타일 */
+.wall-creator-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.wall-creator-dialog {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  width: 95%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.wall-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.wall-inputs .input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.wall-inputs .input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wall-inputs .input-group label {
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.wall-inputs .input-group input {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.wall-inputs .input-group input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.checkbox-section {
+  margin-top: 1rem;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.wall-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #3498db;
+}
+
+.checkbox-group label {
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.checkbox-description {
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.wall-create-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+}
+
+.wall-create-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
+}
+
+.wall-create-btn:active {
+  transform: translateY(0);
+}
+
+/* 공통 도구 스타일 */
+.common-tools {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.common-tools .btn {
+  flex: 1;
+}
+
+/* 선택된 객체 정보 텍스트 스타일 */
+.selection-text {
+  font-size: 1rem;
+  color: #2c3e50;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.selected-object-item {
+  font-size: 0.95rem;
+  color: #495057;
+  margin: 0.25rem 0;
+}
+
+
+
+/* 우측 정렬된 도구 그룹 스타일 */
+.right-tool-group {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.right-tool-group .btn {
+  min-width: 120px;
+}
+
+/* Clear 버튼 색상 스타일 */
+.btn-warning {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+  color: white;
+  border: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+}
+
+.btn-warning:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(243, 156, 18, 0.6);
+}
+
+.btn-warning:active {
+  transform: translateY(0);
+}
+
 .color-preview-container {
   display: flex;
   align-items: center;
@@ -4427,10 +4743,17 @@ onUnmounted(() => {
   color: #2c3e50;
 }
 
+.left-tool-group {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
 .zone-controls {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  margin-bottom: 0;
 }
 
 .zone-controls h3 {
@@ -4450,6 +4773,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  margin-top: 0;
 }
 
 .wall-tools h4 {
