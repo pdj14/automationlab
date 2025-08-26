@@ -1054,7 +1054,7 @@ const updateWallSelectability = () => {
       obj.selectable = isSelectMode
       obj.evented = isSelectMode
       obj.opacity = isSelectMode ? 1.0 : 0.7
-      obj.stroke = isSelectMode ? '#444444' : '#666666'
+              obj.stroke = isSelectMode ? '#8B7355' : '#D2B48C'
     }
   })
   
@@ -1594,7 +1594,7 @@ const setupWallDrawing = () => {
     startPoint = pointer
 
     currentLine = new fabric.Line([pointer.x, pointer.y, pointer.x, pointer.y], {
-      stroke: '#666666',
+      stroke: '#D2B48C',
       strokeWidth: 3 / zoom.value, // 확대/축소에 따른 선 두께 조정
       strokeLineCap: 'round',
       selectable: false,
@@ -1984,7 +1984,7 @@ const addInteriorWall = (start: { x: number, y: number }, end: { x: number, y: n
   const isSelectMode = currentTool.value === 'select'
 
   const wall = new fabric.Line([start.x, start.y, end.x, end.y], {
-    stroke: isSelectMode ? '#444444' : '#666666', // Select 모드: 더 진한 회색, Draw 모드: 진한 회색
+    stroke: isSelectMode ? '#8B7355' : '#D2B48C', // Select 모드: 진한 베이지, Draw 모드: 밝은 베이지
     strokeWidth: 3,
     strokeLineCap: 'round',
     selectable: isSelectMode,
@@ -2033,7 +2033,7 @@ const addInteriorWallWithClass = (start: { x: number, y: number }, end: { x: num
   const isSelectMode = currentTool.value === 'select'
 
   const wall = new fabric.Line([start.x, start.y, end.x, end.y], {
-    stroke: isSelectMode ? '#444444' : '#666666', // Select 모드: 더 진한 회색, Draw 모드: 진한 회색
+    stroke: isSelectMode ? '#8B7355' : '#D2B48C', // Select 모드: 진한 베이지, Draw 모드: 밝은 베이지
     strokeWidth: 3,
     strokeLineCap: 'round',
     selectable: isSelectMode,
@@ -2109,7 +2109,7 @@ const createDefaultFloor = () => {
     top: startY,
     width: roomWidthPx,
     height: roomHeightPx,
-    fill: 'rgba(211, 211, 211, 0.8)', // 밝은 회색
+    fill: 'rgba(169, 169, 169, 0.8)', // 중간 회색
     stroke: '#A9A9A9', // 테두리는 살짝 어둡게
     strokeWidth: 2,
     selectable: false,    // 선택 불가
@@ -2149,7 +2149,7 @@ const createDefaultFloor = () => {
     width: defaultWidth,
     height: defaultHeight,
     boundsPx: { left: startX, top: startY, right: startX + roomWidthPx, bottom: startY + roomHeightPx },
-    color: '#D3D3D3'
+    color: '#A9A9A9'
   })
 
   fabricCanvas.renderAll()
@@ -3481,7 +3481,7 @@ const createWallFromSavedData = (wallData: any) => {
 
   // Wall 생성
   const wall = new fabric.Line([startX, startY, endX, endY], {
-    stroke: '#666666', // 기본 회색
+          stroke: '#D2B48C', // 베이지색
     strokeWidth: 3,
     strokeLineCap: 'round',
     selectable: true,

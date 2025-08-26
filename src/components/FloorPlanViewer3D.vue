@@ -253,16 +253,20 @@ const initThreeJS = () => {
   renderer.toneMapping = THREE.NoToneMapping
   renderer.toneMappingExposure = 1.0
   renderer.shadowMap.enabled = false
+  
+  // 성능 최적화 설정
+  renderer.setClearColor(0x000000, 0) // 투명 배경으로 성능 향상
 
   // 카메라 컨트롤 설정
   controls = new OrbitControls(camera, renderer.domElement)
-  controls.enableDamping = false  // 줌인 후 이동 속도 문제 해결을 위해 비활성화
+  controls.enableDamping = true   // 부드러운 컨트롤을 위해 활성화
+  controls.dampingFactor = 0.05  // 빠른 반응을 위해 낮은 값 설정
   controls.maxPolarAngle = Math.PI / 2.5
   controls.minPolarAngle = 0
   controls.target.set(0, 0, 0)
   controls.screenSpacePanning = true
   controls.enablePan = true
-  controls.enableZoom = true
+  controls.enableZoom = false // 커스텀 zoom 사용으로 인해 비활성화
   controls.enableRotate = true
   controls.mouseButtons = {
     LEFT: THREE.MOUSE.ROTATE,
@@ -270,7 +274,7 @@ const initThreeJS = () => {
     RIGHT: THREE.MOUSE.PAN
   }
   controls.rotateSpeed = 1.0
-  controls.zoomSpeed = 12.0  // Zoom 속도 극대화 (8.0 -> 12.0)
+  controls.zoomSpeed = 20.0  // Zoom 속도 극대화 (12.0 -> 20.0)
   controls.panSpeed = 3.0  // PAN 속도 증가 (1.5 -> 3.0)
   controls.maxDistance = 150
   controls.minDistance = 0.01  // 더 높은 Zoom을 위해 최소 거리 감소 (0.05 -> 0.01)
@@ -354,7 +358,7 @@ const create3DFloorFromRoom = (data: any) => {
     const depthMeters = data.roomSize.height
     const geo = new THREE.PlaneGeometry(widthMeters, depthMeters)
     const mat = new THREE.MeshStandardMaterial({
-      color: 0xD3D3D3, // 밝은 회색 (기본 바닥)
+      color: 0xA9A9A9, // 중간 회색 (기본 바닥)
       roughness: 0.9,
       metalness: 0.0,
       transparent: false, // 기본 바닥은 불투명
@@ -372,7 +376,7 @@ const create3DFloorFromRoom = (data: any) => {
   if (Array.isArray(data.floors)) {
     data.floors.forEach((f: any, index: number) => {
       // 기본 바닥과 겹치는 부분은 건너뛰기
-      if (f.isZone || f.color === '#D3D3D3') {
+      if (f.isZone || f.color === '#A9A9A9') {
         return
       }
 
@@ -492,13 +496,13 @@ const create3DWalls = (wallsData: any) => {
 
   if (wallsData.exteriorWalls) {
     wallsData.exteriorWalls.forEach((wall: any) => {
-      createWall(wall, 'exterior-wall', 0xd3d3d3, canvasWidth, canvasHeight)
+      createWall(wall, 'exterior-wall', 0xD2B48C, canvasWidth, canvasHeight)
     })
   }
 
   if (wallsData.interiorWalls) {
     wallsData.interiorWalls.forEach((wall: any) => {
-      createWall(wall, 'interior-wall', 0xd3d3d3, canvasWidth, canvasHeight)
+      createWall(wall, 'interior-wall', 0xD2B48C, canvasWidth, canvasHeight)
     })
   }
 }
@@ -547,6 +551,8 @@ const createWall = (wall: any, wallType: string, color: number, canvasWidth: num
 
 // 애니메이션 루프
 let lastTime = 0
+let lastPolygonUpdateTime = 0
+let frustumNeedsUpdate = false
 const animate = (currentTime = 0) => {
   animationId = requestAnimationFrame(animate)
   
@@ -563,17 +569,17 @@ const animate = (currentTime = 0) => {
   }
   
   try {
-    // Zoom 레벨에 따른 PAN 속도 동적 조정
+    // 매 프레임마다 실행하지 않고 필요할 때만 실행
     updatePanSpeedBasedOnZoom()
-    
-    // Zoom 및 PAN 속도 모니터링 업데이트
     updateZoomAndPanInfo()
-    
     controls.update()
     
-    // Frustum Culling 업데이트
-    updateFrustum()
-    updateObjectVisibility()
+    // Frustum Culling은 zoom 변경 시에만 업데이트
+    if (frustumNeedsUpdate) {
+      updateFrustum()
+      updateObjectVisibility()
+      frustumNeedsUpdate = false
+    }
     
     // 상태 표시 구체 가시성 업데이트
     updateStatusSpheresVisibility()
@@ -585,8 +591,11 @@ const animate = (currentTime = 0) => {
     
     // Three.js LOD는 자동으로 처리됨 - 수동 업데이트 불필요
     
-    // 폴리곤 수 계산
-    updatePolygonCount()
+    // 폴리곤 수는 1초마다만 계산 (성능 최적화)
+    if (currentTime - lastPolygonUpdateTime >= 1000) {
+      updatePolygonCount()
+      lastPolygonUpdateTime = currentTime
+    }
     
     renderer.render(scene, camera)
   } catch (error) {
@@ -652,11 +661,7 @@ const handleMouseUp = (event: MouseEvent) => {
   }
 }
 
-// Zoom 이벤트 그룹화를 위한 상태 관리
-let zoomTimeout: number | null = null
-let pendingZoomChange = 0
-let lastZoomDirection = 0 // 1: 확대, -1: 축소
-
+// 간소화된 Zoom 이벤트 처리
 const handleMouseWheel = (event: WheelEvent) => {
   if (!controls || !camera) return
   
@@ -664,49 +669,18 @@ const handleMouseWheel = (event: WheelEvent) => {
   const delta = event.deltaY
   const currentDirection = delta > 0 ? -1 : 1 // -1: 축소, 1: 확대
   
-  // 이전 Zoom 방향과 다른 경우, 대기 중인 변경사항 즉시 실행
-  if (currentDirection !== lastZoomDirection && lastZoomDirection !== 0) {
-    if (pendingZoomChange !== 0) {
-      // Zoom 값 직접 변경
-      currentZoom.value = Math.max(0.2, Math.min(currentZoom.value + pendingZoomChange, 20.0))
-      // 0.2 배수로 반올림
-      currentZoom.value = Math.round(currentZoom.value * 5) / 5
-      pendingZoomChange = 0
-    }
-    
-    // 기존 타임아웃 클리어
-    if (zoomTimeout !== null) {
-      clearTimeout(zoomTimeout)
-      zoomTimeout = null
-    }
-  }
-  
-  // 현재 방향 업데이트
-  lastZoomDirection = currentDirection
-  
-  // 0.2 단계별 Zoom 변화량 (항상 0.2씩)
+  // 즉시 zoom 적용 (지연 없음)
   const zoomChange = 0.2 * currentDirection
+  currentZoom.value = Math.max(0.2, Math.min(currentZoom.value + zoomChange, 20.0))
   
-  // 대기 중인 Zoom 변경사항에 추가
-  pendingZoomChange += zoomChange
+  // 0.2 배수로 반올림
+  currentZoom.value = Math.round(currentZoom.value * 5) / 5
   
-  // 기존 타임아웃이 있다면 클리어
-  if (zoomTimeout !== null) {
-    clearTimeout(zoomTimeout)
-  }
+  // Frustum 업데이트 필요 표시
+  frustumNeedsUpdate = true
   
-  // 500ms 후에 Zoom 실행 (연속 이벤트 그룹화)
-  zoomTimeout = setTimeout(() => {
-    if (pendingZoomChange !== 0) {
-      // Zoom 값 직접 변경
-      currentZoom.value = Math.max(0.2, Math.min(currentZoom.value + pendingZoomChange, 20.0))
-      // 0.2 배수로 반올림
-      currentZoom.value = Math.round(currentZoom.value * 5) / 5
-      pendingZoomChange = 0
-      lastZoomDirection = 0
-    }
-    zoomTimeout = null
-  }, 500)
+  // OrbitControls zoom 비활성화하여 중복 방지
+  event.preventDefault()
 }
 
 // Zoom 레벨에 따른 PAN 및 Zoom 속도 동적 조정 - 0.2 배수 단계에 맞춰 조정
@@ -2235,11 +2209,7 @@ onUnmounted(() => {
     cancelAnimationFrame(animationId)
   }
   
-  // Zoom 타임아웃 정리
-  if (zoomTimeout !== null) {
-    clearTimeout(zoomTimeout)
-    zoomTimeout = null
-  }
+
   
   // 이벤트 리스너 제거
   window.removeEventListener('resize', handleResize)
