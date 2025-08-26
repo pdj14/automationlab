@@ -125,7 +125,6 @@ const statusSpheresVisible = ref(false) // 상태 표시 구체 표시 여부 - 
 // Zoom 및 PAN 속도 모니터링
 const currentZoom = ref(1.0)
 const currentPanSpeed = ref(3.0)
-const targetZoom = ref(1.0) // 부드러운 Zoom 전환을 위한 목표값
 
 // 3D 팝업 관련 상태
 const raycaster = new THREE.Raycaster()
@@ -663,40 +662,61 @@ const handleMouseUp = (event: MouseEvent) => {
   }
 }
 
+// Zoom 이벤트 그룹화를 위한 상태 관리
+let zoomTimeout: number | null = null
+let pendingZoomChange = 0
+let lastZoomDirection = 0 // 1: 확대, -1: 축소
+
 const handleMouseWheel = (event: WheelEvent) => {
   if (!controls || !camera) return
   
-  // 휠 델타에 따른 Zoom 속도 조정
+  // 휠 델타 방향 확인 (위로 = 확대, 아래로 = 축소)
   const delta = event.deltaY
-  const currentDistance = camera.position.distanceTo(controls.target)
+  const currentDirection = delta > 0 ? -1 : 1 // -1: 축소, 1: 확대
   
-  // Zoom 레벨에 따른 추가 속도 보정
-  let zoomMultiplier = 1.0
-  
-  if (currentDistance < 5) {
-    // 매우 가까운 경우 (극도로 확대) - Zoom 속도 극대화
-    zoomMultiplier = 20.0
-  } else if (currentDistance < 15) {
-    // 가까운 경우 (대폭 확대) - Zoom 속도 대폭 증가
-    zoomMultiplier = 12.0
-  } else if (currentDistance < 30) {
-    // 중간 거리 (확대) - Zoom 속도 증가
-    zoomMultiplier = 8.0
-  } else if (currentDistance < 60) {
-    // 보통 거리 - 기본 속도
-    zoomMultiplier = 5.0
+  // 이전 Zoom 방향과 다른 경우, 대기 중인 변경사항 즉시 실행
+  if (currentDirection !== lastZoomDirection && lastZoomDirection !== 0) {
+    if (pendingZoomChange !== 0) {
+      // Zoom 값 직접 변경
+      currentZoom.value = Math.max(0.2, Math.min(currentZoom.value + pendingZoomChange, 20.0))
+      // 0.2 배수로 반올림
+      currentZoom.value = Math.round(currentZoom.value * 5) / 5
+      pendingZoomChange = 0
+    }
+    
+    // 기존 타임아웃 클리어
+    if (zoomTimeout !== null) {
+      clearTimeout(zoomTimeout)
+      zoomTimeout = null
+    }
   }
   
-  // 휠 델타가 클수록 더 빠른 Zoom
-  const speedMultiplier = Math.min(Math.abs(delta) / 100, 2.0)
+  // 현재 방향 업데이트
+  lastZoomDirection = currentDirection
   
-  // 최종 Zoom 속도 계산
-  controls.zoomSpeed = 4.0 * zoomMultiplier * speedMultiplier
+  // 0.2 단계별 Zoom 변화량 (항상 0.2씩)
+  const zoomChange = 0.2 * currentDirection
   
-  // Zoom 동작 후 속도 재조정을 위해 약간의 지연
-  setTimeout(() => {
-    updatePanSpeedBasedOnZoom()
-  }, 50)
+  // 대기 중인 Zoom 변경사항에 추가
+  pendingZoomChange += zoomChange
+  
+  // 기존 타임아웃이 있다면 클리어
+  if (zoomTimeout !== null) {
+    clearTimeout(zoomTimeout)
+  }
+  
+  // 500ms 후에 Zoom 실행 (연속 이벤트 그룹화)
+  zoomTimeout = setTimeout(() => {
+    if (pendingZoomChange !== 0) {
+      // Zoom 값 직접 변경
+      currentZoom.value = Math.max(0.2, Math.min(currentZoom.value + pendingZoomChange, 20.0))
+      // 0.2 배수로 반올림
+      currentZoom.value = Math.round(currentZoom.value * 5) / 5
+      pendingZoomChange = 0
+      lastZoomDirection = 0
+    }
+    zoomTimeout = null
+  }, 500)
 }
 
 // Zoom 레벨에 따른 PAN 및 Zoom 속도 동적 조정 - 0.2 배수 단계에 맞춰 조정
@@ -771,79 +791,28 @@ const updatePanSpeedBasedOnZoom = () => {
   controls.zoomSpeed = adjustedZoomSpeed
 }
 
-// Zoom 및 PAN 속도 정보 업데이트
+// Zoom 값을 base로 하여 거리 계산 및 카메라 위치 조정
 const updateZoomAndPanInfo = () => {
   if (!controls || !camera) return
   
   try {
-    // 현재 Zoom 레벨 계산 (카메라와 타겟 사이의 거리 기반)
-    const distance = camera.position.distanceTo(controls.target)
-    const baseDistance = 15 // 기본 거리 (카메라 초기 위치)
+    // 현재 Zoom 값에 따라 목표 거리 계산
+    const targetDistance = getDistanceFromZoom(currentZoom.value)
+    const currentDistance = camera.position.distanceTo(controls.target)
     
-    // 0.2 배수 단계별 Zoom 계산 - 더 체계적이고 예측 가능한 Zoom
-    // 거리가 가까울수록 Zoom이 높아지도록 (0.2x ~ 20x 범위)
-    let zoomLevel = 1.0
-    
-    if (distance <= 0) {
-      // 극도로 가까운 경우 (최대 확대)
-      zoomLevel = 20.0
-    } else if (distance < 0.5) {
-      // 극도로 가까운 경우 (극도 확대)
-      zoomLevel = 20.0 / (distance + 0.02)
-    } else if (distance < 1) {
-      // 매우 가까운 경우 (대폭 확대)
-      zoomLevel = 15.0 / (distance + 0.05)
-    } else if (distance < 2) {
-      // 가까운 경우 (확대)
-      zoomLevel = 12.0 / (distance + 0.1)
-    } else if (distance < 3) {
-      // 중간-가까운 경우 (약간 확대)
-      zoomLevel = 10.0 / (distance + 0.2)
-    } else if (distance < 5) {
-      // 보통-가까운 경우 (약간 확대)
-      zoomLevel = 8.0 / (distance + 0.5)
-    } else if (distance < 8) {
-      // 기본 거리 근처 (약간 확대)
-      zoomLevel = 6.0 / (distance + 1.0)
-    } else if (distance < 12) {
-      // 기본 거리 근처 (약간 확대)
-      zoomLevel = 4.0 / (distance + 1.5)
-    } else if (distance < baseDistance) {
-      // 기본 거리 근처 (약간 확대)
-      zoomLevel = 3.0 / (distance + 2.0)
-    } else if (distance < 20) {
-      // 기본 거리보다 약간 먼 경우 (약간 축소)
-      zoomLevel = 2.5 / (distance / baseDistance)
-    } else if (distance < 30) {
-      // 기본 거리보다 먼 경우 (축소)
-      zoomLevel = 2.0 / (distance / 25.0)
-    } else if (distance < 45) {
-      // 먼 경우 (약간 축소)
-      zoomLevel = 1.5 / (distance / 35.0)
-    } else if (distance < 70) {
-      // 매우 먼 경우 (축소)
-      zoomLevel = 1.0 / (distance / 50.0)
-    } else if (distance < 100) {
-      // 극도로 먼 경우 (대폭 축소)
-      zoomLevel = 0.6 / (distance / 70.0)
-    } else {
-      // 극도로 먼 경우 (극도 축소)
-      zoomLevel = 0.2 / (distance / 100.0)
-    }
-    
-    // Zoom 수치를 합리적인 범위로 제한 (0.2x ~ 20x)
-    zoomLevel = Math.max(0.2, Math.min(zoomLevel, 20.0))
-    
-    // 0.2 배수 단계로 반올림하여 더 체계적인 Zoom 제공
-    zoomLevel = Math.round(zoomLevel * 5) / 5
-    
-    // 부드러운 Zoom 전환을 위한 보간 적용
-    targetZoom.value = zoomLevel
-    currentZoom.value += (targetZoom.value - currentZoom.value) * 0.12 // 12% 보간으로 더 부드럽게
-    
-    // NaN이나 Infinity 방지
-    if (!isFinite(currentZoom.value)) {
-      currentZoom.value = 1.0
+    // 거리 차이가 있을 때만 카메라 위치 조정
+    if (Math.abs(targetDistance - currentDistance) > 0.01) {
+      const direction = new THREE.Vector3()
+      direction.subVectors(camera.position, controls.target).normalize()
+      
+      // 새로운 카메라 위치 설정
+      const newPosition = new THREE.Vector3()
+      newPosition.copy(controls.target).add(direction.multiplyScalar(targetDistance))
+      camera.position.copy(newPosition)
+      
+      // 카메라 업데이트
+      camera.updateMatrixWorld()
+      controls.update()
     }
     
     // PAN 속도 업데이트
@@ -852,6 +821,28 @@ const updateZoomAndPanInfo = () => {
   } catch (error) {
     console.error('❌ updateZoomAndPanInfo 오류:', error)
   }
+}
+
+// Zoom 값으로부터 거리 계산하는 함수
+const getDistanceFromZoom = (zoomLevel: number): number => {
+  const baseDistance = 15 // 기본 거리 (카메라 초기 위치)
+  
+  // Zoom 값에 따른 거리 계산 (역함수)
+  if (zoomLevel >= 20.0) return 0.01
+  if (zoomLevel >= 15.0) return 0.5
+  if (zoomLevel >= 12.0) return 1.0
+  if (zoomLevel >= 10.0) return 2.0
+  if (zoomLevel >= 8.0) return 3.0
+  if (zoomLevel >= 6.0) return 5.0
+  if (zoomLevel >= 4.0) return 8.0
+  if (zoomLevel >= 3.0) return 12.0
+  if (zoomLevel >= 2.5) return 15.0
+  if (zoomLevel >= 2.0) return 20.0
+  if (zoomLevel >= 1.5) return 30.0
+  if (zoomLevel >= 1.0) return 50.0
+  if (zoomLevel >= 0.6) return 70.0
+  if (zoomLevel >= 0.2) return 100.0
+  return 150.0
 }
 
 // 컨트롤 함수들
@@ -2252,6 +2243,12 @@ onUnmounted(() => {
   // 애니메이션 루프 정리
   if (animationId) {
     cancelAnimationFrame(animationId)
+  }
+  
+  // Zoom 타임아웃 정리
+  if (zoomTimeout !== null) {
+    clearTimeout(zoomTimeout)
+    zoomTimeout = null
   }
   
   // 이벤트 리스너 제거

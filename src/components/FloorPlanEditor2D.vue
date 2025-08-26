@@ -21,10 +21,18 @@
             <label>Height (m):</label>
             <input v-model.number="zoneHeight" type="number" min="0.01" max="70" step="0.01" placeholder="세로" />
           </div>
-          <div class="color-swatches">
-            <button v-for="c in floorColors" :key="c.hex" type="button" class="swatch"
-              :class="{ selected: selectedFloorColor.hex === c.hex }" :style="{ backgroundColor: c.hex }"
-              @click="selectedFloorColor = c" :title="c.label" />
+          <div class="color-section">
+            <div class="color-selector">
+              <label>Zone Color:</label>
+              <button 
+                @click="openColorPicker" 
+                class="color-picker-button"
+                :style="{ backgroundColor: selectedFloorColor.hex }"
+              >
+                <span class="color-preview-text">{{ selectedFloorColor.label }}</span>
+                <span class="color-picker-icon">🎨</span>
+              </button>
+            </div>
           </div>
           <button @click="createZone" class="btn btn-primary" :disabled="!isValidZoneSize">
             🏗️ Create Zone
@@ -247,11 +255,149 @@
         </div>
       </div>
     </div>
+
+    <!-- 색상 선택 팝업 -->
+    <div v-if="showColorPicker" class="color-picker-overlay" @click="closeColorPicker">
+      <div class="color-picker-dialog" @click.stop>
+        <div class="dialog-header">
+          <h3>🎨 고급 색상 선택기</h3>
+          <button @click="closeColorPicker" class="close-btn">×</button>
+        </div>
+        
+        <div class="dialog-content">
+
+
+          <!-- 고급 색상 선택기 -->
+          <div class="advanced-color-section">
+            <h4>고급 색상 선택</h4>
+            
+            <!-- 색상 휠 및 밝기/채도 조절 -->
+            <div class="color-wheel-section">
+              <div class="color-wheel-container">
+                <canvas ref="colorWheelCanvas" class="color-wheel-canvas" @mousedown="startColorWheelDrag" @mousemove="updateColorFromWheel" @mouseup="stopColorWheelDrag"></canvas>
+                <div class="color-wheel-cursor" :style="{ left: colorWheelCursor.x + 'px', top: colorWheelCursor.y + 'px' }"></div>
+              </div>
+              
+              <!-- 밝기/채도 슬라이더 -->
+              <div class="color-sliders">
+                <div class="slider-group">
+                  <label>채도 (S):</label>
+                  <input 
+                    v-model="colorSaturation" 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    step="1" 
+                    @input="updateColorFromSliders"
+                    class="color-slider"
+                  />
+                  <span class="slider-value">{{ colorSaturation }}%</span>
+                </div>
+                <div class="slider-group">
+                  <label>밝기 (V):</label>
+                  <input 
+                    v-model="colorValue" 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    step="1" 
+                    @input="updateColorFromSliders"
+                    class="color-slider"
+                  />
+                  <span class="slider-value">{{ colorValue }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 색상 입력 필드들 -->
+            <div class="color-input-fields">
+              <div class="input-row">
+                <div class="input-group">
+                  <label>HEX:</label>
+                  <input 
+                    v-model="customColorHex" 
+                    type="text" 
+                    placeholder="#FFE082" 
+                    @input="updateColorFromHex"
+                    @blur="validateAndUpdateColor"
+                    class="color-input"
+                    :class="{ 'invalid': !isValidHexColor }"
+                  />
+                </div>
+                <div class="input-group">
+                  <label>RGB:</label>
+                  <div class="rgb-inputs">
+                    <input v-model="colorRed" type="number" min="0" max="255" @input="updateColorFromRGB" class="rgb-input" />
+                    <input v-model="colorGreen" type="number" min="0" max="255" @input="updateColorFromRGB" class="rgb-input" />
+                    <input v-model="colorBlue" type="number" min="0" max="255" @input="updateColorFromRGB" class="rgb-input" />
+                  </div>
+                </div>
+                <div class="input-group">
+                  <label>HSL:</label>
+                  <div class="hsl-inputs">
+                    <input v-model="colorHue" type="number" min="0" max="360" @input="updateColorFromHSL" class="hsl-input" />
+                    <input v-model="colorSaturation" type="number" min="0" max="100" @input="updateColorFromHSL" class="hsl-input" />
+                    <input v-model="colorLightness" type="number" min="0" max="100" @input="updateColorFromHSL" class="hsl-input" />
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 투명도 조절 -->
+              <div class="opacity-section">
+                <label>투명도:</label>
+                <div class="opacity-controls">
+                  <input 
+                    v-model="customColorOpacity" 
+                    type="range" 
+                    min="0.1" 
+                    max="1.0" 
+                    step="0.05" 
+                    @input="updateCustomColor"
+                    class="opacity-slider"
+                  />
+                  <span class="opacity-value">{{ Math.round(customColorOpacity * 100) }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 실시간 색상 미리보기 -->
+            <div class="color-preview-section">
+              <label>미리보기:</label>
+              <div class="color-preview-container">
+                <div class="color-preview-box" :style="{ backgroundColor: customColorHex + Math.round(customColorOpacity * 255).toString(16).padStart(2, '0') }"></div>
+                <div class="color-info">
+                  <span class="color-hex-display">{{ customColorHex }}</span>
+                  <span class="color-rgba-display">{{ getRGBAString() }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 선택된 색상 정보 -->
+          <div class="selected-color-info">
+            <h4>선택된 색상</h4>
+            <div class="selected-color-display">
+              <div class="selected-color-preview" :style="{ backgroundColor: selectedFloorColor.hex }"></div>
+              <div class="selected-color-details">
+                <span class="color-name">{{ selectedFloorColor.label }}</span>
+                <span class="color-hex">{{ selectedFloorColor.hex }}</span>
+                <span class="color-rgba">{{ selectedFloorColor.rgba }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dialog-footer">
+          <button @click="closeColorPicker" class="btn btn-secondary">취소</button>
+          <button @click="confirmColorSelection" class="btn btn-primary">확인</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import * as fabricLib from 'fabric'
 import { useFloorplanStore } from '../stores/floorplanStore'
 import axios from 'axios'
@@ -302,6 +448,30 @@ const floorColors = ref([
   { label: 'Pastel Coral', hex: '#FFAB91', rgba: 'rgba(255, 171, 145, 0.65)' }
 ])
 const selectedFloorColor = ref<{ label: string; hex: string; rgba: string }>(floorColors.value[0]) // Pastel Yellow
+
+// 색상 선택 팝업 관련 상태
+const showColorPicker = ref(false)
+
+// 고급 색상 선택기 관련 상태
+const colorWheelCanvas = ref<HTMLCanvasElement>()
+const colorWheelCursor = ref({ x: 100, y: 100 })
+const isDraggingColorWheel = ref(false)
+
+// 색상 값들 (HSV 기반)
+const colorHue = ref(45)        // 색조 (0-360)
+const colorSaturation = ref(100) // 채도 (0-100)
+const colorValue = ref(100)      // 밝기 (0-100)
+const colorLightness = ref(50)   // 명도 (0-100)
+
+// RGB 값들
+const colorRed = ref(255)
+const colorGreen = ref(224)
+const colorBlue = ref(130)
+
+// 커스텀 색상 관련 상태
+const customColorHex = ref('#FFE082')
+const customColorOpacity = ref(0.65)
+const isValidHexColor = ref(true)
 const currentTool = ref('select')
 const mousePosition = ref({ x: 0, y: 0 })
 const selectedObject = ref<any>(null)
@@ -364,6 +534,350 @@ const isValidSize = computed(() => {
   return roomWidth.value > 0 && roomHeight.value > 0 &&
     roomWidth.value <= 300 && roomHeight.value <= 300
 })
+
+// 프리셋 색상 선택 함수
+const selectPresetColor = (color: { label: string; hex: string; rgba: string }) => {
+  selectedFloorColor.value = color
+  // 프리셋 색상 선택 시 커스텀 색상 입력 필드도 업데이트
+  customColorHex.value = color.hex
+  // rgba에서 opacity 추출 (rgba(r, g, b, a) 형태)
+  const opacityMatch = color.rgba.match(/rgba\([^)]+,\s*([^)]+)\)/)
+  if (opacityMatch) {
+    customColorOpacity.value = parseFloat(opacityMatch[1])
+  }
+}
+
+// 커스텀 색상 업데이트 함수
+const updateCustomColor = () => {
+  // HEX 색상 유효성 검사
+  if (/^#[0-9A-Fa-f]{6}$/.test(customColorHex.value)) {
+    isValidHexColor.value = true
+    // 커스텀 색상을 selectedFloorColor로 설정
+    selectedFloorColor.value = {
+      label: 'Custom Color',
+      hex: customColorHex.value,
+      rgba: `rgba(${parseInt(customColorHex.value.slice(1, 3), 16)}, ${parseInt(customColorHex.value.slice(3, 5), 16)}, ${parseInt(customColorHex.value.slice(5, 7), 16)}, ${customColorOpacity.value})`
+    }
+  } else {
+    isValidHexColor.value = false
+  }
+}
+
+// 색상 유효성 검사 및 업데이트 함수
+const validateAndUpdateColor = () => {
+  if (/^#[0-9A-Fa-f]{6}$/.test(customColorHex.value)) {
+    isValidHexColor.value = true
+    updateCustomColor()
+  } else {
+    isValidHexColor.value = false
+    // 유효하지 않은 경우 기본값으로 복원
+    customColorHex.value = selectedFloorColor.value.hex
+  }
+}
+
+// 색상 선택 팝업 관련 함수들
+const openColorPicker = () => {
+  showColorPicker.value = true
+  // 다음 프레임에서 색상 휠 그리기 및 현재 색상으로 초기화
+  nextTick(() => {
+    drawColorWheel()
+    initializeColorValues()
+  })
+}
+
+// 색상 선택기를 열 때 현재 선택된 색상으로 초기화
+const initializeColorValues = () => {
+  if (selectedFloorColor.value) {
+    // HEX를 RGB로 변환
+    const hex = selectedFloorColor.value.hex.slice(1)
+    colorRed.value = parseInt(hex.slice(0, 2), 16)
+    colorGreen.value = parseInt(hex.slice(2, 4), 16)
+    colorBlue.value = parseInt(hex.slice(4, 6), 16)
+    
+    // RGB를 HSV로 변환
+    updateColorFromRGB()
+    
+    // 커서 위치 업데이트 (색상 휠에서)
+    updateColorWheelCursor()
+  }
+}
+
+// 색상 휠 커서 위치 업데이트
+const updateColorWheelCursor = () => {
+  if (!colorWheelCanvas.value) return
+  
+  const canvas = colorWheelCanvas.value
+  const size = canvas.width
+  const centerX = size / 2
+  const centerY = size / 2
+  const radius = Math.min(centerX, centerY) - 10
+  
+  // HSV 값으로부터 커서 위치 계산
+  const angle = (colorHue.value * Math.PI) / 180
+  const distance = (colorSaturation.value / 100) * radius
+  
+  const x = centerX + distance * Math.cos(angle)
+  const y = centerY + distance * Math.sin(angle)
+  
+  colorWheelCursor.value = { x, y }
+}
+
+const closeColorPicker = () => {
+  showColorPicker.value = false
+}
+
+// 색상 휠 그리기 함수
+const drawColorWheel = () => {
+  if (!colorWheelCanvas.value) return
+  
+  const canvas = colorWheelCanvas.value
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  
+  const size = 200
+  canvas.width = size
+  canvas.height = size
+  
+  const centerX = size / 2
+  const centerY = size / 2
+  const radius = Math.min(centerX, centerY) - 10
+  
+  // 색상 휠 그리기
+  for (let angle = 0; angle < 360; angle += 1) {
+    const hue = angle
+    for (let saturation = 0; saturation <= radius; saturation += 1) {
+      const x = centerX + (saturation * Math.cos(angle * Math.PI / 180))
+      const y = centerY + (saturation * Math.sin(angle * Math.PI / 180))
+      
+      if (x >= 0 && x < size && y >= 0 && y < size) {
+        const rgb = hsvToRgb(hue, (saturation / radius) * 100, 100)
+        ctx.fillStyle = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
+        ctx.fillRect(x, y, 1, 1)
+      }
+    }
+  }
+}
+
+// HSV를 RGB로 변환하는 헬퍼 함수
+const hsvToRgb = (h: number, s: number, v: number) => {
+  const c = (v / 100) * (s / 100)
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1))
+  const m = (v / 100) - c
+  
+  let r, g, b
+  if (h < 60) {
+    r = c; g = x; b = 0
+  } else if (h < 120) {
+    r = x; g = c; b = 0
+  } else if (h < 180) {
+    r = 0; g = c; b = x
+  } else if (h < 240) {
+    r = 0; g = x; b = c
+  } else if (h < 300) {
+    r = x; g = 0; b = c
+  } else {
+    r = c; g = 0; b = x
+  }
+  
+  return {
+    r: Math.round((r + m) * 255),
+    g: Math.round((g + m) * 255),
+    b: Math.round((b + m) * 255)
+  }
+}
+
+const confirmColorSelection = () => {
+  // 선택된 색상으로 Zone 생성 준비 완료
+  closeColorPicker()
+}
+
+// 색상 휠 관련 함수들
+const startColorWheelDrag = (event: MouseEvent) => {
+  isDraggingColorWheel.value = true
+  updateColorFromWheel(event)
+}
+
+const updateColorFromWheel = (event: MouseEvent) => {
+  if (!isDraggingColorWheel.value || !colorWheelCanvas.value) return
+  
+  const rect = colorWheelCanvas.value.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+  
+  // 색상 휠 중앙 기준으로 좌표 계산
+  const centerX = rect.width / 2
+  const centerY = rect.height / 2
+  const deltaX = x - centerX
+  const deltaY = y - centerY
+  
+  // 색조(Hue) 계산 (각도)
+  const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI
+  colorHue.value = (angle + 360) % 360
+  
+  // 채도(Saturation) 계산 (거리)
+  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+  const maxDistance = Math.min(centerX, centerY)
+  colorSaturation.value = Math.min(100, Math.max(0, (distance / maxDistance) * 100))
+  
+  // 커서 위치 업데이트
+  colorWheelCursor.value = { x, y }
+  
+  // 색상 업데이트 - 모든 입력 필드 동기화
+  updateColorFromHSV()
+  updateSelectedFloorColor()
+}
+
+const stopColorWheelDrag = () => {
+  isDraggingColorWheel.value = false
+}
+
+// 색상 변환 함수들
+const updateColorFromSliders = () => {
+  updateColorFromHSV()
+  updateSelectedFloorColor()
+}
+
+// 선택된 색상을 업데이트하는 함수
+const updateSelectedFloorColor = () => {
+  // 현재 색상 값들을 HEX로 변환
+  const hex = rgbToHex(colorRed.value, colorGreen.value, colorBlue.value)
+  customColorHex.value = hex
+  
+  // selectedFloorColor 업데이트
+  selectedFloorColor.value = {
+    label: `Custom Color (${hex})`,
+    hex: hex,
+    rgba: getRGBAString()
+  }
+}
+
+// RGB를 HEX로 변환하는 헬퍼 함수
+const rgbToHex = (r: number, g: number, b: number) => {
+  return '#' + [r, g, b].map(x => {
+    const hex = x.toString(16)
+    return hex.length === 1 ? '0' + hex : hex
+  }).join('')
+}
+
+const updateColorFromHex = () => {
+  if (/^#[0-9A-Fa-f]{6}$/.test(customColorHex.value)) {
+    isValidHexColor.value = true
+    // HEX를 RGB로 변환
+    const hex = customColorHex.value.slice(1)
+    colorRed.value = parseInt(hex.slice(0, 2), 16)
+    colorGreen.value = parseInt(hex.slice(2, 4), 16)
+    colorBlue.value = parseInt(hex.slice(4, 6), 16)
+    
+    // RGB를 HSV로 변환
+    updateColorFromRGB()
+    // selectedFloorColor 업데이트
+    updateSelectedFloorColor()
+  } else {
+    isValidHexColor.value = false
+  }
+}
+
+const updateColorFromRGB = () => {
+  // RGB를 HSV로 변환
+  const r = colorRed.value / 255
+  const g = colorGreen.value / 255
+  const b = colorBlue.value / 255
+  
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const delta = max - min
+  
+  // 색조 계산
+  if (delta === 0) {
+    colorHue.value = 0
+  } else if (max === r) {
+    colorHue.value = ((g - b) / delta) % 6 * 60
+  } else if (max === g) {
+    colorHue.value = ((b - r) / delta + 2) * 60
+  } else {
+    colorHue.value = ((r - g) / delta + 4) * 60
+  }
+  
+  // 채도 계산
+  colorSaturation.value = max === 0 ? 0 : (delta / max) * 100
+  
+  // 밝기 계산
+  colorValue.value = max * 100
+  
+  // HEX 업데이트
+  updateCustomColor()
+}
+
+const updateColorFromHSL = () => {
+  // HSL을 RGB로 변환
+  const h = colorHue.value / 360
+  const s = colorSaturation.value / 100
+  const l = colorLightness.value / 100
+  
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs((h * 6) % 2 - 1))
+  const m = l - c / 2
+  
+  let r, g, b
+  if (h < 1/6) {
+    r = c; g = x; b = 0
+  } else if (h < 2/6) {
+    r = x; g = c; b = 0
+  } else if (h < 3/6) {
+    r = 0; g = c; b = x
+  } else if (h < 4/6) {
+    r = 0; g = x; b = c
+  } else if (h < 5/6) {
+    r = x; g = 0; b = c
+  } else {
+    r = c; g = 0; b = x
+  }
+  
+  colorRed.value = Math.round((r + m) * 255)
+  colorGreen.value = Math.round((g + m) * 255)
+  colorBlue.value = Math.round((b + m) * 255)
+  
+  // HEX 업데이트
+  updateCustomColor()
+}
+
+const updateColorFromHSV = () => {
+  // HSV를 RGB로 변환
+  const h = colorHue.value / 360
+  const s = colorSaturation.value / 100
+  const v = colorValue.value / 100
+  
+  const c = v * s
+  const x = c * (1 - Math.abs((h * 6) % 2 - 1))
+  const m = v - c
+  
+  let r, g, b
+  if (h < 1/6) {
+    r = c; g = x; b = 0
+  } else if (h < 2/6) {
+    r = x; g = c; b = 0
+  } else if (h < 3/6) {
+    r = 0; g = c; b = x
+  } else if (h < 4/6) {
+    r = 0; g = x; b = c
+  } else if (h < 5/6) {
+    r = x; g = 0; b = c
+  } else {
+    r = c; g = 0; b = x
+  }
+  
+  colorRed.value = Math.round((r + m) * 255)
+  colorGreen.value = Math.round((g + m) * 255)
+  colorBlue.value = Math.round((b + m) * 255)
+  
+  // HEX 업데이트
+  updateCustomColor()
+}
+
+// RGBA 문자열 생성
+const getRGBAString = () => {
+  return `rgba(${colorRed.value}, ${colorGreen.value}, ${colorBlue.value}, ${customColorOpacity.value})`
+}
 
 // 현재 도구 이름
 const getCurrentToolName = () => {
@@ -3298,6 +3812,495 @@ onUnmounted(() => {
 
 .swatch.selected {
   outline: 2px solid #333;
+}
+
+.color-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.custom-color-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.custom-color-input label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.color-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.color-hex-input {
+  width: 80px;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.color-hex-input.invalid {
+  border-color: #e74c3c;
+  background-color: #fdf2f2;
+}
+
+.color-opacity-slider {
+  width: 80px;
+}
+
+.opacity-value {
+  font-size: 0.8rem;
+  color: #666;
+  min-width: 35px;
+}
+
+.custom-color-preview {
+  width: 100%;
+  height: 24px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-top: 0.25rem;
+}
+
+/* 색상 선택 팝업 스타일 */
+.color-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.color-picker-dialog {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  width: 95%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.dialog-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+
+.close-btn:hover {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.dialog-content {
+  padding: 1.5rem;
+}
+
+.preset-colors-section,
+.custom-color-section,
+.selected-color-info {
+  margin-bottom: 2rem;
+}
+
+.preset-colors-section h4,
+.custom-color-section h4,
+.selected-color-info h4 {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.preset-colors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.preset-color-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0.5rem;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.preset-color-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.preset-color-item.selected {
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+.color-label {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #333;
+  text-align: center;
+  font-weight: 500;
+}
+
+.custom-color-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.color-input-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.color-input-row label {
+  min-width: 80px;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.opacity-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.color-preview-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.color-preview-box {
+  width: 60px;
+  height: 40px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.selected-color-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.selected-color-preview {
+  width: 60px;
+  height: 40px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.selected-color-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.color-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.color-hex,
+.color-rgba {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #eee;
+  background: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+}
+
+/* 색상 선택 버튼 스타일 */
+.color-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.color-selector label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.color-picker-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 150px;
+}
+
+.color-picker-button:hover {
+  border-color: #3498db;
+  box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+}
+
+.color-preview-text {
+  color: #333;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.color-picker-icon {
+  font-size: 1.2rem;
+}
+
+/* 고급 색상 선택기 스타일 */
+.advanced-color-section {
+  margin-bottom: 2rem;
+}
+
+.color-wheel-section {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  align-items: flex-start;
+}
+
+.color-wheel-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.color-wheel-canvas {
+  border: 2px solid #ddd;
+  border-radius: 50%;
+  cursor: crosshair;
+}
+
+.color-wheel-cursor {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid white;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px #333;
+}
+
+.color-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+}
+
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.slider-group label {
+  min-width: 80px;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.color-slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: #ddd;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.color-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3498db;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider-value {
+  min-width: 40px;
+  font-size: 0.9rem;
+  color: #666;
+  text-align: right;
+}
+
+.color-input-fields {
+  margin-bottom: 2rem;
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.input-group label {
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.color-input {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9rem;
+}
+
+.color-input.invalid {
+  border-color: #e74c3c;
+  background-color: #fdf2f2;
+}
+
+.rgb-inputs,
+.hsl-inputs {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.rgb-input,
+.hsl-input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.opacity-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.opacity-section label {
+  min-width: 80px;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.opacity-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.opacity-slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: #ddd;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.opacity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3498db;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.color-preview-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.color-preview-box {
+  width: 80px;
+  height: 50px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.color-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.color-hex-display,
+.color-rgba-display {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: #666;
 }
 
 .room-controls {
