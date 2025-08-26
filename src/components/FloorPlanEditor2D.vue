@@ -893,18 +893,17 @@ const setTool = (tool: string) => {
   const previousTool = currentTool.value
   currentTool.value = tool
   
-  console.log(`🔧 툴 변경: ${previousTool} → ${tool}`)
+  
   
   // 벽 그리기 모드에서 다른 모드로 전환 시 zoom/pan 기능 재활성화
   if (previousTool === 'wall' && tool !== 'wall') {
-    console.log('✅ Zoom/Pan 기능 재활성화')
+
     if (fabricCanvas) {
       // 캔버스 선택 기능 활성화
       fabricCanvas.selection = true
       
       // 강제로 zoom/pan 이벤트 재활성화 확인
-      console.log('🔍 현재 zoom 상태:', zoom.value)
-      console.log('📱 현재 pan 상태:', pan.value)
+      
       
       // 캔버스 변환 강제 업데이트
       updateCanvasTransform()
@@ -932,7 +931,7 @@ const updateWallSelectability = () => {
   })
   
   fabricCanvas.renderAll()
-  console.log(`🔄 벽 선택 가능 여부 업데이트: ${isSelectMode ? '활성화' : '비활성화'}`)
+  
 }
 
 // Throttle 함수 (성능 최적화)
@@ -1143,14 +1142,7 @@ const setupZoomAndPanEvents = () => {
     
     const clampedZoom = Math.max(minZoom, Math.min(maxZoom, newZoom))
     
-    console.log('🔍 Zoom 제한:', {
-      current: zoom.value,
-      new: newZoom,
-      clamped: clampedZoom,
-      limits: { min: minZoom, max: maxZoom },
-      gridSize: { width: gridPxWidth, height: gridPxHeight },
-      canvasSize: { width: canvasWidth, height: canvasHeight }
-    })
+
     
     zoom.value = clampedZoom
 
@@ -1514,7 +1506,7 @@ const setupWallDrawing = () => {
       addInteriorWall(startPoint, pointer)
       
       // 벽 그리기 완료 후 자동으로 Select 모드로 전환
-      console.log('🔄 벽 그리기 완료 - Select 모드로 자동 전환')
+  
       setTool('select')
     }
 
@@ -1805,7 +1797,7 @@ const drawWallFromCoordinates = () => {
   addInteriorWall({ x: startX, y: startY }, { x: endX, y: endY })
   
   // 벽 그리기 완료 후 자동으로 Select 모드로 전환
-  console.log('🔄 좌표 입력으로 벽 그리기 완료 - Select 모드로 자동 전환')
+  
   setTool('select')
   
   // 입력 필드 초기화 (소수점 2자리 제한)
@@ -1979,16 +1971,7 @@ const setupInitialView = () => {
   pan.value.x = (canvasWidth / 2) - scaledGridCenterX
   pan.value.y = (canvasHeight / 2) - scaledGridCenterY
   
-  console.log('🔍 초기 뷰 설정 (Default Zoom 40%):', {
-    canvasSize: { width: canvasWidth, height: canvasHeight },
-    gridSize: { width: gridWidthPx, height: gridHeightPx },
-    gridStart: { x: gridStartX, y: gridStartY },
-    gridCenter: { x: gridCenterX, y: gridCenterY },
-    scaledGridSize: { width: scaledGridWidth, height: scaledGridHeight },
-    scaledGridCenter: { x: scaledGridCenterX, y: scaledGridCenterY },
-    defaultZoom: zoom.value,
-    pan: { x: pan.value.x, y: pan.value.y }
-  })
+
   
   // 캔버스 변환 적용
   updateCanvasTransform()
@@ -2927,7 +2910,7 @@ const clearCanvasData = async () => {
   if (!fabricCanvas) return
   
   try {
-    console.log('🧹 캔버스 데이터 초기화 시작...')
+
     
     // Zone과 Wall 객체만 제거 (기본 바닥과 그리드는 유지)
     const objectsToRemove = fabricCanvas.getObjects().filter((obj: any) => {
@@ -2943,13 +2926,13 @@ const clearCanvasData = async () => {
       fabricCanvas.remove(obj)
     })
     
-    console.log(`🧹 ${objectsToRemove.length}개의 객체를 캔버스에서 제거했습니다.`)
+    
     
     // Store의 Zone과 Wall 데이터도 초기화
     floorplanStore.setZones([])
     floorplanStore.setWalls([])
     
-    console.log('✅ 캔버스 데이터 초기화 완료')
+    
     
   } catch (error) {
     console.error('❌ 캔버스 데이터 초기화 실패:', error)
@@ -2974,7 +2957,7 @@ const saveFloorPlan = async () => {
       return
     }
 
-    console.log('💾 저장할 Zone 개수:', zones.length)
+
 
     // Zone 정보를 백엔드 형식으로 변환
     const zonesToSave = zones.map((zone: any) => {
@@ -3017,18 +3000,11 @@ const saveFloorPlan = async () => {
       }
     })
 
-    console.log('💾 변환된 Zone 데이터:', zonesToSave)
+
     
     // 디버깅: 각 Zone의 상세 정보 출력
     zonesToSave.forEach((zone: any, index: number) => {
-      console.log(`🔍 Zone ${index + 1}:`, {
-        id: zone.id,
-        x: zone.x,
-        y: zone.y,
-        width: zone.width,
-        height: zone.height,
-        color: zone.color
-      })
+
     })
 
     // 현재 캔버스에 그려진 Wall들 수집
@@ -3036,7 +3012,7 @@ const saveFloorPlan = async () => {
       obj.userData?.type === 'interior-wall' || obj.userData?.type === 'exterior-wall'
     )
 
-    console.log('🧱 저장할 Wall 개수:', walls.length)
+
 
     // Wall 정보를 백엔드 형식으로 변환
     const wallsToSave = walls.map((wall: any) => {
@@ -3073,17 +3049,11 @@ const saveFloorPlan = async () => {
       }
     })
 
-    console.log('🧱 변환된 Wall 데이터:', wallsToSave)
+
     
     // 디버깅: 각 Wall의 상세 정보 출력
     wallsToSave.forEach((wall: any, index: number) => {
-      console.log(`🔍 Wall ${index + 1}:`, {
-        id: wall.id,
-        startX: wall.startX,
-        startY: wall.startY,
-        endX: wall.endX,
-        endY: wall.endY
-      })
+
     })
 
     // 백엔드에서 최신 Zone과 Wall 데이터 가져오기
@@ -3095,30 +3065,16 @@ const saveFloorPlan = async () => {
     const savedZones = zonesResponse.data
     const savedWalls = wallsResponse.data
     
-    console.log('💾 백엔드에서 불러온 Zone 데이터:', savedZones)
-    console.log('💾 백엔드에서 불러온 Wall 데이터:', savedWalls)
+
     
     // 디버깅: 백엔드 Zone 데이터 상세 정보 출력
     savedZones.forEach((zone: any, index: number) => {
-      console.log(`💾 백엔드 Zone ${index + 1}:`, {
-        id: zone.id,
-        x: zone.x,
-        y: zone.y,
-        width: zone.width,
-        height: zone.height,
-        color: zone.color
-      })
+
     })
     
     // 디버깅: 백엔드 Wall 데이터 상세 정보 출력
     savedWalls.forEach((wall: any, index: number) => {
-      console.log(`💾 백엔드 Wall ${index + 1}:`, {
-        id: wall.id,
-        startX: wall.startX,
-        startY: wall.startY,
-        endX: wall.endX,
-        endY: wall.endY
-      })
+
     })
 
     // Store의 analyzeZoneChanges와 analyzeWallChanges 함수로 변경사항 분석
@@ -3128,8 +3084,7 @@ const saveFloorPlan = async () => {
     zoneChangeSummary.value = zoneChanges
     wallChangeSummary.value = wallChanges
 
-    console.log('🔍 Zone 변경사항 분석 결과:', zoneChanges)
-    console.log('🔍 Wall 변경사항 분석 결과:', wallChanges)
+
 
     // 변경사항이 있으면 팝업 표시
     const hasChanges = zoneChanges.toCreate.length > 0 || zoneChanges.toUpdate.length > 0 || zoneChanges.toDelete.length > 0 ||
@@ -3167,7 +3122,7 @@ const loadSavedWalls = async () => {
   if (!fabricCanvas) return
 
   try {
-    console.log('🔄 저장된 Wall 정보 불러오기 시작...')
+
     
     // Store에서 로딩 상태 설정
     floorplanStore.setLoadingWalls(true)
@@ -3176,10 +3131,10 @@ const loadSavedWalls = async () => {
     const response = await axios.get('http://localhost:8080/api/walls')
     
     const savedWalls = response.data
-    console.log('✅ 불러온 Wall 정보:', savedWalls)
+    
 
     if (savedWalls.length === 0) {
-      console.log('📝 저장된 Wall이 없습니다.')
+      
       floorplanStore.setWalls([])
       floorplanStore.setLoadingWalls(false)
       return
@@ -3193,7 +3148,7 @@ const loadSavedWalls = async () => {
       createWallFromSavedData(wallData)
     })
 
-    console.log(`✅ ${savedWalls.length}개의 Wall을 성공적으로 불러왔습니다.`)
+    
     
   } catch (error: any) {
     console.error('❌ Wall 정보 불러오기 실패:', error)
@@ -3202,7 +3157,7 @@ const loadSavedWalls = async () => {
     if (error.response) {
       // 서버가 응답했지만 에러 상태 코드
       if (error.response.status === 404) {
-        console.log('📝 저장된 Wall이 없습니다.')
+
         floorplanStore.setWalls([])
       } else {
         console.error('서버 응답 에러:', error.response.status, error.response.data)
@@ -3227,7 +3182,7 @@ const loadSavedZones = async () => {
   if (!fabricCanvas) return
 
   try {
-    console.log('🔄 저장된 Zone 정보 불러오기 시작...')
+
     
     // Store에서 로딩 상태 설정
     floorplanStore.setLoadingZones(true)
@@ -3236,10 +3191,10 @@ const loadSavedZones = async () => {
     const response = await axios.get('http://localhost:8080/api/zones')
     
     const savedZones = response.data
-    console.log('✅ 불러온 Zone 정보:', savedZones)
+    
 
     if (savedZones.length === 0) {
-      console.log('📝 저장된 Zone이 없습니다.')
+      
       floorplanStore.setZones([])
       floorplanStore.setLoadingZones(false)
       return
@@ -3253,7 +3208,7 @@ const loadSavedZones = async () => {
       createZoneFromSavedData(zoneData)
     })
 
-    console.log(`✅ ${savedZones.length}개의 Zone을 성공적으로 불러왔습니다.`)
+    
     
   } catch (error: any) {
     console.error('❌ Zone 정보 불러오기 실패:', error)
@@ -3262,7 +3217,7 @@ const loadSavedZones = async () => {
     if (error.response) {
       // 서버가 응답했지만 에러 상태 코드
       if (error.response.status === 404) {
-        console.log('📝 저장된 Zone이 없습니다.')
+
         floorplanStore.setZones([])
       } else {
         console.error('서버 응답 에러:', error.response.status, error.response.data)
@@ -3478,7 +3433,7 @@ const deleteSelectedObject = () => {
 
   // 멀티 선택된 객체들이 있으면 모두 삭제
   if (selectedObjects.value.length > 1) {
-    console.log(`🗑️ ${selectedObjects.value.length}개 객체 멀티 삭제 시작`)
+
     
     // 선택된 모든 객체를 삭제
     selectedObjects.value.forEach(obj => {

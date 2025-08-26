@@ -293,7 +293,7 @@ export const useFloorplanStore = defineStore('floorplan', () => {
 
   // 부동소수점 정밀도를 고려한 데이터 비교 함수 (1cm 정밀도)
   const isDataEqual = (data1: any, data2: any, precision: number = 0.01): boolean => {
-    console.log('🔍 데이터 비교 시작:', { data1, data2 })
+
     if (typeof data1 !== typeof data2) return false
     
     if (typeof data1 === 'number') {
@@ -341,19 +341,17 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     const toUpdate: { id: string; oldData: ZoneData; newData: ZoneData }[] = []
     const toDelete: ZoneData[] = []
 
-    console.log('🔍 Zone 변경사항 분석 시작:')
-    console.log('현재 Zone들:', currentZones)
-    console.log('저장된 Zone들:', savedZones)
+
 
     // 현재 Zone들을 ID로 맵핑
     const currentZoneMap = new Map<string, ZoneData>()
     currentZones.forEach(zone => {
       if (zone.id) {
         currentZoneMap.set(zone.id, zone)
-        console.log(`현재 Zone ID ${zone.id} 맵핑됨`)
+
       } else {
         // ID가 없는 Zone은 새로 생성할 대상
-        console.log('ID가 없는 Zone 발견, toCreate에 추가:', zone)
+        
         toCreate.push(zone)
       }
     })
@@ -363,7 +361,7 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     savedZones.forEach(zone => {
       if (zone.id) {
         savedZoneMap.set(zone.id, zone)
-        console.log(`저장된 Zone ID ${zone.id} 맵핑됨`)
+
       }
     })
 
@@ -374,23 +372,14 @@ export const useFloorplanStore = defineStore('floorplan', () => {
         // 데이터가 변경되었는지 확인 (정밀도 0.01m = 1cm 고려)
         const isEqual = isDataEqual(currentZone, savedZone, 0.01)
         if (!isEqual) {
-          console.log(`🔍 Zone ${id} 변경 감지:`, {
-            current: currentZone,
-            saved: savedZone,
-            difference: {
-              x: Math.abs(currentZone.x - savedZone.x),
-              y: Math.abs(currentZone.y - savedZone.y),
-              width: Math.abs(currentZone.width - savedZone.width),
-              height: Math.abs(currentZone.height - savedZone.height)
-            }
-          })
+
           toUpdate.push({
             id,
             oldData: savedZone,
             newData: currentZone
           })
         } else {
-          console.log(`✅ Zone ${id} 변경 없음`)
+
         }
         // 처리된 Zone은 맵에서 제거
         savedZoneMap.delete(id)
@@ -467,23 +456,11 @@ export const useFloorplanStore = defineStore('floorplan', () => {
         // 데이터가 변경되었는지 확인 (정밀도 0.01m = 1cm 고려)
         const isEqual = isDataEqual(currentWall, savedWall, 0.01)
         if (!isEqual) {
-          console.log(`🔍 Wall ${id} 변경 감지:`, {
-            current: currentWall,
-            saved: savedWall,
-            difference: {
-              startX: Math.abs(currentWall.startX - savedWall.startX),
-              startY: Math.abs(currentWall.startY - savedWall.startY),
-              endX: Math.abs(currentWall.endX - savedWall.endX),
-              endY: Math.abs(currentWall.endY - savedWall.endY)
-            }
-          })
           toUpdate.push({
             id,
             oldData: savedWall,
             newData: currentWall
           })
-        } else {
-          console.log(`✅ Wall ${id} 변경 없음`)
         }
         // 처리된 Wall은 맵에서 제거
         savedWallMap.delete(id)
@@ -533,7 +510,7 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     placedObjects.value.forEach(obj => {
       obj.instancing = enabled
     })
-    console.log(`🎯 모든 배치된 오브젝트 인스턴싱 ${enabled ? '활성화' : '비활성화'}`)
+
   }
   
   const logCurrentState = () => {

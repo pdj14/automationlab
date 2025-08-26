@@ -302,12 +302,7 @@ const initThreeJS = () => {
   // 렌더링 시작
   animate()
   
-  console.log('✅ Three.js 초기화 완료:', {
-    hasScene: !!scene,
-    hasCamera: !!camera,
-    hasRenderer: !!renderer,
-    hasControls: !!controls
-  })
+
   
 }
 
@@ -557,12 +552,7 @@ const animate = (currentTime = 0) => {
   
   // 필수 컴포넌트들이 초기화되었는지 확인
   if (!scene || !camera || !renderer || !controls) {
-    console.log('⚠️ animate: 필요한 컴포넌트가 초기화되지 않음', {
-      hasScene: !!scene,
-      hasCamera: !!camera,
-      hasRenderer: !!renderer,
-      hasControls: !!controls
-    })
+
     return
   }
   
@@ -930,7 +920,7 @@ const toggleWallTransparency = () => {
     }
   })
   
-  console.log(`🧱 벽 투명도 ${wallTransparencyEnabled.value ? '활성화' : '비활성화'}`)
+  
 }
 
 const toggleStatusSpheres = () => {
@@ -947,7 +937,7 @@ const toggleStatusSpheres = () => {
     remove3DPopup()
   }
   
-  console.log(`🔵 상태 표시 구체 ${statusSpheresVisible.value ? '표시' : '숨김'}`)
+  
 }
 
 const updateStatusSpheresVisibility = () => {
@@ -1073,7 +1063,7 @@ const create3DObjects = async (placedObjects: any[]) => {
     }
     
     try {
-      console.log('loader.load', placedObj)
+  
       
       // 메인 모델 로드
       const gltf = await new Promise<any>((resolve, reject) => {
@@ -1096,7 +1086,7 @@ const create3DObjects = async (placedObjects: any[]) => {
             loader.load(
               placedObj.lodUrl,
               (gltf) => {
-                console.log(`✅ ${placedObj.name} LOD GLB 로딩 성공`)
+        
                 resolve(gltf)
               },
               undefined,
@@ -1116,7 +1106,7 @@ const create3DObjects = async (placedObjects: any[]) => {
             lodModel.traverse((child: any) => {
               if (child.isMesh) {
                 lodMeshCount++
-                console.log(`📊 ${placedObj.name} LOD 모델 메시: ${lodMeshCount}개`)
+        
               }
             })
           }
@@ -1124,7 +1114,7 @@ const create3DObjects = async (placedObjects: any[]) => {
           console.warn(`${placedObj.name} LOD 모델 로드 실패:`, lodError)
         }
       } else {
-        console.log(`ℹ️ ${placedObj.name} LOD 모델 없음`)
+
       }
       
       // 모델 크기 조정 (width, depth, height 기준)
@@ -1312,7 +1302,7 @@ const addStatusSphere = (object: THREE.Object3D, placedObj: any) => {
   // 씬에 구체 추가
   scene.add(sphere)
   
-  console.log(`🔵 상태 표시 구체 추가: ${placedObj.name} (반지름: ${sphereRadius.toFixed(2)})`)
+  
 }
 
 // 폰트 로딩 및 텍스트 렌더링 시스템
@@ -1350,7 +1340,7 @@ const loadDefaultFont = () => {
     })
     
     loadedFont = fontData
-    console.log('📝 기본 폰트 로딩 완료')
+
   } catch (error) {
     console.error('❌ loadDefaultFont 오류:', error)
   }
@@ -1929,7 +1919,7 @@ const createInstancedObjects = (instancedObjects: any[]) => {
     addStatusSphere(dummyGroup, obj)
   })
   
-  console.log(`✅ 큐브 기반 인스턴싱 오브젝트 ${instancedObjects.length}개 생성 완료`)
+  
 }
 
 // 상자 위 오브젝트 배치 처리
@@ -2281,7 +2271,7 @@ onUnmounted(() => {
   }
   
   // 전역 변수 정리 (타입 안전하게)
-  console.log('✅ FloorPlanViewer3D 리소스 정리 완료')
+  
 })
 
 // 외부에서 호출할 수 있는 함수들
@@ -2312,7 +2302,8 @@ onMounted(() => {
   height: 100%;
   background: var(--color-bg-level-1, #0f1011);
   color: var(--color-text-primary, #f7f8f8);
-  overflow: hidden;
+  overflow: visible;
+  min-height: 600px;
 }
 
 .controls-toolbar {
@@ -2388,6 +2379,8 @@ onMounted(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
+  height: calc(100vh - 300px);
+  min-height: 500px;
 }
 
 .canvas-3d canvas {
@@ -2411,44 +2404,54 @@ onMounted(() => {
 }
 
 .info-panel {
-  padding: 0.5rem;
-  background: white;
-  border-top: 1px solid #ddd;
+  padding: 0.75rem;
+  background: var(--color-bg-level-2, #141516);
+  border-top: 1px solid var(--color-border-primary, #23252a);
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
 }
 
 .stats {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   font-size: 0.85rem;
-  color: #666;
+  color: var(--color-text-secondary, #a1a1aa);
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
 }
 
 .stats span {
   padding: 0.25rem 0.5rem;
-  background: #f8f9fa;
-  border-radius: 4px;
-  border: 1px solid #e9ecef;
+  background: var(--color-bg-level-1, #0f1011);
+  border-radius: 6px;
+  border: 1px solid var(--color-border-primary, #23252a);
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .stats span:nth-child(4),
 .stats span:nth-child(5),
 .stats span:nth-child(6) {
-  background: #e3f2fd;
-  border-color: #2196f3;
-  color: #1976d2;
+  background: var(--color-accent-primary, #3b82f6);
+  border-color: var(--color-accent-primary, #3b82f6);
+  color: white;
   font-weight: 600;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
 }
 
 .lod-status {
-  color: #e67e22;
+  color: #f39c12;
   font-weight: 600;
+  background: rgba(243, 156, 18, 0.1) !important;
+  border-color: #f39c12 !important;
 }
 
 .lod-disabled {
-  color: #95a5a6;
+  color: var(--color-text-secondary, #a1a1aa);
   font-weight: 400;
+  opacity: 0.7;
 }
 </style> 

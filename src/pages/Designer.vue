@@ -74,7 +74,7 @@ watch(activeTab, async (newTab) => {
         
         // make3D 함수가 존재하면 자동 실행
         if (typeof viewer3dRef.value.make3D === 'function') {
-          console.log('🚀 3D 탭 전환 시 자동 Make3D 실행')
+    
           await viewer3dRef.value.make3D()
         } else {
           console.warn('⚠️ make3D 함수를 찾을 수 없습니다')
@@ -100,7 +100,7 @@ const handle3DViewerMounted = async () => {
       
       // make3D 함수가 존재하면 자동 실행
       if (typeof viewer3dRef.value.make3D === 'function') {
-        console.log('🚀 3D 뷰어 마운트 후 자동 Make3D 실행')
+  
         await viewer3dRef.value.make3D()
       }
     } catch (error) {
@@ -205,15 +205,17 @@ const handle3DViewerMounted = async () => {
 
 /* 3D Layout */
 .layout-3d {
-  height: calc(100vh - 160px);
-  overflow: hidden;
+  height: calc(100vh - 200px);
+  overflow: visible;
+  padding-bottom: 1rem;
 }
 
 .viewer-3d {
   border: 1px solid var(--color-border-primary, #23252a);
-  overflow: hidden;
+  overflow: visible;
   background: var(--color-bg-level-1, #0f1011);
-  height: 100%;
+  height: calc(100vh - 220px);
+  min-height: 600px;
 }
 
 /* Responsive Design */
