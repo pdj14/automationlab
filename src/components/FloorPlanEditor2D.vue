@@ -29,27 +29,17 @@
       <div v-if="selectedObject || selectedObjects.length > 0" class="selection-info">
         <!-- 멀티 선택 정보 -->
         <div v-if="selectedObjects.length > 1" class="multi-selection-info">
-          <span class="selection-text">✅ {{ selectedObjects.length }}개 객체 선택됨 - Press Delete or click button to remove all</span>
-          <div class="selected-objects-list">
-            <span v-for="(obj, index) in selectedObjects" :key="index" class="selected-object-item">
-              • {{ getObjectDisplayName(obj) }}
+          <span class="selection-text">✅ {{ selectedObjects.length }}개 객체 선택됨</span>
+          <div class="selected-objects-summary">
+            <span v-for="(count, type) in getObjectTypeCounts()" :key="type" class="type-count">
+              {{ type }}: {{ count }}개
             </span>
           </div>
         </div>
         <!-- 단일 선택 정보 -->
         <div v-else-if="selectedObject">
-          <span v-if="selectedObject.userData?.type === 'placed-object'" class="selection-text">
-            ✅ Object "{{ selectedObject.userData?.objectName }}" selected - Press Delete or click button to remove
-          </span>
-          <span v-else-if="selectedObject.userData?.type === 'room-floor'" class="selection-text">
-            ✅ Room Floor selected - Press Delete or click button to remove
-          </span>
-          <span v-else-if="selectedObject.userData?.type === 'zone-floor'" class="selection-text">
-            ✅ Zone Floor selected - Press Delete or click button to remove
-          </span>
-          <span v-else class="selection-text">
-            ✅ {{ selectedObject.userData?.type === 'exterior-wall' ? 'Exterior Wall' : 'Interior Wall' }} selected
-            ({{ selectedObject.userData?.position || 'custom' }}) - Press Delete or click button to remove
+          <span class="selection-text">
+            ✅ {{ getObjectTypeDisplayName(selectedObject.userData?.type) }} 선택됨
           </span>
         </div>
       </div>
@@ -3951,6 +3941,39 @@ const getObjectDisplayName = (obj: any): string => {
   }
 }
 
+// 객체 타입별 갯수 계산 함수
+const getObjectTypeCounts = () => {
+  const typeCounts: { [key: string]: number } = {}
+  
+  selectedObjects.value.forEach(obj => {
+    const type = obj.userData?.type || 'unknown'
+    const displayName = getObjectTypeDisplayName(type)
+    typeCounts[displayName] = (typeCounts[displayName] || 0) + 1
+  })
+  
+  return typeCounts
+}
+
+// 객체 타입 표시 이름 반환 함수
+const getObjectTypeDisplayName = (type: string): string => {
+  switch (type) {
+    case 'placed-object':
+      return 'Object'
+    case 'room-floor':
+      return 'Room Floor'
+    case 'zone-floor':
+      return 'Zone Floor'
+    case 'interior-wall':
+      return 'Interior Wall'
+    case 'exterior-wall':
+      return 'Exterior Wall'
+    case 'custom-box':
+      return 'Box'
+    default:
+      return type || 'Unknown'
+  }
+}
+
 // 단일 객체 삭제 함수
 const deleteSingleObject = (objectToDelete: any) => {
   if (!fabricCanvas) return
@@ -5284,15 +5307,22 @@ const updateBoxSizeLabel = (box: any) => {
   color: #856404;
 }
 
-.selected-objects-list {
+.selected-objects-summary {
   margin-top: 0.5rem;
-  padding-left: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.selected-object-item {
-  display: block;
-  margin: 0.25rem 0;
-  color: #856404;
+.type-count {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: #e8f4fd;
+  border: 1px solid #b3d9f7;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #1e4a72;
+  font-weight: 500;
 }
 
 
