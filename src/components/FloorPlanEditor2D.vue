@@ -109,22 +109,7 @@
       <canvas ref="canvas2d" />
     </div>
 
-    <!-- 상태바 -->
-    <div class="statusbar">
-      <span>📐 Grid: {{ (GRID_WIDTH * 100).toFixed(0) }}cm × {{ (GRID_HEIGHT * 100).toFixed(0) }}cm</span>
-              <span>🏢 Base Floor: 87m × 56m</span>
-      <span>🏗️ Zone: X{{ zoneX.toFixed(2) }}m Y{{ zoneY.toFixed(2) }}m W{{ zoneWidth.toFixed(2) }}m H{{ zoneHeight.toFixed(2) }}m</span>
-      <span>�️ Tool : {{ getCurrentToolName() }} {{ currentTool === 'select' ? '(Edit Mode)' : '(Draw Mode)' }}</span>
-      <span>� Griud: 1칸 = 1m</span>
-      <span>�️ oMouse: ({{ mousePosition.x }}, {{ mousePosition.y }})</span>
-      <span>� Zoom : {{ (zoom * 100).toFixed(0) }}%</span>
-      <span>📱 Pan: ({{ pan.x.toFixed(0) }}, {{ pan.y.toFixed(0) }})</span>
-      <span v-if="floorplanStore.isLoadingZones" class="loading-indicator">🔄 Zone 로딩 중...</span>
-      <span v-if="floorplanStore.zones.length > 0" class="zone-count-indicator">🏗️ 저장된 Zone: {{ floorplanStore.zones.length }}개</span>
-      <span v-if="floorplanStore.isLoadingWalls" class="loading-indicator">🔄 Wall 로딩 중...</span>
-      <span v-if="floorplanStore.walls.length > 0" class="wall-count-indicator">🧱 저장된 Wall: {{ floorplanStore.walls.length }}개</span>
-      <span v-if="boxPlacementMode" class="box-mode-indicator">📦 Box Mode: 장비를 상자 위에 배치할 수 있습니다</span>
-    </div>
+
 
     <!-- Zone 변경사항 확인 팝업 -->
     <div v-if="showChangeConfirmDialog" class="change-confirm-overlay">
@@ -1137,14 +1122,7 @@ const getRGBAString = () => {
   return `rgba(${colorRed.value}, ${colorGreen.value}, ${colorBlue.value}, ${customColorOpacity.value})`
 }
 
-// 현재 도구 이름
-const getCurrentToolName = () => {
-  switch (currentTool.value) {
-    case 'select': return 'Select'
-    case 'wall': return 'Draw Wall'
-    default: return 'Unknown'
-  }
-}
+
 
 // 툴 설정 함수 (툴 전환 시 추가 처리)
 const setTool = (tool: string) => {
@@ -5561,23 +5539,7 @@ const updateBoxInStore = (box: any) => {
   cursor: crosshair;
 }
 
-.statusbar {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem 1rem;
-  background: white;
-  border-top: 1px solid #ddd;
-  font-size: 0.85rem;
-  color: #666;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
 
-.statusbar span {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
 
 /* 버튼 비활성화 스타일 */
 .btn:disabled {

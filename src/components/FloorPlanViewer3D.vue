@@ -1674,7 +1674,8 @@ const handleCanvasClick = (event: MouseEvent) => {
 
 // 3D 상자 모델 생성
 const create3DBox = (placedObj: any, color: string, canvasSize: { width: number, height: number } = { width: 800, height: 600 }) => {
-  const pastelBrown = '#E6D5AC'
+  // object에 명시된 색상 사용, 없으면 기본 색상 사용
+  const boxColor = placedObj.color || color || '#E6D5AC'
   
   // Box의 크기 계산
   // width: boundsPx에서 계산 (2D 가로)
@@ -1693,7 +1694,7 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
   // BoxGeometry(width, depth, height) - width: X축, depth: Z축, height: Y축
   const boxGeometry = new THREE.BoxGeometry(boxWidth, boxDepth, placedObj.height)
   const boxMaterial = new THREE.MeshStandardMaterial({ 
-    color: pastelBrown,
+    color: boxColor,
     transparent: true,
     opacity: 0.9
   })

@@ -87,14 +87,7 @@
               </select>
             </div>
             
-            <!-- ETC 카테고리 선택 시 상자 생성 옵션 -->
-            <div v-if="newObject.category === 'etc'" class="form-group">
-              <label>ETC Type:</label>
-              <select v-model="newObject.etcType" @change="handleEtcTypeChange">
-                <option value="general">General</option>
-                <option value="box">📦 Box</option>
-              </select>
-            </div>
+
             
             <div class="form-group">
               <label>Width (m):</label>
@@ -135,14 +128,8 @@
               />
             </div>
             
-            <!-- 상자 색상 선택 (ETC 상자 타입일 때만 표시) -->
-            <div v-if="newObject.category === 'etc' && newObject.etcType === 'box'" class="form-group">
-              <label>Box Color:</label>
-              <input 
-                v-model="newObject.color" 
-                type="color" 
-              />
-            </div>
+
+
             
             <div class="form-group">
               <label>GLB File:</label>
@@ -150,9 +137,9 @@
                 @change="handleFileSelect" 
                 type="file" 
                 accept=".glb,.gltf" 
-                :required="!(newObject.category === 'etc' && newObject.etcType === 'box')"
+required
               />
-              <small v-if="newObject.category === 'etc' && newObject.etcType === 'box'">(상자는 GLB 파일 없이 생성됩니다)</small>
+
             </div>
             
             <div class="form-group">
@@ -204,106 +191,7 @@
       </div>
     </div>
 
-    <!-- 상자 배치 모달 -->
-    <div v-if="showBoxPlacementModal" class="modal-overlay" @click="closeBoxPlacementModal">
-      <div class="modal" @click.stop>
-        <div class="modal-header">
-          <h3>상자 배치 설정</h3>
-          <button @click="closeBoxPlacementModal" class="btn-close">✕</button>
-        </div>
-        
-        <div class="modal-body">
-          <form @submit.prevent="confirmBoxPlacement">
-            <div class="form-group">
-              <label>상자 이름:</label>
-              <input v-model="boxPlacement.name" type="text" required />
-            </div>
-            
-            <div class="form-group">
-              <label>가로 (m):</label>
-              <input 
-                v-model.number="boxPlacement.width" 
-                type="number" 
-                min="0.1" 
-                max="10" 
-                step="0.1" 
-                required 
-                placeholder="가로 크기"
-              />
-            </div>
-            
-            <div class="form-group">
-              <label>세로 (m):</label>
-              <input 
-                v-model.number="boxPlacement.depth" 
-                type="number" 
-                min="0.1" 
-                max="10" 
-                step="0.1" 
-                required 
-                placeholder="세로 크기"
-              />
-            </div>
-            
-            <div class="form-group">
-              <label>높이 (m):</label>
-              <input 
-                v-model.number="boxPlacement.height" 
-                type="number" 
-                min="0.1" 
-                max="10" 
-                step="0.1" 
-                required 
-                placeholder="높이 크기"
-              />
-            </div>
-            
-            <div class="form-group">
-              <label>상자 색상:</label>
-              <input 
-                v-model="boxPlacement.color" 
-                type="color" 
-              />
-            </div>
-            
-            <div class="form-group">
-              <label>X 위치 (m):</label>
-              <input 
-                v-model.number="boxPlacement.x" 
-                type="number" 
-                min="-50" 
-                max="50" 
-                step="0.1" 
-                required 
-                placeholder="X 좌표"
-              />
-            </div>
-            
-            <div class="form-group">
-              <label>Y 위치 (m):</label>
-              <input 
-                v-model.number="boxPlacement.y" 
-                type="number" 
-                min="-50" 
-                max="50" 
-                step="0.1" 
-                required 
-                placeholder="Y 좌표"
-              />
-            </div>
-            
-            <div class="modal-actions">
-              <button type="button" @click="closeBoxPlacementModal" class="btn btn-secondary">
-                Cancel
-              </button>
-              <button type="submit" class="btn btn-primary">
-                Place Box
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+
   </div>
 </template>
 
@@ -322,8 +210,6 @@ interface GameObject {
   width?: number  // 가로
   depth?: number  // 세로
   height?: number // 높이
-  color?: string  // 색상 (상자용)
-  isBox?: boolean // 상자 여부
   lodUrl?: string // LOD용 GLB 파일 URL
   instancing?: boolean // 인스턴싱 활성화 여부
 }
@@ -335,8 +221,7 @@ interface NewObject {
   width: number  // 가로
   depth: number  // 세로
   height: number // 높이
-  color?: string  // 색상 (상자용)
-  etcType?: string // ETC 타입 (box 또는 general)
+  etcType?: string // ETC 타입 (general)
 }
 
 
@@ -349,7 +234,7 @@ const searchQuery = ref('')
 const selectedObject = ref<GameObject | null>(null)
 const showUploadModal = ref(false)
 const uploading = ref(false)
-const showBoxPlacementModal = ref(false)
+
 
 const newObject = ref<NewObject>({
   name: '',
@@ -358,19 +243,10 @@ const newObject = ref<NewObject>({
   width: 1.0,
   depth: 1.0,
   height: 2.0,
-  color: '#D2B48C', // 기본 파스텔 브라운 색상
   etcType: 'general'
 })
 
-const boxPlacement = ref({
-  name: '상자',
-  width: 1.0,
-  depth: 1.0,
-  height: 1.0,
-  color: '#D2B48C',
-  x: 0.0, // X 좌표 (미터)
-  y: 0.0  // Y 좌표 (미터)
-})
+
 
 
 
@@ -505,21 +381,7 @@ const defaultObjects: GameObject[] = [
     height: 2.0,
     instancing: false
   },
-  {
-    id: 'default-box',
-    name: '상자',
-    category: 'etc',
-    glbUrl: 'box://placeholder',
-    thumbnail: '/box-icon.png',
-    description: '장비를 보관할 수 있는 상자',
-    size: '1.0m × 1.0m × 1.0m',
-    width: 1.0,
-    depth: 1.0,
-    height: 1.0,
-    color: '#D2B48C',
-    isBox: true,
-    instancing: false
-  }
+
 ]
 
 // 계산된 속성
@@ -571,21 +433,6 @@ const handleCategoryChange = () => {
   }
 }
 
-// ETC 타입 변경 핸들러
-const handleEtcTypeChange = () => {
-  if (newObject.value.etcType === 'box') {
-    // 상자 타입 선택 시 기본값 설정
-    newObject.value.name = '상자'
-    newObject.value.description = '장비를 보관할 수 있는 상자'
-    newObject.value.color = '#D2B48C' // 파스텔 브라운
-  } else {
-    // 일반 ETC 타입 선택 시 기본값 설정
-    newObject.value.name = ''
-    newObject.value.description = ''
-    newObject.value.color = '#D2B48C'
-  }
-}
-
 // 파일 선택 핸들러
 const handleFileSelect = (event: Event) => {
   const target = event.target as HTMLInputElement
@@ -610,9 +457,7 @@ const handleImageError = (event: Event) => {
 
 // 오브젝트 업로드
 const uploadObject = async () => {
-  // ETC 상자가 아닌 경우에만 파일 체크
-  const isBox = newObject.value.category === 'etc' && newObject.value.etcType === 'box'
-  if (!isBox && !selectedFile) {
+  if (!selectedFile) {
     alert('GLB 파일을 선택해주세요.')
     return
   }
@@ -620,16 +465,8 @@ const uploadObject = async () => {
   uploading.value = true
 
   try {
-    let objectUrl = ''
+    const objectUrl = URL.createObjectURL(selectedFile!)
     let thumbnailUrl = ''
-    
-    if (isBox) {
-      // 상자는 GLB 파일 없이 생성
-      objectUrl = 'box://placeholder'
-    } else {
-      // 일반 오브젝트는 파일 업로드
-      objectUrl = URL.createObjectURL(selectedFile!)
-    }
     
     if (selectedThumbnail) {
       thumbnailUrl = URL.createObjectURL(selectedThumbnail)
@@ -645,9 +482,7 @@ const uploadObject = async () => {
       size: `${newObject.value.width}m × ${newObject.value.depth}m × ${newObject.value.height}m`,
       width: newObject.value.width,
       depth: newObject.value.depth,
-      height: newObject.value.height,
-      color: newObject.value.color,
-      isBox: isBox
+      height: newObject.value.height
     }
 
     objects.value.push(newObj)
@@ -687,62 +522,15 @@ const deleteObject = (object: GameObject) => {
 const placeObject = () => {
   if (!selectedObject.value) return
 
-  // 상자인 경우 배치 모달 표시
-  if (selectedObject.value.isBox) {
-    boxPlacement.value.name = selectedObject.value.name
-    boxPlacement.value.width = selectedObject.value.width || 1.0
-    boxPlacement.value.depth = selectedObject.value.depth || 1.0
-    boxPlacement.value.height = selectedObject.value.height || 1.0
-    boxPlacement.value.color = selectedObject.value.color || '#D2B48C'
-    showBoxPlacementModal.value = true
-  } else {
-    // 일반 오브젝트는 바로 배치
-    window.dispatchEvent(new CustomEvent('placeObject', {
-      detail: {
-        object: selectedObject.value
-      }
-    }))
-  }
-}
-
-// 상자 배치 모달 닫기
-const closeBoxPlacementModal = () => {
-  showBoxPlacementModal.value = false
-  
-  // 입력값 초기화
-  boxPlacement.value = {
-    name: '상자',
-    width: 1.0,
-    depth: 1.0,
-    height: 1.0,
-    color: '#D2B48C',
-    x: 0.0,
-    y: 0.0
-  }
-}
-
-// 상자 배치 확인
-const confirmBoxPlacement = () => {
-  const boxObject = {
-    ...selectedObject.value!,
-    name: boxPlacement.value.name,
-    width: boxPlacement.value.width,
-    depth: boxPlacement.value.depth,
-    height: boxPlacement.value.height,
-    color: boxPlacement.value.color,
-    x: boxPlacement.value.x, // X 좌표 추가
-    y: boxPlacement.value.y, // Y 좌표 추가
-    size: `${boxPlacement.value.width}m × ${boxPlacement.value.depth}m × ${boxPlacement.value.height}m`
-  }
-
+  // 일반 오브젝트는 바로 배치
   window.dispatchEvent(new CustomEvent('placeObject', {
     detail: {
-      object: boxObject
+      object: selectedObject.value
     }
   }))
-
-  closeBoxPlacementModal()
 }
+
+
 
 // 모달 관련
 const closeModal = () => {
@@ -754,7 +542,6 @@ const closeModal = () => {
     width: 1.0,
     depth: 1.0,
     height: 2.0,
-    color: '#D2B48C',
     etcType: 'general'
   }
   selectedFile = null
