@@ -20,7 +20,7 @@
         <div class="box-tools">
           <h4>📦 Box Tools</h4>
           <button @click="openBoxCreatorPopup" class="btn btn-primary box-create-btn">
-            ➕ Add Box/Pillar
+            ➕ Add Box
           </button>
         </div>
       </div>

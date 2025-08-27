@@ -380,20 +380,7 @@ let selectedThumbnail: File | null = null
 // 기본 오브젝트들
 const defaultObjects: GameObject[] = [
   
-  {
-    id: 'default-pillar',
-    name: '기둥',
-    category: 'equipment',
-    glbUrl: '/기둥_light.glb',
-    lodUrl: '/기둥_light.glb',
-    thumbnail: '/기둥.png',
-    description: '실내 구조용 기둥',
-    size: '0.4m × 0.4m × 3.0m',
-    width: 0.4,
-    depth: 0.4,
-    height: 3.0,
-    instancing: true
-  },
+
   {
     id: 'default-robot-arm',
     name: 'Robot Arm',
