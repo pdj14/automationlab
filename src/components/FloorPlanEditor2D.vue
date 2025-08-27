@@ -37,10 +37,50 @@
           </div>
         </div>
         <!-- 단일 선택 정보 -->
-        <div v-else-if="selectedObject">
+        <div v-else-if="selectedObject" class="single-selection-info">
           <span class="selection-text">
             ✅ {{ getObjectTypeDisplayName(selectedObject.userData?.type) }} 선택됨
           </span>
+          <div class="object-details">
+            <div class="detail-item">
+              <span class="detail-label">위치:</span>
+              <span class="detail-value">
+                X: {{ getObjectPosition(selectedObject).x.toFixed(2) }}m, 
+                Y: {{ getObjectPosition(selectedObject).y.toFixed(2) }}m
+              </span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">크기:</span>
+              <span class="detail-value">
+                {{ getObjectSize(selectedObject) }}
+              </span>
+            </div>
+            <div v-if="selectedObject.angle !== undefined" class="detail-item">
+              <span class="detail-label">회전:</span>
+              <span class="detail-value">
+                {{ (selectedObject.angle || 0).toFixed(1) }}°
+              </span>
+            </div>
+            <div v-if="selectedObject.userData?.category" class="detail-item">
+              <span class="detail-label">카테고리:</span>
+              <span class="detail-value">
+                {{ getCategoryDisplayName(selectedObject.userData.category) }}
+              </span>
+            </div>
+            <div v-if="selectedObject.userData?.id" class="detail-item">
+              <span class="detail-label">ID:</span>
+              <span class="detail-value">
+                {{ selectedObject.userData.id.toString().slice(0, 8) }}...
+              </span>
+            </div>
+            <div v-if="selectedObject.userData?.color" class="detail-item">
+              <span class="detail-label">색상:</span>
+              <span class="detail-value">
+                <span class="color-preview" :style="{ backgroundColor: selectedObject.userData.color }"></span>
+                {{ selectedObject.userData.color }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -72,7 +112,7 @@
     <!-- 상태바 -->
     <div class="statusbar">
       <span>📐 Grid: {{ (GRID_WIDTH * 100).toFixed(0) }}cm × {{ (GRID_HEIGHT * 100).toFixed(0) }}cm</span>
-      <span>🏢 Base Floor: {{ (roomWidth * 100).toFixed(0) }}cm × {{ (roomHeight * 100).toFixed(0) }}cm</span>
+              <span>🏢 Base Floor: 87m × 56m</span>
       <span>🏗️ Zone: X{{ zoneX.toFixed(2) }}m Y{{ zoneY.toFixed(2) }}m W{{ zoneWidth.toFixed(2) }}m H{{ zoneHeight.toFixed(2) }}m</span>
       <span>�️ Tool : {{ getCurrentToolName() }} {{ currentTool === 'select' ? '(Edit Mode)' : '(Draw Mode)' }}</span>
       <span>� Griud: 1칸 = 1m</span>
@@ -497,9 +537,7 @@ const wallStartY = ref(0)  // 벽 시작점 Y (m)
 const wallEndX = ref(10)   // 벽 끝점 X (m)
 const wallEndY = ref(0)    // 벽 끝점 Y (m)
 
-// 기본 바닥 크기 (Grid 중앙에 배치)
-const roomWidth = ref(87)  // 기본 가로 87m (8700cm)
-const roomHeight = ref(56) // 기본 세로 56m (5600cm)
+
 
 const floorColors = ref([
   { label: 'Pastel Yellow', hex: '#FFE082', rgba: 'rgba(255, 224, 130, 0.65)' },
@@ -622,11 +660,7 @@ const isValidWallCoordinates = computed(() => {
     (wallStartX.value !== wallEndX.value || wallStartY.value !== wallEndY.value) // 시작점과 끝점이 다르야 함
 })
 
-// 기존 Room 크기 유효성 검사 (호환성 유지)
-const isValidSize = computed(() => {
-  return roomWidth.value > 0 && roomHeight.value > 0 &&
-    roomWidth.value <= 300 && roomHeight.value <= 300
-})
+
 
 // 프리셋 색상 선택 함수
 const selectPresetColor = (color: { label: string; hex: string; rgba: string }) => {
@@ -1146,7 +1180,7 @@ const updateWallSelectability = () => {
   
   // 모든 벽 오브젝트의 선택 가능 여부 업데이트
   fabricCanvas.getObjects().forEach((obj: any) => {
-    if (obj.userData?.type === 'interior-wall' || obj.userData?.type === 'exterior-wall') {
+    if (obj.userData?.type === 'glass-wall' || obj.userData?.type === 'general-wall') {
       obj.selectable = isSelectMode
       obj.evented = isSelectMode
       obj.opacity = isSelectMode ? 1.0 : 0.7
@@ -1441,14 +1475,6 @@ const sendAllFloorsToBack = () => {
     f.selectable = true
     f.evented = true
   })
-
-  // 기존 room-floor 타입도 처리 (호환성)
-  const roomFloors = fabricCanvas.getObjects().filter((o: any) => o.userData?.type === 'room-floor')
-  roomFloors.forEach((f: any, index: number) => {
-    fabricCanvas.moveTo(f, zoneFloors.length + index + 1)
-    f.selectable = true
-    f.evented = true
-  })
 }
 
 // 그리드를 모든 바닥 바로 위로 이동
@@ -1458,13 +1484,12 @@ const positionGridAfterFloors = () => {
   if (!grid) return
   const objs = fabricCanvas.getObjects()
 
-  // 모든 바닥 타입의 인덱스 찾기 (base-floor, zone-floor, room-floor)
+  // 모든 바닥 타입의 인덱스 찾기 (base-floor, zone-floor)
   const floorIndices = (objs
     .map((o: any, idx: number) => ({ o, idx })) as Array<{ o: any; idx: number }>)
     .filter((x: { o: any; idx: number }) =>
       x.o.userData?.type === 'base-floor' ||
-      x.o.userData?.type === 'zone-floor' ||
-      x.o.userData?.type === 'room-floor'
+      x.o.userData?.type === 'zone-floor'
     )
     .map((x: { o: any; idx: number }) => x.idx)
 
@@ -1475,7 +1500,7 @@ const positionGridAfterFloors = () => {
     fabricCanvas.moveTo(grid, 0)
   }
   // 오브젝트는 항상 바닥/그리드 보다 앞쪽 (유지): 바닥/그리드 외의 요소를 앞으로
-  const others = objs.filter((o: any) => !(o.userData?.type === 'room-floor') && !(o === grid))
+  const others = objs.filter((o: any) => !(o === grid))
   others.forEach((o: any, i: number) => fabricCanvas.moveTo(o, maxFloorIndex + 2 + i))
 }
 
@@ -1552,17 +1577,19 @@ const setupWallDrawing = () => {
       }
       return
     }
-    // 바닥 선택 허용
-    if (singleSelected && singleSelected.userData?.type === 'room-floor') {
-      selectedObject.value = singleSelected
-      selectedObjects.value = [singleSelected]
-      return
-    }
     
     // Zone 선택 허용
     if (singleSelected && singleSelected.userData?.type === 'zone-floor') {
       selectedObject.value = singleSelected
       selectedObjects.value = [singleSelected]
+      return
+    }
+    
+    // Box 선택 허용
+    if (singleSelected && singleSelected.userData?.type === 'custom-box') {
+      selectedObject.value = singleSelected
+      selectedObjects.value = [singleSelected]
+      console.log(`📦 Box 선택됨: ID ${singleSelected.userData?.id}`)
       return
     }
 
@@ -1574,7 +1601,7 @@ const setupWallDrawing = () => {
       return
     }
 
-    if (singleSelected && (singleSelected.userData?.type === 'interior-wall' || singleSelected.userData?.type === 'exterior-wall')) {
+    if (singleSelected && (singleSelected.userData?.type === 'glass-wall' || singleSelected.userData?.type === 'exterior-wall')) {
       selectedObject.value = singleSelected
       selectedObjects.value = [singleSelected]
     } else {
@@ -1600,17 +1627,19 @@ const setupWallDrawing = () => {
       selectedObjects.value = [singleSelected]
       return
     }
-    // 바닥 선택 허용
-    if (singleSelected && singleSelected.userData?.type === 'room-floor') {
-      selectedObject.value = singleSelected
-      selectedObjects.value = [singleSelected]
-      return
-    }
     
     // Zone 선택 허용
     if (singleSelected && singleSelected.userData?.type === 'zone-floor') {
       selectedObject.value = singleSelected
       selectedObjects.value = [singleSelected]
+      return
+    }
+    
+    // Box 선택 허용
+    if (singleSelected && singleSelected.userData?.type === 'custom-box') {
+      selectedObject.value = singleSelected
+      selectedObjects.value = [singleSelected]
+      console.log(`📦 Box 선택됨 (updated): ID ${singleSelected.userData?.id}`)
       return
     }
 
@@ -1622,7 +1651,7 @@ const setupWallDrawing = () => {
       return
     }
 
-    if (singleSelected && (singleSelected.userData?.type === 'interior-wall' || singleSelected.userData?.type === 'exterior-wall')) {
+    if (singleSelected && (singleSelected.userData?.type === 'glass-wall' || singleSelected.userData?.type === 'general-wall')) {
       selectedObject.value = singleSelected
       selectedObjects.value = [singleSelected]
     } else {
@@ -1640,55 +1669,59 @@ const setupWallDrawing = () => {
 
   fabricCanvas.on('object:modified', (e: any) => {
     const modifiedObject = e.target
-    if (modifiedObject && (modifiedObject.userData?.type === 'interior-wall' || modifiedObject.userData?.type === 'exterior-wall')) {
-      const wallType = modifiedObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
-      updateInteriorWallInList(modifiedObject)
+    if (modifiedObject && (modifiedObject.userData?.type === 'glass-wall' || modifiedObject.userData?.type === 'general-wall')) {
+      const wallType = modifiedObject.userData?.type === 'glass-wall' ? '유리 벽' : '일반 벽'
+      updateWallInList(modifiedObject)
     } else if (modifiedObject && modifiedObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(modifiedObject)
     } else if (modifiedObject && modifiedObject.userData?.type === 'zone-floor') {
       handleZoneModified(modifiedObject)
     } else if (modifiedObject && modifiedObject.userData?.type === 'custom-box') {
-      // Box가 수정될 때 크기 라벨 업데이트
+      // Box가 수정될 때 크기 라벨 업데이트 및 Store 업데이트
       updateBoxSizeLabel(modifiedObject)
+      updateBoxInStore(modifiedObject)
     }
   })
 
   fabricCanvas.on('object:moving', (e: any) => {
     const movingObject = e.target
-    if (movingObject && (movingObject.userData?.type === 'interior-wall' || movingObject.userData?.type === 'exterior-wall')) {
-      const wallType = movingObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
-      updateInteriorWallInList(movingObject)
+    if (movingObject && (movingObject.userData?.type === 'glass-wall' || movingObject.userData?.type === 'general-wall')) {
+      const wallType = movingObject.userData?.type === 'glass-wall' ? '유리 벽' : '일반 벽'
+      updateWallInList(movingObject)
     } else if (movingObject && movingObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(movingObject)
     } else if (movingObject && movingObject.userData?.type === 'zone-floor') {
       handleZoneMoving(movingObject)
     } else if (movingObject && movingObject.userData?.type === 'custom-box') {
-      // Box가 이동할 때 크기 라벨 업데이트
+      // Box가 이동할 때 크기 라벨 업데이트 및 Store 업데이트
       updateBoxSizeLabel(movingObject)
+      updateBoxInStore(movingObject)
     }
   })
 
   fabricCanvas.on('object:scaling', (e: any) => {
     const scalingObject = e.target
-    if (scalingObject && (scalingObject.userData?.type === 'interior-wall' || scalingObject.userData?.type === 'exterior-wall')) {
-      const wallType = scalingObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
-      updateInteriorWallInList(scalingObject)
+    if (scalingObject && (scalingObject.userData?.type === 'glass-wall' || scalingObject.userData?.type === 'general-wall')) {
+      const wallType = scalingObject.userData?.type === 'glass-wall' ? '유리 벽' : '일반 벽'
+      updateWallInList(scalingObject)
     } else if (scalingObject && scalingObject.userData?.type === 'custom-box') {
-      // Box가 크기가 조정될 때 크기 라벨 업데이트
+      // Box가 크기가 조정될 때 크기 라벨 업데이트 및 Store 업데이트
       updateBoxSizeLabel(scalingObject)
+      updateBoxInStore(scalingObject)
     }
   })
 
   fabricCanvas.on('object:rotating', (e: any) => {
     const rotatingObject = e.target
-    if (rotatingObject && (rotatingObject.userData?.type === 'interior-wall' || rotatingObject.userData?.type === 'exterior-wall')) {
-      const wallType = rotatingObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
-      updateInteriorWallInList(rotatingObject)
+    if (rotatingObject && (rotatingObject.userData?.type === 'glass-wall' || rotatingObject.userData?.type === 'general-wall')) {
+      const wallType = rotatingObject.userData?.type === 'glass-wall' ? '유리 벽' : '일반 벽'
+      updateWallInList(rotatingObject)
     } else if (rotatingObject && rotatingObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(rotatingObject)
     } else if (rotatingObject && rotatingObject.userData?.type === 'custom-box') {
-      // Box가 회전할 때 크기 라벨 업데이트
+      // Box가 회전할 때 크기 라벨 업데이트 및 Store 업데이트
       updateBoxSizeLabel(rotatingObject)
+      updateBoxInStore(rotatingObject)
     }
   })
 
@@ -1739,7 +1772,7 @@ const setupWallDrawing = () => {
       fabricCanvas.remove(currentLine)
     } else {
       fabricCanvas.remove(currentLine)
-      addInteriorWall(startPoint, pointer)
+      addWall(startPoint, pointer)
       
       // 벽 그리기 완료 후 자동으로 Select 모드로 전환
   
@@ -1757,8 +1790,8 @@ const roundToTwoDecimals = (value: number): number => {
   return Math.round(value * 100) / 100
 }
 
-// Store를 사용한 벽 정보 업데이트 (내부벽/외부벽 모두 처리)
-const updateInteriorWallInList = (modifiedWall: any) => {
+// Store를 사용한 벽 정보 업데이트 (유리벽/일반벽 모두 처리)
+const updateWallInList = (modifiedWall: any) => {
 
   const wallId = modifiedWall.userData?.id
   const wallType = modifiedWall.userData?.type
@@ -1769,9 +1802,9 @@ const updateInteriorWallInList = (modifiedWall: any) => {
 
   let startPoint, endPoint
 
-  // 벽 타입에 따라 좌표 계산 방법 분기 (내부벽과 외부벽 모두 Line 객체로 통일)
-  if (wallType === 'interior-wall' || wallType === 'exterior-wall') {
-    // 내부벽과 외부벽 모두 Line 객체로 동일하게 처리
+  // 벽 타입에 따라 좌표 계산 방법 분기 (유리벽과 일반벽 모두 Line 객체로 통일)
+  if (wallType === 'glass-wall' || wallType === 'general-wall') {
+    // 유리벽과 일반벽 모두 Line 객체로 동일하게 처리
     const linePoints = modifiedWall.calcLinePoints()
     const matrix = modifiedWall.calcTransformMatrix()
     startPoint = fabric.util.transformPoint({ x: linePoints.x1, y: linePoints.y1 }, matrix)
@@ -1803,9 +1836,9 @@ const updateInteriorWallInList = (modifiedWall: any) => {
     id: wallId
   }
 
-  if (wallType === 'interior-wall') {
+  if (wallType === 'glass-wall') {
     floorplanStore.updateInteriorWall(wallId, updatedWall)
-  } else if (wallType === 'exterior-wall') {
+  } else if (wallType === 'general-wall') {
     floorplanStore.updateExteriorWall(wallId, updatedWall)
   }
 
@@ -2030,7 +2063,7 @@ const drawWallFromCoordinates = () => {
   const endY = baseY + (endYValue * scale)
   
   // 벽 그리기
-  addInteriorWall({ x: startX, y: startY }, { x: endX, y: endY })
+  addWall({ x: startX, y: startY }, { x: endX, y: endY })
   
   // 벽 그리기 완료 후 자동으로 Select 모드로 전환
   
@@ -2076,7 +2109,7 @@ const createWallFromCoordinatesWithClass = () => {
   const endY = baseY + (endYValue * scale)
   
   // 벽 그리기 (isClass 옵션 포함)
-  addInteriorWallWithClass({ x: startX, y: startY }, { x: endX, y: endY }, popupWallIsClass.value)
+  addGlassWallWithClass({ x: startX, y: startY }, { x: endX, y: endY }, popupWallIsClass.value)
   
   // 벽 그리기 완료 후 자동으로 Select 모드로 전환
   setTool('select')
@@ -2127,9 +2160,10 @@ const createBoxFromCoordinates = () => {
   
   // Box 식별 정보 추가
   const boxId = Date.now() + Math.random()
+  const boxIdString = boxId.toString()
   box.userData = {
     type: 'custom-box',
-    id: boxId,
+    id: boxIdString, // 문자열로 저장하여 Store와 일치시킴
     x: popupBoxX.value,
     y: popupBoxY.value,
     width: popupBoxWidth.value,
@@ -2143,16 +2177,54 @@ const createBoxFromCoordinates = () => {
   // Box 크기 라벨 추가
   addBoxSizeLabel(box, popupBoxWidth.value, popupBoxHeight.value)
   
+  // Store에 Box를 placedObject로 저장 (3D에서 보이도록)
+  // Zone과 동일한 방식: boundsPx와 원본 위치 모두 저장
+  const placedObjectData = {
+    id: boxId.toString(),
+    name: `Box_${boxId}`,
+    category: 'etc',
+    width: popupBoxWidth.value,
+    depth: popupBoxDepth.value, // 2D에서는 depth가 세로
+    height: popupBoxHeight.value, // 3D에서는 height가 높이
+    position: {
+      x: popupBoxX.value, // 미터 단위 원본 값 (Zone과 동일)
+      y: popupBoxY.value
+    },
+    boundsPx: {
+      left: boxX,
+      top: boxY,
+      right: boxX + boxWidth,
+      bottom: boxY + boxHeight
+    },
+    rotation: 0,
+    color: popupSelectedBoxColor.value.hex,
+    isOnBox: false,
+    boxId: undefined,
+    isBox: true,
+    instancing: false,
+    description: '2D에서 생성된 Box'
+  }
+  
+  floorplanStore.addPlacedObject(placedObjectData)
+  
   // Box 생성 완료 후 자동으로 Select 모드로 전환
   setTool('select')
   
-  console.log(`✅ Box 생성 완료: 위치(${popupBoxX.value}, ${popupBoxY.value}), 2D 크기(${popupBoxWidth.value}×${popupBoxHeight.value}m), 3D 깊이(${popupBoxDepth.value}m)`)
+  console.log(`✅ Box 생성 완료: 위치(${popupBoxX.value}, ${popupBoxY.value}), 크기(${popupBoxWidth.value}×${popupBoxHeight.value}×${popupBoxDepth.value}m)`)
+  console.log(`📦 Box Store 저장 정보:`, {
+    id: boxIdString,
+    name: `Box_${boxId}`,
+    category: 'etc',
+    isBox: true,
+    position: { x: popupBoxX.value, y: popupBoxY.value }
+  })
+  console.log(`🔍 현재 Store의 placedObjects 개수:`, floorplanStore.placedObjects.length)
 }
 
 
 
-// Store를 사용한 내부 벽 추가
-const addInteriorWall = (start: { x: number, y: number }, end: { x: number, y: number }) => {
+// Store를 사용한 일반 벽 추가
+const addWall = (start: { x: number, y: number }, end: { x: number, y: number }) => {
   if (!fabricCanvas) return
 
   // 현재 툴에 따라 선택 가능 여부 및 시각적 스타일 결정
@@ -2172,7 +2244,7 @@ const addInteriorWall = (start: { x: number, y: number }, end: { x: number, y: n
   // 더 상세한 식별 정보 추가
   const wallId = Date.now() + Math.random() // 고유 ID
   wall.userData = {
-    type: 'interior-wall',
+    type: 'general-wall',
     id: wallId,
     startX: start.x,
     startY: start.y,
@@ -2183,7 +2255,7 @@ const addInteriorWall = (start: { x: number, y: number }, end: { x: number, y: n
 
   fabricCanvas.add(wall)
 
-  // Store에 내부 벽 추가
+  // Store에 일반 벽 추가
   const wallData = {
     start: { x: start.x, y: start.y },
     end: { x: end.x, y: end.y },
@@ -2200,20 +2272,20 @@ const addInteriorWall = (start: { x: number, y: number }, end: { x: number, y: n
   updateWallSelectability()
 }
 
-// Store를 사용한 내부 벽 추가 (isClass 옵션 포함)
-const addInteriorWallWithClass = (start: { x: number, y: number }, end: { x: number, y: number }, isClass: boolean) => {
+// Store를 사용한 유리 벽 추가 (isClass 옵션 포함)
+const addGlassWallWithClass = (start: { x: number, y: number }, end: { x: number, y: number }, isClass: boolean) => {
   if (!fabricCanvas) return
 
   // 현재 툴에 따라 선택 가능 여부 및 시각적 스타일 결정
   const isSelectMode = currentTool.value === 'select'
 
   const wall = new fabric.Line([start.x, start.y, end.x, end.y], {
-    stroke: isSelectMode ? '#654321' : '#8B4513', // Select 모드: 진한 갈색, Draw 모드: 중간 갈색
+    stroke: isSelectMode ? '#87CEEB' : '#4682B4', // Select 모드: 밝은 파란색, Draw 모드: 어두운 파란색
     strokeWidth: 5, // 두께 증가
     strokeLineCap: 'round',
     selectable: isSelectMode,
     evented: isSelectMode,
-    opacity: 1.0, // 항상 불투명하게
+    opacity: 0.8, // 유리벽은 약간 투명하게
     hoverCursor: isSelectMode ? 'move' : 'default',
     moveCursor: isSelectMode ? 'move' : 'default',
   })
@@ -2221,7 +2293,7 @@ const addInteriorWallWithClass = (start: { x: number, y: number }, end: { x: num
   // 더 상세한 식별 정보 추가 (isClass 포함)
   const wallId = Date.now() + Math.random() // 고유 ID
   wall.userData = {
-    type: 'interior-wall',
+    type: 'glass-wall',
     id: wallId,
     startX: start.x,
     startY: start.y,
@@ -2233,7 +2305,7 @@ const addInteriorWallWithClass = (start: { x: number, y: number }, end: { x: num
 
   fabricCanvas.add(wall)
 
-  // Store에 내부 벽 추가 (isClass 포함)
+  // Store에 유리 벽 추가 (isClass 포함)
   const wallData = {
     start: { x: start.x, y: start.y },
     end: { x: end.x, y: end.y },
@@ -2260,8 +2332,8 @@ const createDefaultFloor = () => {
   const scale = 40 // 1m = 40px
   const defaultWidth = 87 // 87m (8700cm)
   const defaultHeight = 56 // 56m (5600cm)
-  const roomWidthPx = defaultWidth * scale
-  const roomHeightPx = defaultHeight * scale
+  const defaultWidthPx = defaultWidth * scale
+  const defaultHeightPx = defaultHeight * scale
 
   // Grid 중앙에 배치 (100m x 70m Grid의 중앙)
   const canvasWidth = fabricCanvas.width!
@@ -2282,8 +2354,8 @@ const createDefaultFloor = () => {
   const floorRect = new fabric.Rect({
     left: startX,
     top: startY,
-    width: roomWidthPx,
-    height: roomHeightPx,
+    width: defaultWidthPx,
+    height: defaultHeightPx,
     fill: 'rgba(169, 169, 169, 0.8)', // 중간 회색
     stroke: '#A9A9A9', // 테두리는 살짝 어둡게
     strokeWidth: 2,
@@ -2312,8 +2384,8 @@ const createDefaultFloor = () => {
     bounds: {
       left: startX,
       top: startY,
-      right: startX + roomWidthPx,
-      bottom: startY + roomHeightPx
+      right: startX + defaultWidthPx,
+      bottom: startY + defaultHeightPx
     }
   }
   floorplanStore.setRoom(roomData)
@@ -2323,7 +2395,7 @@ const createDefaultFloor = () => {
     id: floorId,
     width: defaultWidth,
     height: defaultHeight,
-    boundsPx: { left: startX, top: startY, right: startX + roomWidthPx, bottom: startY + roomHeightPx },
+    boundsPx: { left: startX, top: startY, right: startX + defaultWidthPx, bottom: startY + defaultHeightPx },
     color: '#A9A9A9'
   })
 
@@ -2373,86 +2445,7 @@ const setupInitialView = () => {
 // 중복된 setupInitialView 함수 제거됨 (새로운 함수는 1006라인 근처에 있음)
 
 // Store를 사용한 네모난 방 생성 (바닥만 생성, 벽 미생성)
-const createRoom = () => {
-  if (!fabricCanvas || !isValidSize.value) return
 
-  // 기존 도면은 유지하고 바닥만 추가 (여러 바닥 지원)
-
-  const scale = 40 // 1m = 40px
-  const roomWidthPx = roomWidth.value * scale
-  const roomHeightPx = roomHeight.value * scale
-
-  // 캔버스 중앙에 배치
-  const canvasWidth = fabricCanvas.width!
-  const canvasHeight = fabricCanvas.height!
-  const startX = (canvasWidth - roomWidthPx) / 2
-  const startY = (canvasHeight - roomHeightPx) / 2
-
-  // 바닥(직사각형) 생성 - 파스텔톤 노란색 (반투명)
-  const floorId = Date.now().toString()
-  const floorRect = new fabric.Rect({
-    left: startX,
-    top: startY,
-    width: roomWidthPx,
-    height: roomHeightPx,
-    fill: selectedFloorColor.value.rgba,
-    stroke: '#E5D38A', // 테두리는 살짝 어둡게
-    strokeWidth: 1,
-    selectable: true,
-    hasControls: true,
-    lockRotation: true,
-    evented: true
-  })
-    ; (floorRect as any).userData = { type: 'room-floor', floorId }
-  fabricCanvas.add(floorRect)
-
-  // 바닥 사이즈 라벨 추가
-  addOrUpdateRoomSizeLabel(floorRect)
-
-  // 바닥 이동/리사이즈 처리 분리 (이동 시 크기 변경 금지)
-  floorRect.on('moving', () => handleFloorMoving(floorRect))
-  floorRect.on('modified', () => handleFloorModified(floorRect))
-
-  // 선택/해제 시 UI 연동 (Delete 버튼 활성화)
-  floorRect.on('selected', () => { selectedObject.value = floorRect })
-  floorRect.on('deselected', () => { if (selectedObject.value === floorRect) selectedObject.value = null })
-  // 바닥 클릭 시에도 즉시 레이어 정렬 유지
-  floorRect.on('mousedown', () => {
-    sendAllFloorsToBack()
-    positionGridAfterFloors()
-  })
-
-  // 레이어: 바닥은 항상 가장 뒤로
-  sendAllFloorsToBack()
-  // 그리드를 바닥 위로 정렬
-  positionGridAfterFloors()
-
-  // Store에 룸 정보 업데이트 (bounds는 그대로 유지)
-  const roomData = {
-    width: roomWidth.value,
-    height: roomHeight.value,
-    bounds: {
-      left: startX,
-      top: startY,
-      right: startX + roomWidthPx,
-      bottom: startY + roomHeightPx
-    }
-  }
-  floorplanStore.setRoom(roomData)
-
-  // Store floors에도 추가 (여러 바닥 지원)
-  floorplanStore.addFloor({
-    id: floorId,
-    width: roomWidth.value,
-    height: roomHeight.value,
-    boundsPx: { left: startX, top: startY, right: startX + roomWidthPx, bottom: startY + roomHeightPx },
-    color: selectedFloorColor.value.hex
-  })
-
-  // 외부벽 데이터는 생성하지 않음 (요청사항)
-
-  fabricCanvas.renderAll()
-}
 
 // Zone 생성 함수 (회색 바닥 기준 좌표계 사용)
 const createZone = () => {
@@ -2644,100 +2637,7 @@ const handleZoneModified = (zoneRect: any) => {
   }
 }
 
-// 바닥 사이즈 라벨 생성/업데이트
-const addOrUpdateRoomSizeLabel = (floorRect: any) => {
-  if (!fabricCanvas) return
-  const scale = 40
-  const widthM = (floorRect.width * floorRect.scaleX) / scale
-  const heightM = (floorRect.height * floorRect.scaleY) / scale
-  const area = Math.round(widthM * heightM * 100) / 100
-  const labelText = `W ${widthM.toFixed(2)}m × D ${heightM.toFixed(2)}m  |  Area ${area.toFixed(2)} m²`
 
-  // 기존 라벨 찾기 (floor별)
-  const floorId = floorRect.userData?.floorId
-  const existing = fabricCanvas.getObjects().find((o: any) => o.userData?.type === 'room-size-label' && o.userData?.floorId === floorId) as any
-  if (existing) {
-    existing.text = labelText
-    existing.left = floorRect.left + 8
-    existing.top = floorRect.top + 8
-    existing.bringToFront()
-  } else {
-    const label = new fabric.Text(labelText, {
-      left: floorRect.left + 8,
-      top: floorRect.top + 8,
-      fontSize: 14,
-      fill: '#5c5c5c',
-      backgroundColor: 'rgba(255,255,255,0.6)'
-    }) as any
-    label.userData = { type: 'room-size-label', floorId }
-    fabricCanvas.add(label)
-    label.bringToFront()
-  }
-}
-
-// 바닥 이동/리사이즈 후 스토어 바닥/라벨만 업데이트 (다른 요소 영향 없음)
-const handleFloorModified = (floorRect: any) => {
-  if (!fabricCanvas) return
-  const scale = 40
-
-  // 변경된 실제 크기 픽셀 → 고정 폭/높이로 반영하고 scale 초기화
-  const newWidthPx = floorRect.getScaledWidth()
-  const newHeightPx = floorRect.getScaledHeight()
-  floorRect.set({ width: newWidthPx, height: newHeightPx, scaleX: 1, scaleY: 1 })
-
-  // 새로운 룸 크기 (미터)
-  const newWm = newWidthPx / scale
-  const newDm = newHeightPx / scale
-
-  // floors 스토어 업데이트 (현재 floorId 기준)
-  const floorId = floorRect.userData?.floorId as string
-  if (floorId) {
-    floorplanStore.updateFloor(floorId, {
-      width: newWm,
-      height: newDm,
-      boundsPx: {
-        left: floorRect.left,
-        top: floorRect.top,
-        right: floorRect.left + newWidthPx,
-        bottom: floorRect.top + newHeightPx
-      }
-    })
-  }
-
-  // 라벨 업데이트
-  addOrUpdateRoomSizeLabel(floorRect)
-
-  // 다른 요소에는 영향 없음. 2D 재구성 불필요
-
-  fabricCanvas.renderAll()
-}
-
-// 바닥 이동 중에는 크기를 고정하고, 위치만 반영
-const handleFloorMoving = (floorRect: any) => {
-  if (!fabricCanvas) return
-  const scale = 40
-  // 크기 스케일 잠금
-  if (floorRect.scaleX !== 1 || floorRect.scaleY !== 1) {
-    const w = floorRect.getScaledWidth()
-    const h = floorRect.getScaledHeight()
-    floorRect.set({ width: w, height: h, scaleX: 1, scaleY: 1 })
-  }
-  // 위치만 floors 스토어에 반영
-  const floorId = floorRect.userData?.floorId as string
-  if (!floorId) return
-  const newBounds = {
-    left: floorRect.left,
-    top: floorRect.top,
-    right: floorRect.left + floorRect.width,
-    bottom: floorRect.top + floorRect.height
-  }
-  floorplanStore.updateFloor(floorId, { boundsPx: newBounds })
-  // 라벨도 함께 이동
-  addOrUpdateRoomSizeLabel(floorRect)
-  // 레이어 정렬 유지
-  sendAllFloorsToBack()
-  positionGridAfterFloors()
-}
 
 // 실시간 3D 업데이트 제거로 인해 updateAllWalls 함수 비활성화
 // collect2DData 함수로 대체됨
@@ -2892,14 +2792,14 @@ const updateWallLengthLabel = (wall: any) => {
   // 새로운 좌표로 레이블 재생성
   let start, end
 
-  if (wall.userData?.type === 'interior-wall' || wall.userData?.type === 'exterior-wall') {
-    // 내부벽과 외부벽 모두 Line 객체로 동일하게 처리
+  if (wall.userData?.type === 'glass-wall' || wall.userData?.type === 'general-wall') {
+    // 유리벽과 일반벽 모두 Line 객체로 동일하게 처리
     const linePoints = wall.calcLinePoints()
     const matrix = wall.calcTransformMatrix()
     start = fabric.util.transformPoint({ x: linePoints.x1, y: linePoints.y1 }, matrix)
     end = fabric.util.transformPoint({ x: linePoints.x2, y: linePoints.y2 }, matrix)
 
-    const wallType = wall.userData?.type === 'interior-wall' ? '내부벽' : '외부벽'
+    const wallType = wall.userData?.type === 'glass-wall' ? '유리벽' : '일반벽'
   }
 
   if (start && end) {
@@ -2931,10 +2831,14 @@ const updateObjectColorOnCanvas = (placedObjectId: string, newColor: string) => 
 const rerender2DObjectsFromStore = () => {
   if (!fabricCanvas) return
 
-  // 기존 배치 오브젝트 모두 제거
+  console.log(`🔄 2D 재구성 시작: Store의 placedObjects ${floorplanStore.placedObjects.length}개`)
+
+  // 기존 배치 오브젝트와 Box 오브젝트 모두 제거
   const objectsToRemove = (fabricCanvas.getObjects() as Array<fabric.Object & { userData?: any }>).filter((obj) =>
-    obj.userData?.type === 'placed-object'
+    obj.userData?.type === 'placed-object' || obj.userData?.type === 'custom-box'
   )
+
+  console.log(`🗑️ 제거할 오브젝트: ${objectsToRemove.length}개`, objectsToRemove.map(obj => ({ type: obj.userData?.type, id: obj.userData?.id })))
 
   objectsToRemove.forEach(obj => {
     fabricCanvas.remove(obj)
@@ -2949,53 +2853,92 @@ const rerender2DObjectsFromStore = () => {
     const fabricX = placedObj.position.x * 40 + canvasWidth / 2
     const fabricY = placedObj.position.y * 40 + canvasHeight / 2
 
-    // 오브젝트 모양 생성
-    const objectShape = new fabric.Rect({
-      left: fabricX - (placedObj.width * 40) / 2,
-      top: fabricY - (placedObj.depth * 40) / 2,
-      width: placedObj.width * 40,
-      height: placedObj.depth * 40,
-      fill: placedObj.color || getObjectColor(placedObj.category, placedObj.isOnBox),
-      stroke: '#333',
-      strokeWidth: 1,
-      selectable: true,
-      evented: true
-    })
+    // Box인 경우와 일반 오브젝트인 경우를 구분하여 처리
+    if (placedObj.isBox) {
+      // Box 오브젝트 생성
+      const box = new fabric.Rect({
+        left: fabricX - (placedObj.width * 40) / 2,
+        top: fabricY - (placedObj.depth * 40) / 2,
+        width: placedObj.width * 40,
+        height: placedObj.depth * 40,
+        fill: placedObj.color || '#FFE082',
+        stroke: '#F57F17',
+        strokeWidth: 2,
+        selectable: true,
+        evented: true,
+        opacity: 0.8,
+        hoverCursor: 'move',
+        moveCursor: 'move'
+      })
 
-    // 라벨 생성
-    const label = new fabric.Text(placedObj.name, {
-      left: fabricX,
-      top: fabricY,
-      fontSize: 12,
-      textAlign: 'center',
-      originX: 'center',
-      originY: 'center',
-      selectable: false,
-      evented: false,
-      fill: '#000'
-    })
+      box.userData = {
+        type: 'custom-box',
+        id: placedObj.id,
+        x: placedObj.position.x,
+        y: placedObj.position.y,
+        width: placedObj.width,
+        height: placedObj.height,
+        depth: placedObj.depth,
+        isSaved: true
+      }
 
-    // 그룹으로 묶기
-    const group = new fabric.Group([objectShape, label], {
-      left: fabricX,
-      top: fabricY,
-      originX: 'center',
-      originY: 'center',
-      angle: placedObj.rotation * (180 / Math.PI), // 라디안 → 도
-      selectable: true,
-      evented: true,
-      hasRotatingPoint: true
-    })
+      fabricCanvas.add(box)
 
-    group.userData = {
-      type: 'placed-object',
-      placedObjectId: placedObj.id,
-      objectName: placedObj.name
+      // Box 크기 라벨 추가
+      addBoxSizeLabel(box, placedObj.width, placedObj.depth)
+
+      console.log(`📦 Box 재생성: ID ${placedObj.id}, 위치(${placedObj.position.x}, ${placedObj.position.y})`)
+    } else {
+      // 일반 오브젝트 생성
+      const objectShape = new fabric.Rect({
+        left: fabricX - (placedObj.width * 40) / 2,
+        top: fabricY - (placedObj.depth * 40) / 2,
+        width: placedObj.width * 40,
+        height: placedObj.depth * 40,
+        fill: placedObj.color || getObjectColor(placedObj.category, placedObj.isOnBox),
+        stroke: '#333',
+        strokeWidth: 1,
+        selectable: true,
+        evented: true
+      })
+
+      // 라벨 생성
+      const label = new fabric.Text(placedObj.name, {
+        left: fabricX,
+        top: fabricY,
+        fontSize: 12,
+        textAlign: 'center',
+        originX: 'center',
+        originY: 'center',
+        selectable: false,
+        evented: false,
+        fill: '#000'
+      })
+
+      // 그룹으로 묶기
+      const group = new fabric.Group([objectShape, label], {
+        left: fabricX,
+        top: fabricY,
+        originX: 'center',
+        originY: 'center',
+        angle: placedObj.rotation * (180 / Math.PI), // 라디안 → 도
+        selectable: true,
+        evented: true,
+        hasRotatingPoint: true
+      })
+
+      group.userData = {
+        type: 'placed-object',
+        placedObjectId: placedObj.id,
+        objectName: placedObj.name
+      }
+
+      fabricCanvas.add(group)
+      console.log(`🎯 일반 오브젝트 재생성: ID ${placedObj.id}, 이름 ${placedObj.name}`)
     }
-
-    fabricCanvas.add(group)
   })
 
+  console.log(`✅ 2D 재구성 완료: 총 ${floorplanStore.placedObjects.length}개 오브젝트`)
   fabricCanvas.renderAll()
 }
 
@@ -3873,7 +3816,7 @@ const exportFloorPlan = () => {
 
   // 다운로드 링크 생성
   const link = document.createElement('a')
-  link.download = `room_${roomWidth.value}x${roomHeight.value}m.png`
+  link.download = `floorplan_export.png`
   link.href = dataURL
   link.click()
 }
@@ -3928,8 +3871,6 @@ const getObjectDisplayName = (obj: any): string => {
   switch (type) {
     case 'placed-object':
       return obj.userData.objectName || 'Object'
-    case 'room-floor':
-      return 'Room Floor'
     case 'zone-floor':
       return 'Zone Floor'
     case 'interior-wall':
@@ -3959,14 +3900,12 @@ const getObjectTypeDisplayName = (type: string): string => {
   switch (type) {
     case 'placed-object':
       return 'Object'
-    case 'room-floor':
-      return 'Room Floor'
     case 'zone-floor':
       return 'Zone Floor'
-    case 'interior-wall':
-      return 'Interior Wall'
-    case 'exterior-wall':
-      return 'Exterior Wall'
+    case 'glass-wall':
+      return 'Glass Wall'
+    case 'general-wall':
+      return 'General Wall'
     case 'custom-box':
       return 'Box'
     default:
@@ -4014,7 +3953,7 @@ const deleteSingleObject = (objectToDelete: any) => {
       rerender2DObjectsFromStore()
     }
 
-  } else if (objectType === 'interior-wall' || objectType === 'exterior-wall') {
+  } else if (objectType === 'glass-wall' || objectType === 'general-wall') {
     // 벽 삭제 (기존 로직)
     const associatedLabel = fabricCanvas.getObjects().find((obj: any) =>
       obj.userData?.type === 'wall-length-label' && obj.userData?.wallId === objectId
@@ -4028,7 +3967,7 @@ const deleteSingleObject = (objectToDelete: any) => {
 
     const allObjects = fabricCanvas.getObjects()
     const wallsToRemove = allObjects.filter((obj: any) =>
-      obj.userData?.id === objectId && (obj.userData?.type === 'interior-wall' || obj.userData?.type === 'exterior-wall')
+      obj.userData?.id === objectId && (obj.userData?.type === 'glass-wall' || obj.userData?.type === 'general-wall')
     )
 
     wallsToRemove.forEach((wall: any) => {
@@ -4036,34 +3975,16 @@ const deleteSingleObject = (objectToDelete: any) => {
     })
 
     // Store에서 벽 제거
-    if (objectType === 'interior-wall') {
+    if (objectType === 'glass-wall') {
       if (objectId) {
         floorplanStore.removeInteriorWall(objectId)
       }
-    } else if (objectType === 'exterior-wall') {
+    } else if (objectType === 'general-wall') {
       if (objectId) {
         floorplanStore.removeExteriorWall(objectId)
       }
     }
-  } else if (objectType === 'room-floor') {
-    // 바닥 삭제: 같은 floorId의 라벨/사각형 모두 제거, 스토어 업데이트, 강제 리프레시 및 레이어 재정렬
-    const floorId = objectToDelete.userData?.floorId
-    if (floorId) {
-      // 라벨 제거
-      const sizeLabels = fabricCanvas.getObjects().filter((obj: any) => obj.userData?.type === 'room-size-label' && obj.userData?.floorId === floorId)
-      sizeLabels.forEach((lbl: any) => fabricCanvas.remove(lbl))
-      // 사각형(바닥) 중 동일 floorId가 남아있다면 모두 제거
-      const sameFloorRects = fabricCanvas.getObjects().filter((obj: any) => obj.userData?.type === 'room-floor' && obj.userData?.floorId === floorId)
-      sameFloorRects.forEach((rect: any) => fabricCanvas.remove(rect))
-      // Store에서 제거
-      floorplanStore.removeFloor(floorId)
-    } else {
-      // floorId가 없는 경우도 안전하게 제거
-      fabricCanvas.remove(objectToDelete)
-    }
-    // 레이어 재정렬 및 강제 리렌더
-    sendAllFloorsToBack()
-    positionGridAfterFloors()
+
   } else if (objectType === 'zone-floor') {
     // Zone 삭제: 같은 zoneId의 라벨/사각형 모두 제거, 스토어 업데이트
     const zoneId = objectToDelete.userData?.zoneId
@@ -4087,18 +4008,58 @@ const deleteSingleObject = (objectToDelete: any) => {
     sendAllFloorsToBack()
     positionGridAfterFloors()
   } else if (objectType === 'custom-box') {
-    // Box 삭제: 관련된 크기 라벨도 함께 제거
+    // Box 삭제: 관련된 크기 라벨도 함께 제거하고 Store에서도 제거
     const boxId = objectToDelete.userData?.id
     if (boxId) {
+      console.log(`🔍 Box 삭제 시도: ID ${boxId}, 타입: ${typeof boxId}`)
+      
       // Box 크기 라벨 제거
       const boxLabels = fabricCanvas.getObjects().filter((obj: any) => obj.userData?.type === 'box-size-label' && obj.userData?.boxId === boxId)
-      boxLabels.forEach((lbl: any) => fabricCanvas.remove(lbl))
+      if (boxLabels.length > 0) {
+        boxLabels.forEach((lbl: any) => {
+          fabricCanvas.remove(lbl)
+          console.log(`🗑️ Box 크기 라벨 제거: ${lbl.text}`)
+        })
+      } else {
+        console.log(`ℹ️ Box 크기 라벨을 찾을 수 없음: boxId ${boxId}`)
+        // 모든 box-size-label을 확인
+        const allBoxLabels = fabricCanvas.getObjects().filter((obj: any) => obj.userData?.type === 'box-size-label')
+        console.log(`📋 모든 Box 크기 라벨:`, allBoxLabels.map((lbl: any) => ({ text: lbl.text, boxId: lbl.userData?.boxId })))
+      }
+      
+      // Store에서 Box 제거 - boxId가 이미 문자열인지 확인
+      let boxIdString = boxId
+      if (typeof boxId === 'number') {
+        boxIdString = boxId.toString()
+      }
+      
+      console.log(`🔍 Store에서 Box 검색: ID ${boxIdString}`)
+      console.log(`📦 현재 Store의 placedObjects:`, floorplanStore.placedObjects.map(obj => ({ id: obj.id, name: obj.name, isBox: obj.isBox })))
+      
+      const placedObject = floorplanStore.placedObjects.find(obj => obj.id === boxIdString)
+      if (placedObject) {
+        floorplanStore.removePlacedObject(boxIdString)
+        console.log(`✅ Box Store에서 제거 완료: ID ${boxIdString}`)
+      } else {
+        console.warn(`⚠️ Store에서 Box를 찾을 수 없음: ID ${boxIdString}`)
+        // Store에서 찾을 수 없는 경우, isBox가 true인 객체들을 확인
+        const boxObjects = floorplanStore.placedObjects.filter(obj => obj.isBox)
+        console.log(`📦 Store의 Box 객체들:`, boxObjects.map(obj => ({ id: obj.id, name: obj.name })))
+      }
       
       // Box 사각형 제거
       fabricCanvas.remove(objectToDelete)
+      console.log(`✅ Box 캔버스에서 제거 완료`)
+      
+      // 🚀 핵심 개선: Store 기반 2D 재구성 (3D와 동기화)
+      rerender2DObjectsFromStore()
     } else {
+      console.warn(`⚠️ Box ID가 없음:`, objectToDelete.userData)
       // boxId가 없는 경우도 안전하게 제거
       fabricCanvas.remove(objectToDelete)
+      
+      // Store 기반 2D 재구성
+      rerender2DObjectsFromStore()
     }
   }
 
@@ -4250,6 +4211,122 @@ const updateBoxSizeLabel = (box: any) => {
   const width = box.userData?.width || 1.0
   const height = box.userData?.height || 1.0
   addBoxSizeLabel(box, width, height)
+}
+
+// Object의 위치 정보를 가져오는 함수
+const getObjectPosition = (obj: any) => {
+  if (!fabricCanvas) return { x: 0, y: 0 }
+  
+  // 기본 회색 바닥의 위치를 찾기
+  const defaultFloor = fabricCanvas.getObjects().find((o: any) =>
+    o.userData?.type === 'base-floor' && o.userData?.floorId === 'default-floor'
+  )
+  
+  if (!defaultFloor) return { x: 0, y: 0 }
+  
+  const baseX = defaultFloor.left
+  const baseY = defaultFloor.top
+  const scale = 40 // 1m = 40px
+  
+  // 픽셀 좌표를 미터 단위로 변환
+  const worldX = (obj.left - baseX) / scale
+  const worldY = (obj.top - baseY) / scale
+  
+  return { x: worldX, y: worldY }
+}
+
+// Object의 크기 정보를 가져오는 함수
+const getObjectSize = (obj: any) => {
+  const objType = obj.userData?.type
+  
+  switch (objType) {
+    case 'custom-box':
+      const width = obj.userData?.width || 1.0
+      const height = obj.userData?.height || 1.0
+      const depth = obj.userData?.depth || 1.0
+      return `${width.toFixed(1)}m × ${height.toFixed(1)}m × ${depth.toFixed(1)}m`
+    
+    case 'interior-wall':
+    case 'exterior-wall':
+      const startX = obj.userData?.startX || 0
+      const startY = obj.userData?.startY || 0
+      const endX = obj.userData?.endX || 0
+      const endY = obj.userData?.endY || 0
+      const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2))
+      return `${(length / 40).toFixed(2)}m`
+    
+    case 'zone-floor':
+    case 'room-floor':
+      const zoneWidth = obj.userData?.originalWidth || (obj.width / 40)
+      const zoneHeight = obj.userData?.originalHeight || (obj.height / 40)
+      return `${zoneWidth.toFixed(1)}m × ${zoneHeight.toFixed(1)}m`
+    
+    case 'placed-object':
+      const objWidth = obj.userData?.width || 1.0
+      const objDepth = obj.userData?.depth || 1.0
+      const objHeight = obj.userData?.height || 1.0
+      return `${objWidth.toFixed(1)}m × ${objHeight.toFixed(1)}m × ${objDepth.toFixed(1)}m`
+    
+    default:
+      return '크기 정보 없음'
+  }
+}
+
+// 카테고리 표시 이름을 가져오는 함수
+const getCategoryDisplayName = (category: string) => {
+  const categoryMap: { [key: string]: string } = {
+    'robot': '로봇',
+    'equipment': '설비',
+    'appliances': '가전',
+    'etc': '기타',
+    'av': 'AV 장비',
+    'interior-wall': '내부 벽',
+    'exterior-wall': '외부 벽',
+    'zone-floor': 'Zone 바닥',
+    'room-floor': 'Room 바닥',
+    'base-floor': '기본 바닥'
+  }
+  return categoryMap[category] || category
+}
+
+// Box를 Store에 업데이트하는 함수
+const updateBoxInStore = (box: any) => {
+  if (!fabricCanvas) return
+
+  const boxId = box.userData?.id
+  if (!boxId) return
+
+  // Zone과 동일한 방식: fabricCanvas 픽셀 좌표를 미터 단위로 변환하여 저장
+  const defaultFloor = fabricCanvas.getObjects().find((o: any) =>
+    o.userData?.type === 'base-floor' && o.userData?.floorId === 'default-floor'
+  )
+  
+  if (!defaultFloor) return
+
+  const baseX = defaultFloor.left
+  const baseY = defaultFloor.top
+  const scale = 40 // 1m = 40px
+
+  // 픽셀 좌표를 미터 단위로 변환 (Zone과 동일한 계산 방식)
+  const worldX = (box.left - baseX) / scale
+  const worldY = (box.top - baseY) / scale
+
+  // Store에서 해당 Box 찾기 및 업데이트
+  const existingBox = floorplanStore.placedObjects.find(obj => obj.id === boxId)
+  if (existingBox) {
+    const updatedBox = {
+      ...existingBox,
+      position: { x: worldX, y: worldY }, // 미터 단위로 변환된 값 저장
+      boundsPx: {
+        left: box.left,
+        top: box.top,
+        right: box.left + (box.width * box.scaleX),
+        bottom: box.top + (box.height * box.scaleY)
+      },
+      rotation: (box.angle || 0) * (Math.PI / 180) // Fabric.js 각도를 라디안으로 변환
+    }
+    floorplanStore.updatePlacedObject(boxId, updatedBox)
+  }
 }
 </script>
 
@@ -5323,6 +5400,56 @@ const updateBoxSizeLabel = (box: any) => {
   font-size: 0.8rem;
   color: #1e4a72;
   font-weight: 500;
+}
+
+.single-selection-info {
+  margin-top: 0.5rem;
+}
+
+.object-details {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.detail-item:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #495057;
+  min-width: 60px;
+}
+
+.detail-value {
+  color: #212529;
+  font-family: 'Courier New', monospace;
+  background-color: #e9ecef;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
+}
+
+.color-preview {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  border: 1px solid #ccc;
+  margin-right: 0.5rem;
+  vertical-align: middle;
 }
 
 

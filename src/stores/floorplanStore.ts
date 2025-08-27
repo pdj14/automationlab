@@ -48,7 +48,7 @@ interface PlacedObject {
   id: string
   name: string
   category: string
-  glbUrl: string
+  glbUrl?: string   // GLB 파일 URL (Box의 경우 선택사항)
   lodUrl?: string   // LOD 모델 URL (선택사항)
   description?: string
   width: number  // 가로

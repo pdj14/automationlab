@@ -959,7 +959,9 @@ const updatePlacedObjectsIn3D = async (placedObjects: any[]) => {
 
   // 새로운 오브젝트들 추가
   if (placedObjects.length > 0) {
-    await create3DObjects(placedObjects)
+    // floorplanStore에서 canvasSize 정보 가져오기
+    const canvasSize = floorplanStore.canvasSize
+    await create3DObjects(placedObjects, canvasSize)
   }
 
   // 강제 렌더링 업데이트
@@ -980,7 +982,7 @@ let instancedCubeMaterial: THREE.MeshStandardMaterial | null = null
 let instancedMeshes: THREE.InstancedMesh[] = []
 
 // 3D 오브젝트 생성 (GLB 모델 로딩) - Three.js 내장 LOD 사용
-const create3DObjects = async (placedObjects: any[]) => {
+const create3DObjects = async (placedObjects: any[], canvasSize: { width: number, height: number } = { width: 800, height: 600 }) => {
   if (!scene || !placedObjects || placedObjects.length === 0) {
     return
   }
@@ -1032,7 +1034,7 @@ const create3DObjects = async (placedObjects: any[]) => {
   for (const placedObj of normalObjects) {
     // 상자인 경우 특별한 3D 상자 모델 생성
     if (placedObj.category === 'etc' && placedObj.isBox) {
-      create3DBox(placedObj, placedObj.color || '#D2B48C')
+      create3DBox(placedObj, placedObj.color || '#D2B48C', canvasSize)
       continue
     }
     
@@ -1100,12 +1102,32 @@ const create3DObjects = async (placedObjects: any[]) => {
       
       model.scale.set(scaleX, scaleY, scaleZ)
       
-      // 모델 위치 설정
+      // 모델 위치 설정 (Box와 다른 오브젝트 구분하여 처리)
       const isTV = placedObj.category === 'av'
-      const pos3D = {
-        x: placedObj.position.x,
-        y: isTV ? 0 : placedObj.height / 2,
-        z: placedObj.position.y
+      const isBox = placedObj.isBox
+      
+      let pos3D
+      
+      if (isBox) {
+        // Box는 Zone과 동일한 방식: 미터 단위 원본 값을 3D 좌표로 변환
+        const canvasWidth = 800  // 기본 캔버스 너비
+        const canvasHeight = 600 // 기본 캔버스 높이
+        
+        pos3D = {
+          x: (placedObj.position.x * 40 - canvasWidth / 2) / 40,
+          y: isTV ? 0 : placedObj.height / 2,
+          z: (placedObj.position.y * 40 - canvasHeight / 2) / 40
+        }
+      } else {
+        // 다른 오브젝트는 Wall과 동일한 방식: fabricCanvas 픽셀 좌표를 3D 좌표로 변환
+        const canvasWidth = 800  // 기본 캔버스 너비
+        const canvasHeight = 600 // 기본 캔버스 높이
+        
+        pos3D = {
+          x: (placedObj.position.x - canvasWidth / 2) / 40,
+          y: isTV ? 0 : placedObj.height / 2,
+          z: (placedObj.position.y - canvasHeight / 2) / 40
+        }
       }
       
       // 모델 회전 설정 (Y축 수직 회전)
@@ -1648,11 +1670,28 @@ const handleCanvasClick = (event: MouseEvent) => {
   }
 }
 
+
+
 // 3D 상자 모델 생성
-const create3DBox = (placedObj: any, color: string) => {
+const create3DBox = (placedObj: any, color: string, canvasSize: { width: number, height: number } = { width: 800, height: 600 }) => {
   const pastelBrown = '#E6D5AC'
   
-  const boxGeometry = new THREE.BoxGeometry(placedObj.width, placedObj.height, placedObj.depth)
+  // Box의 크기 계산
+  // width: boundsPx에서 계산 (2D 가로)
+  // depth: 원본 depth 값 사용 (3D 깊이)
+  // height: 원본 height 값 사용 (3D 높이)
+  let boxWidth
+  if (placedObj.boundsPx) {
+    boxWidth = (placedObj.boundsPx.right - placedObj.boundsPx.left) / 40
+  } else {
+    boxWidth = placedObj.width
+  }
+  
+  const boxDepth = placedObj.depth  // 원본 depth 값 사용
+  
+  // Box의 높이를 depth로 표현하기 위해 매개변수 순서 조정
+  // BoxGeometry(width, depth, height) - width: X축, depth: Z축, height: Y축
+  const boxGeometry = new THREE.BoxGeometry(boxWidth, boxDepth, placedObj.height)
   const boxMaterial = new THREE.MeshStandardMaterial({ 
     color: pastelBrown,
     transparent: true,
@@ -1663,7 +1702,45 @@ const create3DBox = (placedObj: any, color: string) => {
   const boxGroup = new THREE.Group()
   boxGroup.add(boxMesh)
   
-  boxGroup.position.set(placedObj.position.x, placedObj.height / 2, placedObj.position.y)
+  // Box의 위치를 Zone과 동일한 방식으로 3D 좌표 계산
+  // Zone과 동일하게 boundsPx를 사용하여 위치 계산
+  const canvasWidth = canvasSize.width
+  const canvasHeight = canvasSize.height
+  
+  let pos3D_X, pos3D_Z
+  
+  if (placedObj.boundsPx) {
+    // boundsPx가 있는 경우 Zone과 동일한 방식으로 계산
+    const cx = (placedObj.boundsPx.left + placedObj.boundsPx.right) / 2
+    const cy = (placedObj.boundsPx.top + placedObj.boundsPx.bottom) / 2
+    pos3D_X = (cx - canvasWidth / 2) / 40
+    pos3D_Z = (cy - canvasHeight / 2) / 40
+  } else {
+    // boundsPx가 없는 경우 기존 방식으로 계산 (하위 호환성)
+    pos3D_X = (placedObj.position.x * 40 - canvasWidth / 2) / 40
+    pos3D_Z = (placedObj.position.y * 40 - canvasHeight / 2) / 40
+  }
+  
+  // Box를 바닥면에 맞추기 위해 Y 위치를 높이의 절반으로 설정
+  // Box의 중심이 아닌 바닥면이 Y=0에 오도록 조정
+  const pos3D_Y = placedObj.height / 2
+  
+  console.log(`🔍 Box 3D 위치 계산:`, {
+    originalPosition: { x: placedObj.position.x, y: placedObj.position.y },
+    boundsPx: placedObj.boundsPx,
+    canvasSize: { width: canvasWidth, height: canvasHeight },
+    calculated3D: { x: pos3D_X, y: pos3D_Y, z: pos3D_Z },
+    baseFloorRange: { x: [-10, 10], z: [-7.5, 7.5] },
+    boxSize: { width: boxWidth, height: placedObj.height, depth: boxDepth },
+    heightAnalysis: {
+      boxHeight: placedObj.height,
+      yPosition: pos3D_Y,
+      boxBottom: pos3D_Y - placedObj.height / 2,
+      boxTop: pos3D_Y + placedObj.height / 2
+    }
+  })
+  
+  boxGroup.position.set(pos3D_X, pos3D_Y, pos3D_Z)
   boxGroup.rotation.y = placedObj.rotation || 0
   
   boxGroup.userData = {
@@ -1677,6 +1754,13 @@ const create3DBox = (placedObj: any, color: string) => {
   }
   
   scene.add(boxGroup)
+  
+  console.log(`✅ Box 3D 생성 완료:`, {
+    position: { x: pos3D_X, y: pos3D_Y, z: pos3D_Z },
+    size: { width: boxWidth, height: placedObj.height, depth: boxDepth },
+    originalSize: { width: placedObj.width, height: placedObj.height, depth: placedObj.depth },
+    sceneChildren: scene.children.length
+  })
   
   // 상자에도 상태 표시 구체 추가
   addStatusSphere(boxGroup, placedObj)
@@ -1745,7 +1829,29 @@ const createInstancedObjectsFromGLB = async (instancedObjects: any[]) => {
 
       group.forEach((obj, index) => {
         const matrix = new THREE.Matrix4()
-        const position = new THREE.Vector3(obj.position.x, obj.height / 2, obj.position.y)
+        
+        let position
+        if (obj.isBox) {
+          // Box는 Zone과 동일한 방식: 미터 단위 원본 값을 3D 좌표로 변환
+          const canvasWidth = 800  // 기본 캔버스 너비
+          const canvasHeight = 600 // 기본 캔버스 높이
+          
+          position = new THREE.Vector3(
+            (obj.position.x * 40 - canvasWidth / 2) / 40, 
+            obj.height / 2, 
+            (obj.position.y * 40 - canvasHeight / 2) / 40
+          )
+        } else {
+          // 다른 오브젝트는 Wall과 동일한 방식: fabricCanvas 픽셀 좌표를 3D 좌표로 변환
+          const canvasWidth = 800  // 기본 캔버스 너비
+          const canvasHeight = 600 // 기본 캔버스 높이
+          
+          position = new THREE.Vector3(
+            (obj.position.x - canvasWidth / 2) / 40, 
+            obj.height / 2, 
+            (obj.position.y - canvasHeight / 2) / 40
+          )
+        }
         const rotation = new THREE.Euler(0, -(obj.rotation || 0), 0)
         const instanceQuaternion = new THREE.Quaternion().setFromEuler(rotation)
         const finalQuaternion = baseQuaternion.clone().multiply(instanceQuaternion)
@@ -1768,7 +1874,25 @@ const createInstancedObjectsFromGLB = async (instancedObjects: any[]) => {
       // 상태 구체 추가 (더미 그룹으로 위치/높이 계산)
       group.forEach(obj => {
         const dummyGroup = new THREE.Group()
-        dummyGroup.position.set(obj.position.x, obj.height / 2, obj.position.y)
+        
+        let posX, posZ
+        if (obj.isBox) {
+          // Box는 Zone과 동일한 방식: 미터 단위 원본 값을 3D 좌표로 변환
+          const canvasWidth = 800  // 기본 캔버스 너비
+          const canvasHeight = 600 // 기본 캔버스 높이
+          
+          posX = (obj.position.x * 40 - canvasWidth / 2) / 40
+          posZ = (obj.position.y * 40 - canvasHeight / 2) / 40
+        } else {
+          // 다른 오브젝트는 Wall과 동일한 방식: fabricCanvas 픽셀 좌표를 3D 좌표로 변환
+          const canvasWidth = 800  // 기본 캔버스 너비
+          const canvasHeight = 600 // 기본 캔버스 높이
+          
+          posX = (obj.position.x - canvasWidth / 2) / 40
+          posZ = (obj.position.y - canvasHeight / 2) / 40
+        }
+        
+        dummyGroup.position.set(posX, obj.height / 2, posZ)
         dummyGroup.userData = {
           type: 'placed-object',
           placedObjectId: obj.id,
@@ -1834,11 +1958,28 @@ const createInstancedObjects = (instancedObjects: any[]) => {
   instancedObjects.forEach((obj, index) => {
     const matrix = new THREE.Matrix4()
     
+    let posX, posZ
+    if (obj.isBox) {
+      // Box는 Zone과 동일한 방식: 미터 단위 원본 값을 3D 좌표로 변환
+      const canvasWidth = 800  // 기본 캔버스 너비
+      const canvasHeight = 600 // 기본 캔버스 높이
+      
+      posX = (obj.position.x * 40 - canvasWidth / 2) / 40
+      posZ = (obj.position.y * 40 - canvasHeight / 2) / 40
+    } else {
+      // 다른 오브젝트는 Wall과 동일한 방식: fabricCanvas 픽셀 좌표를 3D 좌표로 변환
+      const canvasWidth = 800  // 기본 캔버스 너비
+      const canvasHeight = 600 // 기본 캔버스 높이
+      
+      posX = (obj.position.x - canvasWidth / 2) / 40
+      posZ = (obj.position.y - canvasHeight / 2) / 40
+    }
+    
     // 위치 설정
     const position = new THREE.Vector3(
-      obj.position.x,
+      posX,
       obj.height / 2, // 바닥에서 높이의 절반만큼 올림
-      obj.position.y
+      posZ
     )
     
     // 회전 설정
@@ -1882,7 +2023,25 @@ const createInstancedObjects = (instancedObjects: any[]) => {
   // 인스턴싱 오브젝트들에 대한 상태 표시 구체들 추가
   instancedObjects.forEach(obj => {
     const dummyGroup = new THREE.Group()
-    dummyGroup.position.set(obj.position.x, obj.height / 2, obj.position.y)
+    
+    let posX, posZ
+    if (obj.isBox) {
+      // Box는 Zone과 동일한 방식: 미터 단위 원본 값을 3D 좌표로 변환
+      const canvasWidth = 800  // 기본 캔버스 너비
+      const canvasHeight = 600 // 기본 캔버스 높이
+      
+      posX = (obj.position.x * 40 - canvasWidth / 2) / 40
+      posZ = (obj.position.y * 40 - canvasHeight / 2) / 40
+    } else {
+      // 다른 오브젝트는 Wall과 동일한 방식: fabricCanvas 픽셀 좌표를 3D 좌표로 변환
+      const canvasWidth = 800  // 기본 캔버스 너비
+      const canvasHeight = 600 // 기본 캔버스 높이
+      
+      posX = (obj.position.x - canvasWidth / 2) / 40
+      posZ = (obj.position.y - canvasHeight / 2) / 40
+    }
+    
+    dummyGroup.position.set(posX, obj.height / 2, posZ)
     dummyGroup.userData = {
       type: 'instanced-object-dummy',
       placedObjectId: obj.id,
@@ -2003,7 +2162,7 @@ const make3D = async () => {
 
 
 
-    await create3DObjects(data.placedObjects || [])
+    await create3DObjects(data.placedObjects || [], data.canvasSize)
     
 
     handleObjectsOnBoxes()
