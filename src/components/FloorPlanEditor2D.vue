@@ -3761,9 +3761,21 @@ const loadBoxes = async () => {
     floorplanStore.setBoxes(savedBoxes)
 
     // 각 Box를 캔버스에 그리기 (유효한 데이터만 처리)
+    console.log(`📦 DB에서 불러온 Box 데이터:`, savedBoxes)
+    
     savedBoxes.forEach((boxData: any) => {
       // Box 데이터 유효성 체크
       if (boxData && typeof boxData === 'object') {
+        console.log(`📦 Box 데이터 처리 중:`, {
+          id: boxData.id,
+          name: boxData.name,
+          x: boxData.x,
+          y: boxData.y,
+          width: boxData.width,
+          height: boxData.height,
+          depth: boxData.depth,
+          color: boxData.color
+        })
         createBoxFromSavedData(boxData)
       } else {
         console.warn('⚠️ Invalid Box data:', boxData)
@@ -3771,6 +3783,12 @@ const loadBoxes = async () => {
     })
 
     console.log(`✅ Box 정보 불러오기 완료: ${savedBoxes.length}개`)
+    console.log(`📋 현재 placedObjects 상태:`, floorplanStore.placedObjects.map(obj => ({
+      id: obj.id,
+      name: obj.name,
+      category: obj.category,
+      isBox: obj.isBox
+    })))
     floorplanStore.setLoadingBoxes(false)
     
   } catch (error: any) {
@@ -3868,6 +3886,39 @@ const createBoxFromSavedData = (boxData: any) => {
 
   // Box 크기 라벨 추가 (안전한 값 사용)
   addBoxSizeLabel(box, safeBoxData.width, safeBoxData.depth)
+
+  // Store에 Box를 placedObjects에도 추가 (3D 렌더링을 위해)
+  // 중복 추가 방지: 이미 존재하는지 확인
+  const existingObject = floorplanStore.placedObjects.find(obj => obj.id === safeBoxData.id)
+  if (!existingObject) {
+    const placedObjectData = {
+      id: safeBoxData.id,
+      name: safeBoxData.name,
+      category: 'etc',
+      width: safeBoxData.width,
+      depth: safeBoxData.depth,
+      height: safeBoxData.height,
+      position: { x: safeBoxData.x, y: safeBoxData.y },
+      boundsPx: {
+        left: boxX,    // 픽셀 좌표 (새로 생성된 Box와 동일한 방식)
+        top: boxY,
+        right: boxX + boxWidth,
+        bottom: boxY + boxHeight
+      },
+      rotation: safeBoxData.rotation || 0,
+      color: safeBoxData.color,
+      isOnBox: false,
+      boxId: undefined,
+      isBox: true,
+      instancing: false,
+      description: 'DB에서 불러온 Box'
+    }
+    
+    floorplanStore.addPlacedObject(placedObjectData)
+    console.log(`📦 Box placedObjects 추가:`, placedObjectData)
+  } else {
+    console.log(`📦 Box 이미 존재함 (중복 추가 방지):`, safeBoxData.id)
+  }
 
   console.log(`📦 Box 재생성: ID ${safeBoxData.id}, 위치(${safeBoxData.x}, ${safeBoxData.y})`)
 }

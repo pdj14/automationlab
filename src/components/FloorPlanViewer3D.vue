@@ -983,9 +983,33 @@ let instancedMeshes: THREE.InstancedMesh[] = []
 
 // 3D 오브젝트 생성 (GLB 모델 로딩) - Three.js 내장 LOD 사용
 const create3DObjects = async (placedObjects: any[], canvasSize: { width: number, height: number } = { width: 800, height: 600 }) => {
+  console.log(`🔍 create3DObjects 호출됨:`, {
+    placedObjectsCount: placedObjects?.length || 0,
+    canvasSize,
+    sceneExists: !!scene
+  })
+  
   if (!scene || !placedObjects || placedObjects.length === 0) {
+    console.log(`⚠️ create3DObjects 종료: scene=${!!scene}, placedObjects=${placedObjects?.length || 0}`)
     return
   }
+  
+  // 모든 placedObjects 정보 로그
+  console.log(`📋 모든 placedObjects 정보:`, placedObjects.map(obj => ({
+    id: obj.id,
+    name: obj.name,
+    category: obj.category,
+    isBox: obj.isBox,
+    hasGlbUrl: !!obj.glbUrl
+  })))
+  
+  // Box Object 개수 확인
+  const boxObjects = placedObjects.filter(obj => obj.isBox === true)
+  console.log(`📦 Box Object 개수: ${boxObjects.length}개`, boxObjects.map(obj => ({
+    id: obj.id,
+    name: obj.name,
+    category: obj.category
+  })))
 
   // 기존 배치 오브젝트와 상태 표시 구체, 3D 팝업 제거
   const existingObjects = scene.children.filter(child => 
@@ -1023,6 +1047,14 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
   const instancedObjects = placedObjects.filter(obj => obj.instancing && !obj.isBox)
   const normalObjects = placedObjects.filter(obj => !obj.instancing || obj.isBox)
   
+  console.log(`📊 객체 분리 결과:`, {
+    totalObjects: placedObjects.length,
+    instancedObjects: instancedObjects.length,
+    normalObjects: normalObjects.length,
+    instancedObjectsList: instancedObjects.map(obj => ({ id: obj.id, name: obj.name, isBox: obj.isBox })),
+    normalObjectsList: normalObjects.map(obj => ({ id: obj.id, name: obj.name, isBox: obj.isBox }))
+  })
+  
   // 인스턴싱 오브젝트가 있으면 GLB 기반 InstancedMesh 생성
   if (instancedObjects.length > 0) {
     createInstancedObjectsFromGLB(instancedObjects)
@@ -1032,8 +1064,19 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
   const loader = new GLTFLoader()
   
   for (const placedObj of normalObjects) {
+    // 디버깅: 모든 객체 정보 로그
+    console.log(`🔍 3D 객체 처리 중:`, {
+      id: placedObj.id,
+      name: placedObj.name,
+      category: placedObj.category,
+      isBox: placedObj.isBox,
+      hasGlbUrl: !!placedObj.glbUrl
+    })
+    
     // 상자인 경우 특별한 3D 상자 모델 생성
-    if (placedObj.category === 'etc' && placedObj.isBox) {
+    // isBox 속성이 true인 경우 Box로 처리
+    if (placedObj.isBox === true) {
+      console.log(`📦 Box Object 감지됨 - 3D Box 생성 시작:`, placedObj.name)
       create3DBox(placedObj, placedObj.color || '#D2B48C', canvasSize)
       continue
     }
@@ -1674,6 +1717,18 @@ const handleCanvasClick = (event: MouseEvent) => {
 
 // 3D 상자 모델 생성
 const create3DBox = (placedObj: any, color: string, canvasSize: { width: number, height: number } = { width: 800, height: 600 }) => {
+  console.log(`📦 create3DBox 호출됨:`, {
+    id: placedObj.id,
+    name: placedObj.name,
+    category: placedObj.category,
+    isBox: placedObj.isBox,
+    position: placedObj.position,
+    width: placedObj.width,
+    height: placedObj.height,
+    depth: placedObj.depth,
+    color: placedObj.color
+  })
+  
   // object에 명시된 색상 사용, 없으면 기본 색상 사용
   const boxColor = placedObj.color || color || '#E6D5AC'
   
@@ -1729,6 +1784,7 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
   console.log(`🔍 Box 3D 위치 계산:`, {
     originalPosition: { x: placedObj.position.x, y: placedObj.position.y },
     boundsPx: placedObj.boundsPx,
+    hasBoundsPx: !!placedObj.boundsPx,
     canvasSize: { width: canvasWidth, height: canvasHeight },
     calculated3D: { x: pos3D_X, y: pos3D_Y, z: pos3D_Z },
     baseFloorRange: { x: [-10, 10], z: [-7.5, 7.5] },
@@ -1760,7 +1816,20 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
     position: { x: pos3D_X, y: pos3D_Y, z: pos3D_Z },
     size: { width: boxWidth, height: placedObj.height, depth: boxDepth },
     originalSize: { width: placedObj.width, height: placedObj.height, depth: placedObj.depth },
-    sceneChildren: scene.children.length
+    sceneChildren: scene.children.length,
+    boxGroupVisible: boxGroup.visible,
+    boxMeshVisible: boxMesh.visible
+  })
+  
+  // Box가 실제로 씬에 추가되었는지 확인
+  const addedBox = scene.children.find(child => 
+    child.userData?.type === 'placed-object' && 
+    child.userData?.placedObjectId === placedObj.id
+  )
+  console.log(`🔍 Box 씬 추가 확인:`, {
+    boxFound: !!addedBox,
+    boxId: placedObj.id,
+    boxName: placedObj.name
   })
   
   // 상자에도 상태 표시 구체 추가
@@ -2163,6 +2232,16 @@ const make3D = async () => {
 
 
 
+    console.log(`🔍 make3D에서 create3DObjects 호출 전:`, {
+      placedObjectsCount: data.placedObjects?.length || 0,
+      placedObjects: data.placedObjects?.map(obj => ({
+        id: obj.id,
+        name: obj.name,
+        category: obj.category,
+        isBox: obj.isBox
+      }))
+    })
+    
     await create3DObjects(data.placedObjects || [], data.canvasSize)
     
 
