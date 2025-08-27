@@ -96,6 +96,26 @@ interface WallChangeSummary {
   toDelete: WallData[]
 }
 
+// Box 데이터 타입 정의 (백엔드용)
+interface BoxData {
+  id?: string
+  name: string
+  x: number
+  y: number
+  width: number
+  depth: number
+  height: number
+  color: string
+  rotation?: number
+}
+
+// Box 변경사항 타입 정의
+interface BoxChangeSummary {
+  toCreate: BoxData[]
+  toUpdate: { id: string; oldData: BoxData; newData: BoxData }[]
+  toDelete: BoxData[]
+}
+
 // Floorplan Store
 export const useFloorplanStore = defineStore('floorplan', () => {
   // 상태 (state)
@@ -109,6 +129,8 @@ export const useFloorplanStore = defineStore('floorplan', () => {
   const isLoadingZones = ref(false) // Zone 로딩 상태
   const walls = ref<WallData[]>([]) // Wall 데이터
   const isLoadingWalls = ref(false) // Wall 로딩 상태
+  const boxes = ref<BoxData[]>([]) // Box 데이터
+  const isLoadingBoxes = ref(false) // Box 로딩 상태
   
   // Getters (computed)
   const hasRoom = computed(() => currentRoom.value !== null)
@@ -289,6 +311,34 @@ export const useFloorplanStore = defineStore('floorplan', () => {
 
   const setLoadingWalls = (loading: boolean) => {
     isLoadingWalls.value = loading
+  }
+
+  // Box 관련 액션들
+  const setBoxes = (newBoxes: BoxData[]) => {
+    boxes.value = newBoxes
+  }
+
+  const addBox = (box: BoxData) => {
+    boxes.value.push(box)
+  }
+
+  const updateBox = (boxId: string, updatedBox: Partial<BoxData>) => {
+    const index = boxes.value.findIndex(box => box.id === boxId)
+    if (index > -1) {
+      boxes.value[index] = { ...boxes.value[index], ...updatedBox }
+    }
+  }
+
+  const removeBox = (boxId: string) => {
+    boxes.value = boxes.value.filter(box => box.id !== boxId)
+  }
+
+  const clearBoxes = () => {
+    boxes.value = []
+  }
+
+  const setLoadingBoxes = (loading: boolean) => {
+    isLoadingBoxes.value = loading
   }
 
   // 부동소수점 정밀도를 고려한 데이터 비교 함수 (1cm 정밀도)
@@ -505,6 +555,86 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     }
   }
 
+  // Box 변경사항 분석
+  const analyzeBoxChanges = (currentBoxes: BoxData[], savedBoxes: BoxData[]): BoxChangeSummary => {
+    const toCreate: BoxData[] = []
+    const toUpdate: { id: string; oldData: BoxData; newData: BoxData }[] = []
+    const toDelete: BoxData[] = []
+
+    // 현재 Box들을 ID로 맵핑
+    const currentBoxMap = new Map<string, BoxData>()
+    currentBoxes.forEach(box => {
+      if (box.id) {
+        currentBoxMap.set(box.id, box)
+      }
+    })
+
+    // 저장된 Box들을 ID로 맵핑
+    const savedBoxMap = new Map<string, BoxData>()
+    savedBoxes.forEach(box => {
+      if (box.id) {
+        savedBoxMap.set(box.id, box)
+      }
+    })
+
+    // 새로 생성할 Box들 (ID가 없거나 저장된 목록에 없는 것들)
+    currentBoxes.forEach(box => {
+      if (!box.id || !savedBoxMap.has(box.id)) {
+        toCreate.push(box)
+      }
+    })
+
+    // 업데이트할 Box들 (ID가 있고 저장된 목록에도 있지만 데이터가 다른 것들)
+    currentBoxes.forEach(box => {
+      if (box.id && savedBoxMap.has(box.id)) {
+        const savedBox = savedBoxMap.get(box.id)!
+        if (!isDataEqual(box, savedBox)) {
+          toUpdate.push({
+            id: box.id,
+            oldData: savedBox,
+            newData: box
+          })
+        }
+      }
+    })
+
+    // 삭제할 Box들 (저장된 목록에는 있지만 현재 목록에는 없는 것들)
+    savedBoxes.forEach(box => {
+      if (box.id && !currentBoxMap.has(box.id)) {
+        toDelete.push(box)
+      }
+    })
+
+    return { toCreate, toUpdate, toDelete }
+  }
+
+  // Box 동기화 실행
+  const syncBoxes = async (changeSummary: BoxChangeSummary): Promise<boolean> => {
+    try {
+      // 새로 생성할 Box들
+      for (const box of changeSummary.toCreate) {
+        await axios.post('http://localhost:8080/api/boxes', box)
+      }
+
+      // 업데이트할 Box들
+      for (const update of changeSummary.toUpdate) {
+        await axios.put(`http://localhost:8080/api/boxes/${update.id}`, update.newData)
+      }
+
+      // 삭제할 Box들
+      for (const box of changeSummary.toDelete) {
+        if (box.id) {
+          await axios.delete(`http://localhost:8080/api/boxes/${box.id}`)
+        }
+      }
+
+      return true
+    } catch (error) {
+      console.error('Box 동기화 실패:', error)
+      return false
+    }
+  }
+
   // 모든 배치된 오브젝트의 인스턴싱 값 업데이트
   const updateAllPlacedObjectsInstancing = (enabled: boolean) => {
     placedObjects.value.forEach(obj => {
@@ -529,6 +659,8 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     isLoadingZones, // Zone 로딩 상태 추가
     walls, // Wall 데이터 추가
     isLoadingWalls, // Wall 로딩 상태 추가
+    boxes, // Box 데이터 추가
+    isLoadingBoxes, // Box 로딩 상태 추가
     
     // Getters
     hasRoom,
@@ -571,6 +703,15 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     setLoadingWalls,
     analyzeWallChanges, // Wall 변경사항 분석 추가
     syncWalls, // Wall 동기화 추가
+    // Box 관련 액션들
+    setBoxes,
+    addBox,
+    updateBox,
+    removeBox,
+    clearBoxes,
+    setLoadingBoxes,
+    analyzeBoxChanges, // Box 변경사항 분석 추가
+    syncBoxes, // Box 동기화 추가
     updateAllPlacedObjectsInstancing, // 인스턴싱 업데이트 함수 추가
     logCurrentState
   }

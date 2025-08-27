@@ -115,14 +115,14 @@
     <div v-if="showChangeConfirmDialog" class="change-confirm-overlay">
       <div class="change-confirm-dialog">
         <div class="dialog-header">
-          <h3>🏗️ Zone 변경사항 확인</h3>
+          <h3>🏗️ Changes Confirmation</h3>
           <button @click="closeChangeConfirmDialog" class="close-btn">×</button>
         </div>
         
         <div class="dialog-content">
           <!-- Zone 변경사항 -->
           <div v-if="zoneChangeSummary.toCreate.length > 0" class="change-section">
-            <h4>➕ 새로 생성할 Zone ({{ zoneChangeSummary.toCreate.length }}개)</h4>
+            <h4>➕ Create Zones ({{ zoneChangeSummary.toCreate.length }})</h4>
             <div class="zone-list">
               <div v-for="(zone, index) in zoneChangeSummary.toCreate" :key="`create-${index}`" class="zone-item">
                 <span class="zone-info">📍 ({{ zone.x.toFixed(2) }}m, {{ zone.y.toFixed(2) }}m) {{ zone.width.toFixed(2) }}m × {{ zone.height.toFixed(2) }}m</span>
@@ -132,7 +132,7 @@
           </div>
 
           <div v-if="zoneChangeSummary.toUpdate.length > 0" class="change-section">
-            <h4>🔄 업데이트할 Zone ({{ zoneChangeSummary.toUpdate.length }}개)</h4>
+            <h4>🔄 Update Zones ({{ zoneChangeSummary.toUpdate.length }})</h4>
             <div class="zone-list">
               <div v-for="update in zoneChangeSummary.toUpdate" :key="`update-${update.id}`" class="zone-item">
                 <div class="update-details">
@@ -145,7 +145,7 @@
           </div>
 
           <div v-if="zoneChangeSummary.toDelete.length > 0" class="change-section">
-            <h4>🗑️ 삭제할 Zone ({{ zoneChangeSummary.toDelete.length }}개)</h4>
+            <h4>🗑️ Delete Zones ({{ zoneChangeSummary.toDelete.length }})</h4>
             <div class="zone-list">
               <div v-for="zone in zoneChangeSummary.toDelete" :key="`delete-${zone.id}`" class="zone-item">
                 <span class="zone-info">📍 ({{ zone.x.toFixed(2) }}m, {{ zone.y.toFixed(2) }}m) {{ zone.width.toFixed(2) }}m × {{ zone.height.toFixed(2) }}m</span>
@@ -156,7 +156,7 @@
 
           <!-- Wall 변경사항 -->
           <div v-if="wallChangeSummary.toCreate.length > 0" class="change-section">
-            <h4>🧱 새로 생성할 Wall ({{ wallChangeSummary.toCreate.length }}개)</h4>
+            <h4>🧱 Create Walls ({{ wallChangeSummary.toCreate.length }})</h4>
             <div class="wall-list">
               <div v-for="(wall, index) in wallChangeSummary.toCreate" :key="`create-wall-${index}`" class="wall-item">
                 <span class="wall-info">📍 ({{ wall.startX.toFixed(2) }}m, {{ wall.startY.toFixed(2) }}m) → ({{ wall.endX.toFixed(2) }}m, {{ wall.endY.toFixed(2) }}m) [{{ wall.type }}]</span>
@@ -165,7 +165,7 @@
           </div>
 
           <div v-if="wallChangeSummary.toUpdate.length > 0" class="change-section">
-            <h4>🔄 업데이트할 Wall ({{ wallChangeSummary.toUpdate.length }}개)</h4>
+            <h4>🔄 Update Walls ({{ wallChangeSummary.toUpdate.length }})</h4>
             <div class="wall-list">
               <div v-for="update in wallChangeSummary.toUpdate" :key="`update-wall-${update.id}`" class="wall-item">
                 <div class="update-details">
@@ -177,7 +177,7 @@
           </div>
 
           <div v-if="wallChangeSummary.toDelete.length > 0" class="change-section">
-            <h4>🗑️ 삭제할 Wall ({{ wallChangeSummary.toDelete.length }}개)</h4>
+            <h4>🗑️ Delete Walls ({{ wallChangeSummary.toDelete.length }})</h4>
             <div class="wall-list">
               <div v-for="wall in wallChangeSummary.toDelete" :key="`delete-wall-${wall.id}`" class="wall-item">
                 <span class="wall-info">📍 ({{ wall.startX.toFixed(2) }}m, {{ wall.startY.toFixed(2) }}m) → ({{ wall.endX.toFixed(2) }}m, {{ wall.endY.toFixed(2) }}m) [{{ wall.type }}]</span>
@@ -185,17 +185,53 @@
             </div>
           </div>
 
+          <!-- Box 변경사항 -->
+          <div v-if="boxChangeSummary.toCreate.length > 0" class="change-section">
+            <h4>📦 Create Boxes ({{ boxChangeSummary.toCreate.length }})</h4>
+            <div class="box-list">
+              <div v-for="(box, index) in boxChangeSummary.toCreate" :key="`create-box-${index}`" class="box-item">
+                <span class="box-info">📍 ({{ box.x.toFixed(2) }}m, {{ box.y.toFixed(2) }}m) {{ box.width.toFixed(2) }}m × {{ box.depth.toFixed(2) }}m × {{ box.height.toFixed(2) }}m</span>
+                <span class="box-color" :style="{ backgroundColor: box.color }"></span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="boxChangeSummary.toUpdate.length > 0" class="change-section">
+            <h4>🔄 Update Boxes ({{ boxChangeSummary.toUpdate.length }})</h4>
+            <div class="box-list">
+              <div v-for="update in boxChangeSummary.toUpdate" :key="`update-box-${update.id}`" class="box-item">
+                <div class="update-details">
+                  <span class="box-id">ID: {{ update.id }}</span>
+                  <span class="box-info">📍 ({{ update.newData.x.toFixed(2) }}m, {{ update.newData.y.toFixed(2) }}m) {{ update.newData.width.toFixed(2) }}m × {{ update.newData.depth.toFixed(2) }}m × {{ update.newData.height.toFixed(2) }}m</span>
+                  <span class="box-color" :style="{ backgroundColor: update.newData.color }"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="boxChangeSummary.toDelete.length > 0" class="change-section">
+            <h4>🗑️ Delete Boxes ({{ boxChangeSummary.toDelete.length }})</h4>
+            <div class="box-list">
+              <div v-for="box in boxChangeSummary.toDelete" :key="`delete-box-${box.id}`" class="box-item">
+                <span class="box-info">📍 ({{ box.x.toFixed(2) }}m, {{ box.y.toFixed(2) }}m) {{ box.width.toFixed(2) }}m × {{ box.depth.toFixed(2) }}m × {{ box.height.toFixed(2) }}m</span>
+                <span class="box-color" :style="{ backgroundColor: box.color }"></span>
+              </div>
+            </div>
+          </div>
+
           <div v-if="zoneChangeSummary.toCreate.length === 0 && zoneChangeSummary.toUpdate.length === 0 && zoneChangeSummary.toDelete.length === 0 && 
-                      wallChangeSummary.toCreate.length === 0 && wallChangeSummary.toUpdate.length === 0 && wallChangeSummary.toDelete.length === 0" class="no-changes">
-            <p>✅ 변경사항이 없습니다.</p>
+                      wallChangeSummary.toCreate.length === 0 && wallChangeSummary.toUpdate.length === 0 && wallChangeSummary.toDelete.length === 0 &&
+                      boxChangeSummary.toCreate.length === 0 && boxChangeSummary.toUpdate.length === 0 && boxChangeSummary.toDelete.length === 0" class="no-changes">
+            <p>✅ No changes detected.</p>
           </div>
         </div>
 
         <div class="dialog-actions">
-          <button @click="closeChangeConfirmDialog" class="btn btn-secondary">취소</button>
+          <button @click="closeChangeConfirmDialog" class="btn btn-secondary">Cancel</button>
           <button @click="confirmAndSaveZones" class="btn btn-primary" :disabled="zoneChangeSummary.toCreate.length === 0 && zoneChangeSummary.toUpdate.length === 0 && zoneChangeSummary.toDelete.length === 0 && 
-                                                                        wallChangeSummary.toCreate.length === 0 && wallChangeSummary.toUpdate.length === 0 && wallChangeSummary.toDelete.length === 0">
-            💾 변경사항 저장
+                                                                        wallChangeSummary.toCreate.length === 0 && wallChangeSummary.toUpdate.length === 0 && wallChangeSummary.toDelete.length === 0 &&
+                                                                        boxChangeSummary.toCreate.length === 0 && boxChangeSummary.toUpdate.length === 0 && boxChangeSummary.toDelete.length === 0">
+            💾 Save Changes
           </button>
         </div>
       </div>
@@ -608,6 +644,16 @@ const zoneChangeSummary = ref<{
 })
 
 const wallChangeSummary = ref<{
+  toCreate: any[]
+  toUpdate: { id: string; oldData: any; newData: any }[]
+  toDelete: any[]
+}>({
+  toCreate: [],
+  toUpdate: [],
+  toDelete: []
+})
+
+const boxChangeSummary = ref<{
   toCreate: any[]
   toUpdate: { id: string; oldData: any; newData: any }[]
   toDelete: any[]
@@ -2116,6 +2162,8 @@ const createBoxFromCoordinates = () => {
   // 미터 단위를 픽셀 단위로 변환
   const boxX = baseX + (popupBoxX.value * scale)
   const boxY = baseY + (popupBoxY.value * scale)
+  
+
   const boxWidth = popupBoxWidth.value * scale
   const boxHeight = popupBoxHeight.value * scale
   const boxDepth = popupBoxDepth.value * scale
@@ -2155,17 +2203,31 @@ const createBoxFromCoordinates = () => {
   // Box 크기 라벨 추가
   addBoxSizeLabel(box, popupBoxWidth.value, popupBoxHeight.value)
   
-  // Store에 Box를 placedObject로 저장 (3D에서 보이도록)
-  // Zone과 동일한 방식: boundsPx와 원본 위치 모두 저장
+  // Store에 Box를 별도로 저장 (Zone/Wall과 동일한 방식)
+  const boxData = {
+    id: boxIdString, // boxIdString 사용으로 일관성 유지
+    name: `Box_${boxIdString}`,
+    x: popupBoxX.value, // 미터 단위 원본 값
+    y: popupBoxY.value,
+    width: popupBoxWidth.value,
+    depth: popupBoxDepth.value,
+    height: popupBoxHeight.value,
+    color: popupSelectedBoxColor.value.hex,
+    rotation: 0
+  }
+  
+  floorplanStore.addBox(boxData)
+  
+  // 3D에서 보이도록 placedObject에도 저장 (기존 방식 유지)
   const placedObjectData = {
-    id: boxId.toString(),
-    name: `Box_${boxId}`,
+    id: boxIdString, // boxIdString 사용으로 일관성 유지
+    name: `Box_${boxIdString}`,
     category: 'etc',
     width: popupBoxWidth.value,
-    depth: popupBoxDepth.value, // 2D에서는 depth가 세로
-    height: popupBoxHeight.value, // 3D에서는 height가 높이
+    depth: popupBoxDepth.value,
+    height: popupBoxHeight.value,
     position: {
-      x: popupBoxX.value, // 미터 단위 원본 값 (Zone과 동일)
+      x: popupBoxX.value,
       y: popupBoxY.value
     },
     boundsPx: {
@@ -2718,8 +2780,12 @@ const addWallLengthLabel = (wall: any, start: { x: number, y: number }, end: { x
 const addBoxSizeLabel = (box: any, width: number, height: number) => {
   if (!fabricCanvas) return
 
+  // 안전한 값 사용 (undefined나 null 체크)
+  const safeWidth = width || 1.0
+  const safeHeight = height || 1.0
+
   // Box 크기 텍스트 (미터 단위) - 2D에서는 width × height로 표시
-  const sizeText = `${width.toFixed(1)}×${height.toFixed(1)}m`
+  const sizeText = `${safeWidth.toFixed(1)}×${safeHeight.toFixed(1)}m`
 
   // Box의 중점 계산
   const centerX = box.left + (box.width / 2)
@@ -3238,6 +3304,7 @@ const clearCanvas = () => {
   floorplanStore.clearPlacedObjects()
   floorplanStore.clearZones()
   floorplanStore.clearWalls()
+  floorplanStore.clearBoxes()
 
   // 캔버스 크기 정보 업데이트
   const canvasWidth = fabricCanvas.width || 800
@@ -3250,25 +3317,27 @@ const closeChangeConfirmDialog = () => {
   showChangeConfirmDialog.value = false
 }
 
-// Zone과 Wall 변경사항 확인 및 저장
+// Zone, Wall, Box 변경사항 확인 및 저장
 const confirmAndSaveZones = async () => {
   try {
-    // Zone과 Wall 동기화를 병렬로 실행
-    const [zoneSuccess, wallSuccess] = await Promise.all([
+    // Zone, Wall, Box 동기화를 병렬로 실행
+    const [zoneSuccess, wallSuccess, boxSuccess] = await Promise.all([
       floorplanStore.syncZones(zoneChangeSummary.value),
-      floorplanStore.syncWalls(wallChangeSummary.value)
+      floorplanStore.syncWalls(wallChangeSummary.value),
+      floorplanStore.syncBoxes(boxChangeSummary.value)
     ])
     
-    if (zoneSuccess && wallSuccess) {
+    if (zoneSuccess && wallSuccess && boxSuccess) {
       // 기존 데이터 초기화
       await clearCanvasData()
       
       // 성공 시 최신 데이터 다시 로드 (mount 시와 동일하게)
       await Promise.all([
         loadSavedZones(),
-        loadSavedWalls()
+        loadSavedWalls(),
+        loadBoxes()
       ])
-      alert('✅ Zone과 Wall 변경사항이 성공적으로 저장되었습니다!')
+      alert('✅ Zone, Wall, Box 변경사항이 성공적으로 저장되었습니다!')
     } else {
       alert('❌ 저장 중 오류가 발생했습니다.')
     }
@@ -3287,12 +3356,13 @@ const clearCanvasData = async () => {
   try {
 
     
-    // Zone과 Wall 객체만 제거 (기본 바닥과 그리드는 유지)
+    // Zone, Wall, Box 객체만 제거 (기본 바닥과 그리드는 유지)
     const objectsToRemove = fabricCanvas.getObjects().filter((obj: any) => {
       const type = obj.userData?.type
       return type === 'zone-floor' || 
              type === 'interior-wall' || 
              type === 'exterior-wall' ||
+             type === 'custom-box' ||
              type === 'placed-object'
     })
     
@@ -3303,9 +3373,10 @@ const clearCanvasData = async () => {
     
     
     
-    // Store의 Zone과 Wall 데이터도 초기화
+    // Store의 Zone, Wall, Box 데이터도 초기화
     floorplanStore.setZones([])
     floorplanStore.setWalls([])
+    floorplanStore.setBoxes([])
     
     
     
@@ -3431,14 +3502,62 @@ const saveFloorPlan = async () => {
 
     })
 
-    // 백엔드에서 최신 Zone과 Wall 데이터 가져오기
-    const [zonesResponse, wallsResponse] = await Promise.all([
+    // 현재 캔버스에 그려진 Box들 수집
+    const boxes = fabricCanvas.getObjects().filter((obj: any) => 
+      obj.userData?.type === 'custom-box'
+    )
+
+
+    // Box 정보를 백엔드 형식으로 변환
+    const boxesToSave = boxes.map((box: any) => {
+      const scale = 40 // 1m = 40px
+      
+      // 기본 회색 바닥의 위치를 찾기
+      const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+        obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+      )
+      
+      if (!defaultFloor) {
+        console.error('기본 바닥을 찾을 수 없습니다.')
+        return null
+      }
+      
+      // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 Box 위치 계산
+      const baseX = defaultFloor.left
+      const baseY = defaultFloor.top
+      const boxX = (box.left - baseX) / scale
+      const boxY = (box.top - baseY) / scale
+      
+
+      
+      return {
+        id: box.userData?.id,
+        name: `Box_${box.userData?.id}`,
+        x: Math.round(boxX * 100) / 100, // 소수점 2자리까지
+        y: Math.round(boxY * 100) / 100,
+        width: box.userData?.width || 1.0,
+        depth: box.userData?.depth || 1.0,
+        height: box.userData?.height || 1.0,
+        color: box.fill || '#D2B48C',
+        rotation: box.angle || 0
+      }
+    }).filter(box => box !== null)
+
+
+
+    // 백엔드에서 최신 Zone, Wall, Box 데이터 가져오기
+    const [zonesResponse, wallsResponse, boxesResponse] = await Promise.all([
       axios.get('http://localhost:8080/api/zones'),
-      axios.get('http://localhost:8080/api/walls')
+      axios.get('http://localhost:8080/api/walls'),
+      axios.get('http://localhost:8080/api/boxes').catch((error) => {
+        console.log('📦 Box API not available, using empty array')
+        return { data: [] }
+      })
     ])
     
     const savedZones = zonesResponse.data
     const savedWalls = wallsResponse.data
+    const savedBoxes = boxesResponse.data
     
 
     
@@ -3452,18 +3571,21 @@ const saveFloorPlan = async () => {
 
     })
 
-    // Store의 analyzeZoneChanges와 analyzeWallChanges 함수로 변경사항 분석
+    // Store의 analyzeZoneChanges, analyzeWallChanges, analyzeBoxChanges 함수로 변경사항 분석
     const zoneChanges = floorplanStore.analyzeZoneChanges(zonesToSave, savedZones)
     const wallChanges = floorplanStore.analyzeWallChanges(wallsToSave, savedWalls)
+    const boxChanges = floorplanStore.analyzeBoxChanges(boxesToSave, savedBoxes)
     
     zoneChangeSummary.value = zoneChanges
     wallChangeSummary.value = wallChanges
+    boxChangeSummary.value = boxChanges
 
 
 
     // 변경사항이 있으면 팝업 표시
     const hasChanges = zoneChanges.toCreate.length > 0 || zoneChanges.toUpdate.length > 0 || zoneChanges.toDelete.length > 0 ||
-                      wallChanges.toCreate.length > 0 || wallChanges.toUpdate.length > 0 || wallChanges.toDelete.length > 0
+                      wallChanges.toCreate.length > 0 || wallChanges.toUpdate.length > 0 || wallChanges.toDelete.length > 0 ||
+                      boxChanges.toCreate.length > 0 || boxChanges.toUpdate.length > 0 || boxChanges.toDelete.length > 0
     
     if (hasChanges) {
       showChangeConfirmDialog.value = true
@@ -3610,6 +3732,144 @@ const loadSavedZones = async () => {
     // 로딩 상태 해제
     floorplanStore.setLoadingZones(false)
   }
+}
+
+// 저장된 Box 데이터 불러오기
+const loadBoxes = async () => {
+  try {
+    console.log('📦 Box 정보 불러오기 시작...')
+    
+    // Store에서 로딩 상태 설정
+    floorplanStore.setLoadingBoxes(true)
+    
+    // 백엔드 API에서 저장된 Box 정보 가져오기
+    const response = await axios.get('http://localhost:8080/api/boxes').catch((error) => {
+      console.log('📦 Box API not available, using empty array')
+      return { data: [] }
+    })
+    
+    const savedBoxes = response.data || []
+    
+    if (savedBoxes.length === 0) {
+      console.log('📦 저장된 Box가 없습니다.')
+      floorplanStore.setBoxes([])
+      floorplanStore.setLoadingBoxes(false)
+      return
+    }
+
+    // Store에 Box 데이터 저장
+    floorplanStore.setBoxes(savedBoxes)
+
+    // 각 Box를 캔버스에 그리기 (유효한 데이터만 처리)
+    savedBoxes.forEach((boxData: any) => {
+      // Box 데이터 유효성 체크
+      if (boxData && typeof boxData === 'object') {
+        createBoxFromSavedData(boxData)
+      } else {
+        console.warn('⚠️ Invalid Box data:', boxData)
+      }
+    })
+
+    console.log(`✅ Box 정보 불러오기 완료: ${savedBoxes.length}개`)
+    floorplanStore.setLoadingBoxes(false)
+    
+  } catch (error: any) {
+    console.error('❌ Box 정보 불러오기 실패:', error)
+    
+    // axios 에러 처리
+    if (error.response) {
+      // 서버가 응답했지만 에러 상태 코드
+      if (error.response.status === 404) {
+        console.log('📦 Box API 엔드포인트가 아직 구현되지 않았습니다.')
+      } else {
+        console.error('서버 에러:', error.response.status, error.response.data)
+      }
+    } else if (error.request) {
+      // 요청이 전송되었지만 응답을 받지 못함
+      console.error('네트워크 에러: 서버에 연결할 수 없습니다.')
+    } else {
+      // 요청 설정 중 에러 발생
+      console.error('요청 설정 에러:', error.message)
+    }
+    
+    floorplanStore.setLoadingBoxes(false)
+  }
+}
+
+// 저장된 데이터로부터 Box 생성
+const createBoxFromSavedData = (boxData: any) => {
+  if (!fabricCanvas) return
+
+  // Box 데이터 유효성 체크 및 안전한 기본값 설정
+  const safeBoxData = {
+    id: boxData.id || 'unknown',
+    name: boxData.name || 'Unknown Box',
+    x: boxData.x || 0,
+    y: boxData.y || 0,
+    width: boxData.width || 1.0,
+    depth: boxData.depth || 1.0,
+    height: boxData.height || 1.0,
+    color: boxData.color || '#D2B48C',
+    rotation: boxData.rotation || 0
+  }
+
+  const scale = 40 // 1m = 40px
+  
+  // 기본 회색 바닥의 위치를 찾기 (Box 생성 시와 동일한 방식)
+  const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+    obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+  )
+  
+  if (!defaultFloor) {
+    console.error('기본 바닥을 찾을 수 없습니다.')
+    return
+  }
+  
+  // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 좌표 변환 (Box 생성 시와 동일)
+  const baseX = defaultFloor.left
+  const baseY = defaultFloor.top
+  
+  // Box의 픽셀 좌표 계산 (Box 생성 시와 동일한 방식)
+  const boxX = baseX + safeBoxData.x * scale
+  const boxY = baseY + safeBoxData.y * scale
+  
+
+  const boxWidth = safeBoxData.width * scale
+  const boxHeight = safeBoxData.depth * scale // 2D에서는 depth가 세로
+  
+  // Box 생성 (직사각형으로 표현)
+  const box = new fabric.Rect({
+    left: boxX,
+    top: boxY,
+    width: boxWidth,
+    height: boxHeight,
+    fill: safeBoxData.color,
+    stroke: '#8B4513',
+    strokeWidth: 2,
+    selectable: true,
+    evented: true,
+    opacity: 0.9,
+    hoverCursor: 'move',
+    moveCursor: 'move'
+  })
+
+  box.userData = {
+    type: 'custom-box',
+    id: safeBoxData.id,
+    x: safeBoxData.x,
+    y: safeBoxData.y,
+    width: safeBoxData.width,
+    height: safeBoxData.height,
+    depth: safeBoxData.depth,
+    isSaved: true
+  }
+
+  fabricCanvas.add(box)
+
+  // Box 크기 라벨 추가 (안전한 값 사용)
+  addBoxSizeLabel(box, safeBoxData.width, safeBoxData.depth)
+
+  console.log(`📦 Box 재생성: ID ${safeBoxData.id}, 위치(${safeBoxData.x}, ${safeBoxData.y})`)
 }
 
 // 저장된 데이터로부터 Wall 생성
@@ -4113,6 +4373,9 @@ onMounted(async () => {
   window.addEventListener('resize', handleResize)
   window.addEventListener('placeObject', handlePlaceObject)
 
+  // 저장된 데이터 로드
+  await loadBoxes()
+
   // 테마 변경 감지 및 그리드 업데이트
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
@@ -4289,7 +4552,7 @@ const updateBoxInStore = (box: any) => {
   const worldX = (box.left - baseX) / scale
   const worldY = (box.top - baseY) / scale
 
-  // Store에서 해당 Box 찾기 및 업데이트
+  // Store에서 해당 Box 찾기 및 업데이트 (placedObjects)
   const existingBox = floorplanStore.placedObjects.find(obj => obj.id === boxId)
   if (existingBox) {
     const updatedBox = {
@@ -4304,6 +4567,19 @@ const updateBoxInStore = (box: any) => {
       rotation: (box.angle || 0) * (Math.PI / 180) // Fabric.js 각도를 라디안으로 변환
     }
     floorplanStore.updatePlacedObject(boxId, updatedBox)
+  }
+
+  // Store에서 해당 Box 찾기 및 업데이트 (boxes)
+  const existingBoxData = floorplanStore.boxes.find(boxData => boxData.id === boxId)
+  if (existingBoxData) {
+    const updatedBoxData = {
+      ...existingBoxData,
+      x: worldX, // 미터 단위로 변환된 값 저장
+      y: worldY,
+      rotation: (box.angle || 0) * (Math.PI / 180) // Fabric.js 각도를 라디안으로 변환
+    }
+    floorplanStore.updateBox(boxId, updatedBoxData)
+
   }
 }
 </script>
@@ -5690,6 +5966,36 @@ const updateBoxInStore = (box: any) => {
 }
 
 .zone-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid #ddd;
+}
+
+/* Box 스타일 */
+.box-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.box-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.box-info {
+  font-size: 0.9rem;
+  color: #495057;
+  font-weight: 500;
+}
+
+.box-color {
   width: 20px;
   height: 20px;
   border-radius: 4px;
