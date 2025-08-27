@@ -266,6 +266,32 @@
               />
             </div>
             
+            <div class="form-group">
+              <label>X 위치 (m):</label>
+              <input 
+                v-model.number="boxPlacement.x" 
+                type="number" 
+                min="-50" 
+                max="50" 
+                step="0.1" 
+                required 
+                placeholder="X 좌표"
+              />
+            </div>
+            
+            <div class="form-group">
+              <label>Y 위치 (m):</label>
+              <input 
+                v-model.number="boxPlacement.y" 
+                type="number" 
+                min="-50" 
+                max="50" 
+                step="0.1" 
+                required 
+                placeholder="Y 좌표"
+              />
+            </div>
+            
             <div class="modal-actions">
               <button type="button" @click="closeBoxPlacementModal" class="btn btn-secondary">
                 Cancel
@@ -341,7 +367,9 @@ const boxPlacement = ref({
   width: 1.0,
   depth: 1.0,
   height: 1.0,
-  color: '#D2B48C'
+  color: '#D2B48C',
+  x: 0.0, // X 좌표 (미터)
+  y: 0.0  // Y 좌표 (미터)
 })
 
 
@@ -693,6 +721,17 @@ const placeObject = () => {
 // 상자 배치 모달 닫기
 const closeBoxPlacementModal = () => {
   showBoxPlacementModal.value = false
+  
+  // 입력값 초기화
+  boxPlacement.value = {
+    name: '상자',
+    width: 1.0,
+    depth: 1.0,
+    height: 1.0,
+    color: '#D2B48C',
+    x: 0.0,
+    y: 0.0
+  }
 }
 
 // 상자 배치 확인
@@ -704,6 +743,8 @@ const confirmBoxPlacement = () => {
     depth: boxPlacement.value.depth,
     height: boxPlacement.value.height,
     color: boxPlacement.value.color,
+    x: boxPlacement.value.x, // X 좌표 추가
+    y: boxPlacement.value.y, // Y 좌표 추가
     size: `${boxPlacement.value.width}m × ${boxPlacement.value.depth}m × ${boxPlacement.value.height}m`
   }
 

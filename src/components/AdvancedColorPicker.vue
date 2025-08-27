@@ -15,7 +15,7 @@
 
     <!-- 고급 색상 선택기 -->
     <div class="advanced-color-section">
-      <h4>고급 색상 선택</h4>
+      <h4>Advanced Color Selection</h4>
       
       <!-- 색상 휠 및 밝기/채도 조절 -->
       <div class="color-wheel-section">
@@ -27,7 +27,7 @@
         <!-- 밝기/채도 슬라이더 -->
         <div class="color-sliders">
           <div class="slider-group">
-            <label>채도 (S):</label>
+            <label>Saturation (S):</label>
             <input 
               v-model="colorSaturation" 
               type="range" 
@@ -40,7 +40,7 @@
             <span class="slider-value">{{ colorSaturation }}%</span>
           </div>
           <div class="slider-group">
-            <label>밝기 (V):</label>
+            <label>Value (V):</label>
             <input 
               v-model="colorValue" 
               type="range" 
@@ -83,7 +83,7 @@
 
       <!-- 프리셋 색상들 -->
       <div class="preset-colors-section">
-        <h4>프리셋 색상</h4>
+        <h4>Preset Colors</h4>
         <div class="preset-colors-grid">
           <div 
             v-for="color in presetColors" 
@@ -426,6 +426,11 @@ watch(() => props.modelValue, (newColor) => {
 <style scoped>
 .advanced-color-picker {
   margin-top: 1rem;
+  min-height: 500px;
+  max-height: 600px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .color-section {
@@ -473,6 +478,8 @@ watch(() => props.modelValue, (newColor) => {
 
 .advanced-color-section {
   margin-bottom: 2rem;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .advanced-color-section h4 {

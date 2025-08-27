@@ -16,6 +16,13 @@
             ➕ WALL
           </button>
         </div>
+
+        <div class="box-tools">
+          <h4>📦 Box Tools</h4>
+          <button @click="openBoxCreatorPopup" class="btn btn-primary box-create-btn">
+            ➕ Add Box/Pillar
+          </button>
+        </div>
       </div>
 
       <!-- 선택된 객체 정보 -->
@@ -318,10 +325,10 @@
     </div>
 
     <!-- Zone Creator 팝업 -->
-    <div v-if="showZoneCreatorPopup" class="zone-creator-overlay" @click="closeZoneCreatorPopup">
+    <div v-if="showZoneCreatorPopup" class="zone-creator-overlay">
       <div class="zone-creator-dialog" @click.stop>
         <div class="dialog-header">
-          <h3>🏗️ Zone 생성</h3>
+          <h3>🏗️ Zone Creator</h3>
           <button @click="closeZoneCreatorPopup" class="close-btn">×</button>
         </div>
         
@@ -329,22 +336,22 @@
           <div class="zone-inputs">
             <div class="input-row">
               <div class="input-group">
-                <label>X (m):</label>
-                <input v-model.number="popupZoneX" type="number" min="0" max="100" step="0.01" placeholder="X 위치" />
+                <label>X Position (m):</label>
+                <input v-model.number="popupZoneX" type="number" min="0" max="100" step="0.01" placeholder="X position" />
               </div>
               <div class="input-group">
-                <label>Y (m):</label>
-                <input v-model.number="popupZoneY" type="number" min="0" max="70" step="0.01" placeholder="Y 위치" />
+                <label>Y Position (m):</label>
+                <input v-model.number="popupZoneY" type="number" min="0" max="70" step="0.01" placeholder="Y position" />
               </div>
             </div>
             <div class="input-row">
               <div class="input-group">
                 <label>Width (m):</label>
-                <input v-model.number="popupZoneWidth" type="number" min="0.01" max="100" step="0.01" placeholder="가로" />
+                <input v-model.number="popupZoneWidth" type="number" min="0.01" max="100" step="0.01" placeholder="Width" />
               </div>
               <div class="input-group">
                 <label>Height (m):</label>
-                <input v-model.number="popupZoneHeight" type="number" min="0.01" max="70" step="0.01" placeholder="세로" />
+                <input v-model.number="popupZoneHeight" type="number" min="0.01" max="70" step="0.01" placeholder="Height" />
               </div>
             </div>
             <div class="color-section">
@@ -354,14 +361,14 @@
         </div>
 
         <div class="dialog-footer">
-          <button @click="closeZoneCreatorPopup" class="btn btn-secondary">취소</button>
-          <button @click="createZoneFromPopup" class="btn btn-primary" :disabled="!isValidPopupZoneSize">확인</button>
+          <button @click="closeZoneCreatorPopup" class="btn btn-secondary">Cancel</button>
+          <button @click="createZoneFromPopup" class="btn btn-primary" :disabled="!isValidPopupZoneSize">Confirm</button>
         </div>
       </div>
     </div>
 
     <!-- Wall Creator 팝업 -->
-    <div v-if="showWallCreatorPopup" class="wall-creator-overlay" @click="closeWallCreatorPopup">
+    <div v-if="showWallCreatorPopup" class="wall-creator-overlay">
       <div class="wall-creator-dialog" @click.stop>
         <div class="dialog-header">
           <h3>🧱 Wall 생성</h3>
@@ -408,6 +415,58 @@
         <div class="dialog-footer">
           <button @click="closeWallCreatorPopup" class="btn btn-secondary">취소</button>
           <button @click="createWallFromPopup" class="btn btn-primary" :disabled="!isValidPopupWallCoordinates">확인</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Box Creator 팝업 -->
+    <div v-if="showBoxCreatorPopup" class="box-creator-overlay">
+      <div class="box-creator-dialog" @click.stop>
+        <div class="dialog-header">
+          <h3>📦 Box Creator</h3>
+          <button @click="closeBoxCreatorPopup" class="close-btn">×</button>
+        </div>
+        
+        <div class="dialog-content">
+          <div class="box-inputs">
+            <!-- 위치 입력 (2열 배치) -->
+            <div class="input-row">
+              <div class="input-group">
+                <label>X Position (m):</label>
+                <input v-model.number="popupBoxX" type="number" min="0" max="100" step="0.1" placeholder="X coordinate" />
+              </div>
+              <div class="input-group">
+                <label>Y Position (m):</label>
+                <input v-model.number="popupBoxY" type="number" min="0" max="70" step="0.1" placeholder="Y coordinate" />
+              </div>
+            </div>
+            
+            <!-- 크기 입력 (3열 배치) -->
+            <div class="input-row three-columns">
+              <div class="input-group">
+                <label>Width (m):</label>
+                <input v-model.number="popupBoxWidth" type="number" min="0.1" max="50" step="0.1" placeholder="Width" />
+              </div>
+              <div class="input-group">
+                <label>Height (m):</label>
+                <input v-model.number="popupBoxHeight" type="number" min="0.1" max="20" step="0.1" placeholder="Height" />
+              </div>
+              <div class="input-group">
+                <label>Depth (m):</label>
+                <input v-model.number="popupBoxDepth" type="number" min="0.1" max="50" step="0.1" placeholder="Depth" />
+              </div>
+            </div>
+            
+            <!-- 색상 선택 섹션 -->
+            <div class="color-section">
+              <AdvancedColorPicker v-model="popupSelectedBoxColor" />
+            </div>
+          </div>
+        </div>
+
+        <div class="dialog-footer">
+          <button @click="closeBoxCreatorPopup" class="btn btn-secondary">Cancel</button>
+          <button @click="createBoxFromPopup" class="btn btn-primary" :disabled="!isValidPopupBoxCoordinates">Confirm</button>
         </div>
       </div>
     </div>
@@ -486,6 +545,15 @@ const popupWallStartY = ref(0)  // 팝업 Wall 시작점 Y (m)
 const popupWallEndX = ref(10)   // 팝업 Wall 끝점 X (m)
 const popupWallEndY = ref(0)    // 팝업 Wall 끝점 Y (m)
 const popupWallIsClass = ref(false) // 팝업 Wall isClass 옵션
+
+// Box Creator 팝업 관련 상태
+const showBoxCreatorPopup = ref(false)
+const popupBoxX = ref(0)        // 팝업 Box X 위치 (m)
+const popupBoxY = ref(0)        // 팝업 Box Y 위치 (m)
+const popupBoxWidth = ref(1.0)  // 팝업 Box 가로 크기 (m)
+const popupBoxHeight = ref(1.0) // 팝업 Box 높이 (m)
+const popupBoxDepth = ref(1.0)  // 팝업 Box 깊이 (m)
+const popupSelectedBoxColor = ref<{ label: string; hex: string; rgba: string }>(floorColors.value[0]) // 기본 색상
 
 // 고급 색상 선택기 관련 상태
 const colorWheelCanvas = ref<HTMLCanvasElement>()
@@ -718,6 +786,44 @@ const openWallCreatorPopup = () => {
 const closeWallCreatorPopup = () => {
   showWallCreatorPopup.value = false
 }
+
+// Box Creator 팝업 관련 함수들
+const openBoxCreatorPopup = () => {
+  showBoxCreatorPopup.value = true
+  // 팝업 열 때 기본값으로 초기화
+  popupBoxX.value = 0
+  popupBoxY.value = 0
+  popupBoxWidth.value = 1.0
+  popupBoxHeight.value = 1.0
+  popupBoxDepth.value = 1.0
+  // 기본 색상 설정
+  popupSelectedBoxColor.value = floorColors.value[0]
+}
+
+const closeBoxCreatorPopup = () => {
+  showBoxCreatorPopup.value = false
+}
+
+// 팝업 Box 좌표 유효성 검사
+const isValidPopupBoxCoordinates = computed(() => {
+  return popupBoxX.value >= 0 && popupBoxY.value >= 0 &&
+    popupBoxWidth.value > 0 && popupBoxHeight.value > 0 && popupBoxDepth.value > 0 &&
+    popupBoxX.value + popupBoxWidth.value <= GRID_WIDTH && 
+    popupBoxY.value + popupBoxDepth.value <= GRID_HEIGHT
+})
+
+// 팝업에서 Box 생성
+const createBoxFromPopup = () => {
+  if (!isValidPopupBoxCoordinates.value) return
+  
+  // Box 생성
+  createBoxFromCoordinates()
+  
+  // 팝업 닫기
+  closeBoxCreatorPopup()
+}
+
+
 
 // 팝업 Wall 좌표 유효성 검사
 const isValidPopupWallCoordinates = computed(() => {
@@ -1551,6 +1657,9 @@ const setupWallDrawing = () => {
       updatePlacedObjectInStore(modifiedObject)
     } else if (modifiedObject && modifiedObject.userData?.type === 'zone-floor') {
       handleZoneModified(modifiedObject)
+    } else if (modifiedObject && modifiedObject.userData?.type === 'custom-box') {
+      // Box가 수정될 때 크기 라벨 업데이트
+      updateBoxSizeLabel(modifiedObject)
     }
   })
 
@@ -1563,6 +1672,9 @@ const setupWallDrawing = () => {
       updatePlacedObjectInStore(movingObject)
     } else if (movingObject && movingObject.userData?.type === 'zone-floor') {
       handleZoneMoving(movingObject)
+    } else if (movingObject && movingObject.userData?.type === 'custom-box') {
+      // Box가 이동할 때 크기 라벨 업데이트
+      updateBoxSizeLabel(movingObject)
     }
   })
 
@@ -1571,6 +1683,9 @@ const setupWallDrawing = () => {
     if (scalingObject && (scalingObject.userData?.type === 'interior-wall' || scalingObject.userData?.type === 'exterior-wall')) {
       const wallType = scalingObject.userData?.type === 'interior-wall' ? '내부 벽' : '외부 벽'
       updateInteriorWallInList(scalingObject)
+    } else if (scalingObject && scalingObject.userData?.type === 'custom-box') {
+      // Box가 크기가 조정될 때 크기 라벨 업데이트
+      updateBoxSizeLabel(scalingObject)
     }
   })
 
@@ -1581,6 +1696,9 @@ const setupWallDrawing = () => {
       updateInteriorWallInList(rotatingObject)
     } else if (rotatingObject && rotatingObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(rotatingObject)
+    } else if (rotatingObject && rotatingObject.userData?.type === 'custom-box') {
+      // Box가 회전할 때 크기 라벨 업데이트
+      updateBoxSizeLabel(rotatingObject)
     }
   })
 
@@ -1974,6 +2092,73 @@ const createWallFromCoordinatesWithClass = () => {
   setTool('select')
 }
 
+// Box 생성 함수
+const createBoxFromCoordinates = () => {
+  if (!fabricCanvas) return
+  
+  const scale = 40 // 1m = 40px
+  
+  // 기본 회색 바닥의 위치를 찾기
+  const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+    obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+  )
+  
+  if (!defaultFloor) {
+    console.error('기본 바닥을 찾을 수 없습니다.')
+    return
+  }
+  
+  // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 좌표 변환
+  const baseX = defaultFloor.left
+  const baseY = defaultFloor.top
+  
+  // 미터 단위를 픽셀 단위로 변환
+  const boxX = baseX + (popupBoxX.value * scale)
+  const boxY = baseY + (popupBoxY.value * scale)
+  const boxWidth = popupBoxWidth.value * scale
+  const boxHeight = popupBoxHeight.value * scale
+  const boxDepth = popupBoxDepth.value * scale
+  
+  // Box 생성 (직사각형으로 표현)
+  const box = new fabric.Rect({
+    left: boxX,
+    top: boxY,
+    width: boxWidth,
+    height: popupBoxHeight.value * scale, // 높이를 2D에서 표시
+    fill: popupSelectedBoxColor.value.hex, // 선택된 색상 사용
+    stroke: '#F57F17',
+    strokeWidth: 2,
+    selectable: true,
+    evented: true,
+    opacity: 0.8,
+    hoverCursor: 'move',
+    moveCursor: 'move'
+  })
+  
+  // Box 식별 정보 추가
+  const boxId = Date.now() + Math.random()
+  box.userData = {
+    type: 'custom-box',
+    id: boxId,
+    x: popupBoxX.value,
+    y: popupBoxY.value,
+    width: popupBoxWidth.value,
+    height: popupBoxHeight.value,
+    depth: popupBoxDepth.value,
+    isSaved: false
+  }
+  
+  fabricCanvas.add(box)
+  
+  // Box 크기 라벨 추가
+  addBoxSizeLabel(box, popupBoxWidth.value, popupBoxHeight.value)
+  
+  // Box 생성 완료 후 자동으로 Select 모드로 전환
+  setTool('select')
+  
+  console.log(`✅ Box 생성 완료: 위치(${popupBoxX.value}, ${popupBoxY.value}), 2D 크기(${popupBoxWidth.value}×${popupBoxHeight.value}m), 3D 깊이(${popupBoxDepth.value}m)`)
+}
+
 
 
 // Store를 사용한 내부 벽 추가
@@ -1984,12 +2169,12 @@ const addInteriorWall = (start: { x: number, y: number }, end: { x: number, y: n
   const isSelectMode = currentTool.value === 'select'
 
   const wall = new fabric.Line([start.x, start.y, end.x, end.y], {
-    stroke: isSelectMode ? '#8B7355' : '#D2B48C', // Select 모드: 진한 베이지, Draw 모드: 밝은 베이지
-    strokeWidth: 3,
+    stroke: isSelectMode ? '#654321' : '#8B4513', // Select 모드: 진한 갈색, Draw 모드: 중간 갈색
+    strokeWidth: 5, // 두께 증가
     strokeLineCap: 'round',
     selectable: isSelectMode,
     evented: isSelectMode,
-    opacity: isSelectMode ? 1.0 : 0.7, // Select 모드: 불투명, Draw 모드: 반투명
+    opacity: 1.0, // 항상 불투명하게
     hoverCursor: isSelectMode ? 'move' : 'default',
     moveCursor: isSelectMode ? 'move' : 'default',
   })
@@ -2033,12 +2218,12 @@ const addInteriorWallWithClass = (start: { x: number, y: number }, end: { x: num
   const isSelectMode = currentTool.value === 'select'
 
   const wall = new fabric.Line([start.x, start.y, end.x, end.y], {
-    stroke: isSelectMode ? '#8B7355' : '#D2B48C', // Select 모드: 진한 베이지, Draw 모드: 밝은 베이지
-    strokeWidth: 3,
+    stroke: isSelectMode ? '#654321' : '#8B4513', // Select 모드: 진한 갈색, Draw 모드: 중간 갈색
+    strokeWidth: 5, // 두께 증가
     strokeLineCap: 'round',
     selectable: isSelectMode,
     evented: isSelectMode,
-    opacity: isSelectMode ? 1.0 : 0.7, // Select 모드: 불투명, Draw 모드: 반투명
+    opacity: 1.0, // 항상 불투명하게
     hoverCursor: isSelectMode ? 'move' : 'default',
     moveCursor: isSelectMode ? 'move' : 'default',
   })
@@ -2637,8 +2822,8 @@ const addWallLengthLabel = (wall: any, start: { x: number, y: number }, end: { x
   const lengthLabel = new fabric.Text(lengthText, {
     left: centerX + offsetX,
     top: centerY + offsetY,
-    fontSize: 12,
-    fill: '#333333',
+    fontSize: 14, // 폰트 크기 증가
+    fill: '#000000', // 검은색으로 변경하여 가독성 향상
     fontFamily: 'Arial',
     textAlign: 'center',
     originX: 'center',
@@ -2646,8 +2831,9 @@ const addWallLengthLabel = (wall: any, start: { x: number, y: number }, end: { x
     angle: angle * 180 / Math.PI, // 라디안을 도로 변환
     selectable: false,
     evented: false,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    padding: 2
+    backgroundColor: 'rgba(255, 255, 255, 0.95)', // 배경 투명도 감소
+    padding: 4, // 패딩 증가
+    fontWeight: 'bold' // 굵은 글씨로 변경
   })
 
   // 벽과 연관된 레이블임을 표시
@@ -2658,6 +2844,43 @@ const addWallLengthLabel = (wall: any, start: { x: number, y: number }, end: { x
   }
 
   fabricCanvas.add(lengthLabel)
+}
+
+// Box 크기 표시 레이블 추가
+const addBoxSizeLabel = (box: any, width: number, height: number) => {
+  if (!fabricCanvas) return
+
+  // Box 크기 텍스트 (미터 단위) - 2D에서는 width × height로 표시
+  const sizeText = `${width.toFixed(1)}×${height.toFixed(1)}m`
+
+  // Box의 중점 계산
+  const centerX = box.left + (box.width / 2)
+  const centerY = box.top + (box.height / 2)
+
+  // 텍스트 객체 생성
+  const sizeLabel = new fabric.Text(sizeText, {
+    left: centerX,
+    top: centerY,
+    fontSize: 11,
+    fill: '#333333',
+    fontFamily: 'Arial',
+    textAlign: 'center',
+    originX: 'center',
+    originY: 'center',
+    selectable: false,
+    evented: false,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 3,
+    fontWeight: 'bold'
+  })
+
+  // Box와 연관된 레이블임을 표시
+  sizeLabel.userData = {
+    type: 'box-size-label',
+    boxId: box.userData?.id
+  }
+
+  fabricCanvas.add(sizeLabel)
 }
 
 // 벽 길이 레이블 업데이트
@@ -2881,7 +3104,30 @@ const handlePlaceObject = (event: any) => {
     centerX = boxLeft
     centerY = boxTop - 20 // 상자 위쪽에 약간 올려서 배치
 
-
+  } else if (object.x !== undefined && object.y !== undefined) {
+    // 사용자가 지정한 좌표가 있는 경우 해당 좌표 사용
+    const scale = 40 // 1m = 40px
+    
+    // 기본 회색 바닥의 위치를 찾기
+    const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+      obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+    )
+    
+    if (defaultFloor) {
+      // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 좌표 변환
+      const baseX = defaultFloor.left
+      const baseY = defaultFloor.top
+      
+      // 미터 단위를 픽셀 단위로 변환하여 바닥 기준으로 배치
+      centerX = baseX + (object.x * scale)
+      centerY = baseY + (object.y * scale)
+    } else {
+      // 기본 바닥을 찾을 수 없는 경우 캔버스 중앙에 배치
+      const canvasWidth = fabricCanvas.width || 800
+      const canvasHeight = fabricCanvas.height || 600
+      centerX = canvasWidth / 2
+      centerY = canvasHeight / 2
+    }
   } else {
     // 일반 배치 - 캔버스 중앙에 배치
     const canvasWidth = fabricCanvas.width || 800
@@ -3481,8 +3727,8 @@ const createWallFromSavedData = (wallData: any) => {
 
   // Wall 생성
   const wall = new fabric.Line([startX, startY, endX, endY], {
-          stroke: '#D2B48C', // 베이지색
-    strokeWidth: 3,
+    stroke: '#8B4513', // 진한 갈색으로 변경
+    strokeWidth: 5, // 두께 증가
     strokeLineCap: 'round',
     selectable: true,
     evented: true,
@@ -3817,6 +4063,20 @@ const deleteSingleObject = (objectToDelete: any) => {
     // 레이어 재정렬 및 강제 리렌더
     sendAllFloorsToBack()
     positionGridAfterFloors()
+  } else if (objectType === 'custom-box') {
+    // Box 삭제: 관련된 크기 라벨도 함께 제거
+    const boxId = objectToDelete.userData?.id
+    if (boxId) {
+      // Box 크기 라벨 제거
+      const boxLabels = fabricCanvas.getObjects().filter((obj: any) => obj.userData?.type === 'box-size-label' && obj.userData?.boxId === boxId)
+      boxLabels.forEach((lbl: any) => fabricCanvas.remove(lbl))
+      
+      // Box 사각형 제거
+      fabricCanvas.remove(objectToDelete)
+    } else {
+      // boxId가 없는 경우도 안전하게 제거
+      fabricCanvas.remove(objectToDelete)
+    }
   }
 
   // 강제 캔버스 재렌더링
@@ -3946,6 +4206,28 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   window.removeEventListener('placeObject', handlePlaceObject)
 })
+
+// Box 크기 라벨 업데이트
+const updateBoxSizeLabel = (box: any) => {
+  if (!fabricCanvas) return
+
+  const boxId = box.userData?.id
+  if (!boxId) return
+
+  // 기존 라벨 찾기 및 제거
+  const existingLabel = fabricCanvas.getObjects().find((obj: any) =>
+    obj.userData?.type === 'box-size-label' && obj.userData?.boxId === boxId
+  )
+
+  if (existingLabel) {
+    fabricCanvas.remove(existingLabel)
+  }
+
+  // 새로운 위치로 라벨 재생성
+  const width = box.userData?.width || 1.0
+  const height = box.userData?.height || 1.0
+  addBoxSizeLabel(box, width, height)
+}
 </script>
 
 <style scoped>
@@ -4469,14 +4751,37 @@ onUnmounted(() => {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   width: 95%;
   max-width: 800px;
-  max-height: 90vh;
+  max-height: 95vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.zone-creator-dialog .dialog-header {
+  padding: 1rem 1.5rem;
+  flex-shrink: 0;
+}
+
+.zone-creator-dialog .dialog-content {
+  flex: 1;
   overflow-y: auto;
+  padding: 1rem 1.5rem;
+}
+
+.zone-creator-dialog .dialog-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e9ecef;
+  flex-shrink: 0;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
 }
 
 .zone-inputs {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  flex: 1;
 }
 
 .zone-inputs .input-row {
@@ -4644,6 +4949,169 @@ onUnmounted(() => {
   transform: translateY(0);
 }
 
+/* Box Creator 팝업 스타일 */
+.box-creator-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.box-creator-dialog {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  width: 95%;
+  max-width: 700px;
+  max-height: 95vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.box-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  flex: 1;
+}
+
+.box-inputs .input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem; /* 간격 축소 */
+}
+
+.box-inputs .input-row.three-columns {
+  grid-template-columns: 1fr 1fr 1fr; /* 3열 배치 */
+  gap: 1rem; /* 3열일 때는 더 좁은 간격 */
+}
+
+.box-inputs .input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem; /* 라벨과 입력 필드 간격 축소 */
+}
+
+.box-inputs .input-group label {
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 0.85rem; /* 폰트 크기 축소 */
+  margin-bottom: 0.2rem;
+}
+
+.box-inputs .input-group input {
+  padding: 0.6rem; /* 패딩 축소 */
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.box-inputs .input-group input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.box-create-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+}
+
+.box-create-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(243, 156, 18, 0.6);
+}
+
+.box-create-btn:active {
+  transform: translateY(0);
+}
+
+/* Box 팝업 헤더와 푸터 최적화 */
+.box-creator-dialog .dialog-header {
+  padding: 1rem 1.5rem;
+  flex-shrink: 0;
+}
+
+.box-creator-dialog .dialog-header h3 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.box-creator-dialog .dialog-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.5rem;
+}
+
+.box-creator-dialog .dialog-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e9ecef;
+  flex-shrink: 0;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+/* Box Creator 팝업 푸터 스타일 */
+.box-creator-dialog .dialog-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e9ecef;
+  background: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.box-creator-dialog .dialog-footer .btn {
+  min-width: 100px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.box-creator-dialog .dialog-footer .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* 색상 선택 섹션 최적화 */
+.color-section {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.color-section .advanced-color-picker {
+  flex: 1;
+  min-height: 500px;
+  max-height: 600px;
+  overflow: visible;
+}
+
+
+
 /* 공통 도구 스타일 */
 .common-tools {
   display: flex;
@@ -4777,6 +5245,19 @@ onUnmounted(() => {
 }
 
 .wall-tools h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #2c3e50;
+}
+
+.box-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0;
+}
+
+.box-tools h4 {
   margin: 0;
   font-size: 1rem;
   color: #2c3e50;
