@@ -358,7 +358,7 @@ const create3DFloorFromRoom = (data: any) => {
     const depthMeters = data.roomSize.height
     const geo = new THREE.PlaneGeometry(widthMeters, depthMeters)
     const mat = new THREE.MeshStandardMaterial({
-      color: 0xA9A9A9, // 중간 회색 (기본 바닥)
+      color: 0xC4C4C4, // 중간 회색 (기본 바닥) - #A9A9A9와 #E0E0E0의 중간값
       roughness: 0.9,
       metalness: 0.0,
       transparent: false, // 기본 바닥은 불투명

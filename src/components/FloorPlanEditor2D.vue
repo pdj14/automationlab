@@ -2396,8 +2396,8 @@ const createDefaultFloor = () => {
     top: startY,
     width: defaultWidthPx,
     height: defaultHeightPx,
-    fill: 'rgba(169, 169, 169, 0.8)', // 중간 회색
-    stroke: '#A9A9A9', // 테두리는 살짝 어둡게
+    fill: 'rgba(196, 196, 196, 0.8)', // 중간 회색 (#A9A9A9와 #E0E0E0의 중간값)
+    stroke: '#C4C4C4', // 테두리는 살짝 어둡게
     strokeWidth: 2,
     selectable: false,    // 선택 불가
     hasControls: false,   // 컨트롤 핸들 없음
@@ -2436,7 +2436,7 @@ const createDefaultFloor = () => {
     width: defaultWidth,
     height: defaultHeight,
     boundsPx: { left: startX, top: startY, right: startX + defaultWidthPx, bottom: startY + defaultHeightPx },
-    color: '#A9A9A9'
+    color: '#C4C4C4'
   })
 
   fabricCanvas.renderAll()
