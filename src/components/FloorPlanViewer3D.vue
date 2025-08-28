@@ -475,7 +475,7 @@ const create3DFloorFromRoom = (data: any) => {
 const create3DWalls = (wallsData: any) => {
   const existingWalls: any[] = []
   scene.traverse((child) => {
-    if (child.userData.type === 'exterior-wall' || child.userData.type === 'interior-wall') {
+    if (child.userData.type === 'wall' || child.userData.type === 'glass-wall') {
       existingWalls.push(child)
     }
   })
@@ -486,36 +486,39 @@ const create3DWalls = (wallsData: any) => {
     if (wall.material) wall.material.dispose()
   })
 
-  if ((!wallsData.exteriorWalls || wallsData.exteriorWalls.length === 0) && 
-      (!wallsData.interiorWalls || wallsData.interiorWalls.length === 0)) {
+  // 새로운 통합 벽 데이터 구조 사용
+  if (!wallsData.walls || wallsData.walls.length === 0) {
     return
   }
 
   const canvasWidth = wallsData.canvasSize?.width || 800
   const canvasHeight = wallsData.canvasSize?.height || 600
 
-  if (wallsData.exteriorWalls) {
-    wallsData.exteriorWalls.forEach((wall: any) => {
-      createWall(wall, 'exterior-wall', 0xD2B48C, canvasWidth, canvasHeight)
-    })
-  }
-
-  if (wallsData.interiorWalls) {
-    wallsData.interiorWalls.forEach((wall: any) => {
-      createWall(wall, 'interior-wall', 0xD2B48C, canvasWidth, canvasHeight)
-    })
-  }
+  // 통합된 walls 배열에서 벽 생성
+  wallsData.walls.forEach((wall: any) => {
+    const wallType = wall.type || 'wall' // 기본값은 'wall'
+    const color = wallType === 'glass-wall' ? 0x87CEEB : 0xD2B48C // 유리벽은 하늘색, 일반벽은 베이지색
+    createWall(wall, wallType, color, canvasWidth, canvasHeight)
+  })
 }
 
 // 개별 벽 생성 함수
 const createWall = (wall: any, wallType: string, color: number, canvasWidth: number, canvasHeight: number) => {
-  const start = wall.start
-  const end = wall.end
+  // 새로운 벽 데이터 구조에 맞게 좌표 추출
+  const startX = wall.startX || wall.start?.x
+  const startY = wall.startY || wall.start?.y
+  const endX = wall.endX || wall.end?.x
+  const endY = wall.endY || wall.end?.y
+  
+  if (startX === undefined || startY === undefined || endX === undefined || endY === undefined) {
+    console.warn('벽 데이터에 좌표 정보가 없습니다:', wall)
+    return
+  }
   
   const length = Math.sqrt(
-    Math.pow(end.x - start.x, 2) + Math.pow(start.y - end.y, 2)
+    Math.pow(endX - startX, 2) + Math.pow(startY - endY, 2)
   )
-  const angle = Math.atan2(start.y - end.y, end.x - start.x)
+  const angle = Math.atan2(startY - endY, endX - startX)
   
   const wallGeometry = new THREE.BoxGeometry(length / 40, wallHeight.value, 0.1)
   const opacity = wallTransparencyEnabled.value ? wallOpacity.value / 100 : 1.0
@@ -527,8 +530,8 @@ const createWall = (wall: any, wallType: string, color: number, canvasWidth: num
   
   const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial)
   
-  const centerX = (start.x + end.x) / 2
-  const centerY = (start.y + end.y) / 2
+  const centerX = (startX + endX) / 2
+  const centerY = (startY + endY) / 2
   
   const pos3D_X = (centerX - canvasWidth / 2) / 40
   const pos3D_Y = wallHeight.value / 2
@@ -844,7 +847,7 @@ const toggleLOD = () => {
 
 const updateWallHeight = () => {
   scene.traverse((object) => {
-    if ((object.userData.type === 'exterior-wall' || object.userData.type === 'interior-wall') && object instanceof THREE.Mesh) {
+    if ((object.userData.type === 'wall' || object.userData.type === 'glass-wall') && object instanceof THREE.Mesh) {
       // 기존 지오메트리 제거하고 새로운 높이로 재생성
       object.geometry.dispose()
       
@@ -862,7 +865,7 @@ const updateWallHeight = () => {
 
 const updateWallOpacity = () => {
   scene.traverse((object) => {
-    if ((object.userData.type === 'exterior-wall' || object.userData.type === 'interior-wall') && object instanceof THREE.Mesh) {
+    if ((object.userData.type === 'wall' || object.userData.type === 'glass-wall') && object instanceof THREE.Mesh) {
       if (object.material instanceof THREE.MeshLambertMaterial) {
         const opacity = wallOpacity.value / 100
         object.material.transparent = opacity < 1
@@ -877,7 +880,7 @@ const toggleWallTransparency = () => {
   wallTransparencyEnabled.value = !wallTransparencyEnabled.value
   
   scene.traverse((object) => {
-    if ((object.userData.type === 'exterior-wall' || object.userData.type === 'interior-wall') && object instanceof THREE.Mesh) {
+    if ((object.userData.type === 'wall' || object.userData.type === 'glass-wall') && object instanceof THREE.Mesh) {
       if (object.material instanceof THREE.MeshLambertMaterial) {
         if (wallTransparencyEnabled.value) {
           // 투명도 활성화: 설정된 투명도 적용
@@ -983,33 +986,9 @@ let instancedMeshes: THREE.InstancedMesh[] = []
 
 // 3D 오브젝트 생성 (GLB 모델 로딩) - Three.js 내장 LOD 사용
 const create3DObjects = async (placedObjects: any[], canvasSize: { width: number, height: number } = { width: 800, height: 600 }) => {
-  console.log(`🔍 create3DObjects 호출됨:`, {
-    placedObjectsCount: placedObjects?.length || 0,
-    canvasSize,
-    sceneExists: !!scene
-  })
-  
   if (!scene || !placedObjects || placedObjects.length === 0) {
-    console.log(`⚠️ create3DObjects 종료: scene=${!!scene}, placedObjects=${placedObjects?.length || 0}`)
     return
   }
-  
-  // 모든 placedObjects 정보 로그
-  console.log(`📋 모든 placedObjects 정보:`, placedObjects.map(obj => ({
-    id: obj.id,
-    name: obj.name,
-    category: obj.category,
-    isBox: obj.isBox,
-    hasGlbUrl: !!obj.glbUrl
-  })))
-  
-  // Box Object 개수 확인
-  const boxObjects = placedObjects.filter(obj => obj.isBox === true)
-  console.log(`📦 Box Object 개수: ${boxObjects.length}개`, boxObjects.map(obj => ({
-    id: obj.id,
-    name: obj.name,
-    category: obj.category
-  })))
 
   // 기존 배치 오브젝트와 상태 표시 구체, 3D 팝업 제거
   const existingObjects = scene.children.filter(child => 
@@ -1047,14 +1026,6 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
   const instancedObjects = placedObjects.filter(obj => obj.instancing && !obj.isBox)
   const normalObjects = placedObjects.filter(obj => !obj.instancing || obj.isBox)
   
-  console.log(`📊 객체 분리 결과:`, {
-    totalObjects: placedObjects.length,
-    instancedObjects: instancedObjects.length,
-    normalObjects: normalObjects.length,
-    instancedObjectsList: instancedObjects.map(obj => ({ id: obj.id, name: obj.name, isBox: obj.isBox })),
-    normalObjectsList: normalObjects.map(obj => ({ id: obj.id, name: obj.name, isBox: obj.isBox }))
-  })
-  
   // 인스턴싱 오브젝트가 있으면 GLB 기반 InstancedMesh 생성
   if (instancedObjects.length > 0) {
     createInstancedObjectsFromGLB(instancedObjects)
@@ -1064,19 +1035,9 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
   const loader = new GLTFLoader()
   
   for (const placedObj of normalObjects) {
-    // 디버깅: 모든 객체 정보 로그
-    console.log(`🔍 3D 객체 처리 중:`, {
-      id: placedObj.id,
-      name: placedObj.name,
-      category: placedObj.category,
-      isBox: placedObj.isBox,
-      hasGlbUrl: !!placedObj.glbUrl
-    })
-    
     // 상자인 경우 특별한 3D 상자 모델 생성
     // isBox 속성이 true인 경우 Box로 처리
     if (placedObj.isBox === true) {
-      console.log(`📦 Box Object 감지됨 - 3D Box 생성 시작:`, placedObj.name)
       create3DBox(placedObj, placedObj.color || '#D2B48C', canvasSize)
       continue
     }
@@ -1717,18 +1678,6 @@ const handleCanvasClick = (event: MouseEvent) => {
 
 // 3D 상자 모델 생성
 const create3DBox = (placedObj: any, color: string, canvasSize: { width: number, height: number } = { width: 800, height: 600 }) => {
-  console.log(`📦 create3DBox 호출됨:`, {
-    id: placedObj.id,
-    name: placedObj.name,
-    category: placedObj.category,
-    isBox: placedObj.isBox,
-    position: placedObj.position,
-    width: placedObj.width,
-    height: placedObj.height,
-    depth: placedObj.depth,
-    color: placedObj.color
-  })
-  
   // object에 명시된 색상 사용, 없으면 기본 색상 사용
   const boxColor = placedObj.color || color || '#E6D5AC'
   
@@ -1781,24 +1730,9 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
   // Box의 중심이 아닌 바닥면이 Y=0에 오도록 조정
   const pos3D_Y = placedObj.height / 2
   
-  console.log(`🔍 Box 3D 위치 계산:`, {
-    originalPosition: { x: placedObj.position.x, y: placedObj.position.y },
-    boundsPx: placedObj.boundsPx,
-    hasBoundsPx: !!placedObj.boundsPx,
-    canvasSize: { width: canvasWidth, height: canvasHeight },
-    calculated3D: { x: pos3D_X, y: pos3D_Y, z: pos3D_Z },
-    baseFloorRange: { x: [-10, 10], z: [-7.5, 7.5] },
-    boxSize: { width: boxWidth, height: placedObj.height, depth: boxDepth },
-    heightAnalysis: {
-      boxHeight: placedObj.height,
-      yPosition: pos3D_Y,
-      boxBottom: pos3D_Y - placedObj.height / 2,
-      boxTop: pos3D_Y + placedObj.height / 2
-    }
-  })
+
   
   boxGroup.position.set(pos3D_X, pos3D_Y, pos3D_Z)
-  boxGroup.rotation.y = placedObj.rotation || 0
   
   boxGroup.userData = {
     type: 'placed-object',
@@ -1811,26 +1745,6 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
   }
   
   scene.add(boxGroup)
-  
-  console.log(`✅ Box 3D 생성 완료:`, {
-    position: { x: pos3D_X, y: pos3D_Y, z: pos3D_Z },
-    size: { width: boxWidth, height: placedObj.height, depth: boxDepth },
-    originalSize: { width: placedObj.width, height: placedObj.height, depth: placedObj.depth },
-    sceneChildren: scene.children.length,
-    boxGroupVisible: boxGroup.visible,
-    boxMeshVisible: boxMesh.visible
-  })
-  
-  // Box가 실제로 씬에 추가되었는지 확인
-  const addedBox = scene.children.find(child => 
-    child.userData?.type === 'placed-object' && 
-    child.userData?.placedObjectId === placedObj.id
-  )
-  console.log(`🔍 Box 씬 추가 확인:`, {
-    boxFound: !!addedBox,
-    boxId: placedObj.id,
-    boxName: placedObj.name
-  })
   
   // 상자에도 상태 표시 구체 추가
   addStatusSphere(boxGroup, placedObj)
@@ -2190,10 +2104,6 @@ const handleObjectsOnBoxes = () => {
       }
       
       obj3D.position.y = newY
-      
-      if (box3D.rotation) {
-        obj3D.rotation.y = box3D.rotation.y
-      }
     })
   })
 }
@@ -2225,23 +2135,12 @@ const make3D = async () => {
     }
 
     // 벽이 있을 때만 3D 벽 생성
-    if ((data.exteriorWalls && data.exteriorWalls.length > 0) || 
-        (data.interiorWalls && data.interiorWalls.length > 0)) {
+    if (data.walls && data.walls.length > 0) {
       create3DWalls(data)
     }
 
 
 
-    console.log(`🔍 make3D에서 create3DObjects 호출 전:`, {
-      placedObjectsCount: data.placedObjects?.length || 0,
-      placedObjects: data.placedObjects?.map(obj => ({
-        id: obj.id,
-        name: obj.name,
-        category: obj.category,
-        isBox: obj.isBox
-      }))
-    })
-    
     await create3DObjects(data.placedObjects || [], data.canvasSize)
     
 
@@ -2263,7 +2162,7 @@ const addEnhanced3DFeatures = () => {
     return
   }
 
-  const exteriorWalls = scene.children.filter(child => child.userData.type === 'exterior-wall')
+  const exteriorWalls = scene.children.filter(child => child.userData.type === 'wall' || child.userData.type === 'glass-wall')
   
   if (exteriorWalls.length === 0) {
     return
@@ -2304,7 +2203,7 @@ const clearAll3D = () => {
   remove3DPopup()
 
   const objectTypesToRemove = [
-    'exterior-wall', 'interior-wall', 'room-floor', 'base-floor', 'zone-floor', 'ceiling', 
+    'wall', 'glass-wall', 'room-floor', 'base-floor', 'zone-floor', 'ceiling', 
     'room-light', 'corner-light', 'wall-decoration', 'placed-object', 'status-sphere', '3d-popup',
     'instanced-objects'
   ]

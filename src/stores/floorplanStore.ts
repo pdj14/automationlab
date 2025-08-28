@@ -87,6 +87,7 @@ interface WallData {
   startY: number
   endX: number
   endY: number
+  type?: string // wall 또는 glass-wall
 }
 
 // Wall 변경사항 타입 정의
@@ -99,14 +100,12 @@ interface WallChangeSummary {
 // Box 데이터 타입 정의 (백엔드용)
 interface BoxData {
   id?: string
-  name: string
   x: number
   y: number
   width: number
   depth: number
   height: number
   color: string
-  rotation?: number
 }
 
 // Box 변경사항 타입 정의
@@ -120,8 +119,6 @@ interface BoxChangeSummary {
 export const useFloorplanStore = defineStore('floorplan', () => {
   // 상태 (state)
   const currentRoom = ref<Room | null>(null)
-  const interiorWalls = ref<Wall[]>([])
-  const exteriorWalls = ref<Wall[]>([]) // 외부벽도 직접 저장
   const placedObjects = ref<PlacedObject[]>([]) // 배치된 오브젝트들
   const canvasSize = ref<CanvasSize>({ width: 800, height: 600 })
   const floors = ref<FloorArea[]>([])
@@ -134,10 +131,7 @@ export const useFloorplanStore = defineStore('floorplan', () => {
   
   // Getters (computed)
   const hasRoom = computed(() => currentRoom.value !== null)
-  
-  // exteriorWalls를 computed에서 ref로 변경했으므로 제거
-  // const exteriorWalls = computed(() => { ... }) -> 제거됨
-  
+    
   const roomCenterPosition = computed(() => {
     if (!currentRoom.value?.bounds) return { x: 0, y: 0 }
     
@@ -149,8 +143,7 @@ export const useFloorplanStore = defineStore('floorplan', () => {
   })
   
   const floorplanData = computed(() => ({
-    exteriorWalls: exteriorWalls.value, // 이제 ref로 직접 접근
-    interiorWalls: interiorWalls.value,
+    walls: walls.value, // 통합된 walls 배열
     placedObjects: placedObjects.value, // 배치된 오브젝트 정보 추가
     floors: floors.value,
     roomSize: currentRoom.value ? {
@@ -169,8 +162,7 @@ export const useFloorplanStore = defineStore('floorplan', () => {
   
   const clearRoom = () => {
     currentRoom.value = null
-    interiorWalls.value = []
-    exteriorWalls.value = []
+    walls.value = []
     placedObjects.value = []
     floors.value = []
   }
@@ -179,42 +171,38 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     canvasSize.value = size
   }
   
-  const addInteriorWall = (wall: Wall) => {
-    interiorWalls.value.push(wall)
+  const addWall = (wall: Wall) => {
+    // 기존 walls 배열에 추가 (WallData 타입으로 변환)
+    const wallData: WallData = {
+      id: wall.id.toString(),
+      startX: wall.start.x,
+      startY: wall.start.y,
+      endX: wall.end.x,
+      endY: wall.end.y,
+      type: 'wall'
+    }
+    walls.value.push(wallData)
   }
   
-  const updateInteriorWall = (wallId: string | number, updatedWall: Wall) => {
-    const index = interiorWalls.value.findIndex(wall => wall.id === wallId)
+  const updateWall = (wallId: string | number, updatedWall: Wall) => {
+    const index = walls.value.findIndex(wall => wall.id === wallId.toString())
     if (index > -1) {
-      interiorWalls.value[index] = updatedWall
+      walls.value[index] = {
+        ...walls.value[index],
+        startX: updatedWall.start.x,
+        startY: updatedWall.start.y,
+        endX: updatedWall.end.x,
+        endY: updatedWall.end.y
+      }
     }
   }
   
-  const removeInteriorWall = (wallId: string | number) => {
-    interiorWalls.value = interiorWalls.value.filter(wall => wall.id !== wallId)
-  }
-  
-  const addExteriorWall = (wall: Wall) => {
-    exteriorWalls.value.push(wall)
-  }
-  
-  const updateExteriorWall = (wallId: string | number, updatedWall: Wall) => {
-    const index = exteriorWalls.value.findIndex(wall => wall.id === wallId)
-    if (index > -1) {
-      exteriorWalls.value[index] = updatedWall
-    }
-  }
-  
-  const removeExteriorWall = (wallId: string | number) => {
-    exteriorWalls.value = exteriorWalls.value.filter(wall => wall.id !== wallId)
+  const removeWall = (wallId: string | number) => {
+    walls.value = walls.value.filter(wall => wall.id !== wallId.toString())
   }
 
-  const clearInteriorWalls = () => {
-    interiorWalls.value = []
-  }
-  
-  const clearExteriorWalls = () => {
-    exteriorWalls.value = []
+  const clearWalls = () => {
+    walls.value = []
   }
 
   // 배치된 오브젝트 관리 액션들
@@ -285,28 +273,9 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     isLoadingZones.value = loading
   }
 
-  // Wall 관련 액션들
+  // Wall 관련 액션들 (통합된 버전)
   const setWalls = (newWalls: WallData[]) => {
     walls.value = newWalls
-  }
-
-  const addWall = (wall: WallData) => {
-    walls.value.push(wall)
-  }
-
-  const updateWall = (wallId: string, updatedWall: Partial<WallData>) => {
-    const index = walls.value.findIndex(wall => wall.id === wallId)
-    if (index > -1) {
-      walls.value[index] = { ...walls.value[index], ...updatedWall }
-    }
-  }
-
-  const removeWall = (wallId: string) => {
-    walls.value = walls.value.filter(wall => wall.id !== wallId)
-  }
-
-  const clearWalls = () => {
-    walls.value = []
   }
 
   const setLoadingWalls = (loading: boolean) => {
@@ -343,7 +312,6 @@ export const useFloorplanStore = defineStore('floorplan', () => {
 
   // 부동소수점 정밀도를 고려한 데이터 비교 함수 (1cm 정밀도)
   const isDataEqual = (data1: any, data2: any, precision: number = 0.01): boolean => {
-
     if (typeof data1 !== typeof data2) return false
     
     if (typeof data1 === 'number') {
@@ -368,17 +336,15 @@ export const useFloorplanStore = defineStore('floorplan', () => {
         const value1 = data1[key]
         const value2 = data2[key]
         
-        // 한쪽에만 key가 있고 해당 값이 null인 경우는 동일하게 처리
-        if (value1 === null && !(key in data2)) return true
-        if (value2 === null && !(key in data1)) return true
-        
-        // 양쪽 모두 key가 있는 경우만 비교
-        if (key in data1 && key in data2) {
-          return isDataEqual(value1, value2, precision)
+        // 한쪽에만 key가 있는 경우 처리
+        if (!(key in data1) || !(key in data2)) {
+          // 한쪽에만 key가 있고 해당 값이 null, undefined, 또는 빈 문자열인 경우는 동일하게 처리
+          const missingValue = !(key in data1) ? value2 : value1
+          return missingValue === null || missingValue === undefined || missingValue === ''
         }
         
-        // 한쪽에만 key가 있고 값이 null이 아닌 경우는 다름
-        return false
+        // 양쪽 모두 key가 있는 경우 비교
+        return isDataEqual(value1, value2, precision)
       })
     }
     
@@ -650,14 +616,12 @@ export const useFloorplanStore = defineStore('floorplan', () => {
   return {
     // State
     currentRoom,
-    interiorWalls,
-    exteriorWalls, // 외부벽 추가
+    walls, // 통합된 Wall 데이터
     placedObjects, // 배치된 오브젝트 추가
     canvasSize,
     floors,
     zones, // Zone 데이터 추가
     isLoadingZones, // Zone 로딩 상태 추가
-    walls, // Wall 데이터 추가
     isLoadingWalls, // Wall 로딩 상태 추가
     boxes, // Box 데이터 추가
     isLoadingBoxes, // Box 로딩 상태 추가
@@ -675,14 +639,10 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     updateFloor,
     removeFloor,
     clearFloors,
-    addInteriorWall,
-    updateInteriorWall,
-    removeInteriorWall,
-    clearInteriorWalls,
-    addExteriorWall, // 외부벽 액션들 추가
-    updateExteriorWall,
-    removeExteriorWall,
-    clearExteriorWalls,
+    addWall, // 통합된 Wall 액션들
+    updateWall,
+    removeWall,
+    clearWalls,
     addPlacedObject, // 배치된 오브젝트 액션들 추가
     updatePlacedObject,
     removePlacedObject,
@@ -695,10 +655,6 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     setLoadingZones,
     analyzeZoneChanges, // Zone 변경사항 분석 추가
     syncZones, // Zone 동기화 추가
-    addWall, // Wall 관련 액션들 추가
-    updateWall,
-    removeWall,
-    clearWalls,
     setWalls,
     setLoadingWalls,
     analyzeWallChanges, // Wall 변경사항 분석 추가

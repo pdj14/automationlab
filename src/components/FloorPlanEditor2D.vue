@@ -669,11 +669,6 @@ const pan = ref({ x: 0, y: 0 })
 const isPanning = ref(false)
 const lastPanPoint = ref({ x: 0, y: 0 })
 
-
-// Store에서 직접 사용할 데이터들 (로컬 state 제거)
-// const currentRoom = ref<{width: number, height: number, bounds?: any} | null>(null) -> store 사용
-// const interiorWalls = ref<any[]>([]) -> store 사용
-
 // Zone 크기 유효성 검사
 const isValidZoneSize = computed(() => {
   return zoneX.value >= 0 && zoneY.value >= 0 &&
@@ -1204,7 +1199,7 @@ const updateWallSelectability = () => {
   
   // 모든 벽 오브젝트의 선택 가능 여부 업데이트
   fabricCanvas.getObjects().forEach((obj: any) => {
-    if (obj.userData?.type === 'glass-wall' || obj.userData?.type === 'general-wall') {
+    if (obj.userData?.type === 'glass-wall' || obj.userData?.type === 'wall') {
       obj.selectable = isSelectMode
       obj.evented = isSelectMode
       obj.opacity = isSelectMode ? 1.0 : 0.7
@@ -1625,7 +1620,7 @@ const setupWallDrawing = () => {
       return
     }
 
-    if (singleSelected && (singleSelected.userData?.type === 'glass-wall' || singleSelected.userData?.type === 'exterior-wall')) {
+    if (singleSelected && (singleSelected.userData?.type === 'glass-wall' || singleSelected.userData?.type === 'wall')) {
       selectedObject.value = singleSelected
       selectedObjects.value = [singleSelected]
     } else {
@@ -1675,7 +1670,7 @@ const setupWallDrawing = () => {
       return
     }
 
-    if (singleSelected && (singleSelected.userData?.type === 'glass-wall' || singleSelected.userData?.type === 'general-wall')) {
+    if (singleSelected && (singleSelected.userData?.type === 'glass-wall' || singleSelected.userData?.type === 'wall')) {
       selectedObject.value = singleSelected
       selectedObjects.value = [singleSelected]
     } else {
@@ -1693,8 +1688,8 @@ const setupWallDrawing = () => {
 
   fabricCanvas.on('object:modified', (e: any) => {
     const modifiedObject = e.target
-    if (modifiedObject && (modifiedObject.userData?.type === 'glass-wall' || modifiedObject.userData?.type === 'general-wall')) {
-      const wallType = modifiedObject.userData?.type === 'glass-wall' ? '유리 벽' : '일반 벽'
+    if (modifiedObject && (modifiedObject.userData?.type === 'glass-wall' || modifiedObject.userData?.type === 'wall')) {
+      const wallType = modifiedObject.userData?.type === 'glass-wall' ? '유리 벽' : '벽'
       updateWallInList(modifiedObject)
     } else if (modifiedObject && modifiedObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(modifiedObject)
@@ -1709,8 +1704,8 @@ const setupWallDrawing = () => {
 
   fabricCanvas.on('object:moving', (e: any) => {
     const movingObject = e.target
-    if (movingObject && (movingObject.userData?.type === 'glass-wall' || movingObject.userData?.type === 'general-wall')) {
-      const wallType = movingObject.userData?.type === 'glass-wall' ? '유리 벽' : '일반 벽'
+    if (movingObject && (movingObject.userData?.type === 'glass-wall' || movingObject.userData?.type === 'wall')) {
+      const wallType = movingObject.userData?.type === 'glass-wall' ? '유리 벽' : '벽'
       updateWallInList(movingObject)
     } else if (movingObject && movingObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(movingObject)
@@ -1725,8 +1720,8 @@ const setupWallDrawing = () => {
 
   fabricCanvas.on('object:scaling', (e: any) => {
     const scalingObject = e.target
-    if (scalingObject && (scalingObject.userData?.type === 'glass-wall' || scalingObject.userData?.type === 'general-wall')) {
-      const wallType = scalingObject.userData?.type === 'glass-wall' ? '유리 벽' : '일반 벽'
+    if (scalingObject && (scalingObject.userData?.type === 'glass-wall' || scalingObject.userData?.type === 'wall')) {
+      const wallType = scalingObject.userData?.type === 'glass-wall' ? '유리 벽' : '벽'
       updateWallInList(scalingObject)
     } else if (scalingObject && scalingObject.userData?.type === 'custom-box') {
       // Box가 크기가 조정될 때 크기 라벨 업데이트 및 Store 업데이트
@@ -1737,8 +1732,8 @@ const setupWallDrawing = () => {
 
   fabricCanvas.on('object:rotating', (e: any) => {
     const rotatingObject = e.target
-    if (rotatingObject && (rotatingObject.userData?.type === 'glass-wall' || rotatingObject.userData?.type === 'general-wall')) {
-      const wallType = rotatingObject.userData?.type === 'glass-wall' ? '유리 벽' : '일반 벽'
+    if (rotatingObject && (rotatingObject.userData?.type === 'glass-wall' || rotatingObject.userData?.type === 'wall')) {
+      const wallType = rotatingObject.userData?.type === 'glass-wall' ? '유리 벽' : '벽'
       updateWallInList(rotatingObject)
     } else if (rotatingObject && rotatingObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(rotatingObject)
@@ -1860,11 +1855,8 @@ const updateWallInList = (modifiedWall: any) => {
     id: wallId
   }
 
-  if (wallType === 'glass-wall') {
-    floorplanStore.updateInteriorWall(wallId, updatedWall)
-  } else if (wallType === 'general-wall') {
-    floorplanStore.updateExteriorWall(wallId, updatedWall)
-  }
+  // Store에서 벽 정보 업데이트 (통합된 함수 사용)
+  floorplanStore.updateWall(wallId, updatedWall)
 
   updateWallLengthLabel(modifiedWall)
 }
@@ -2206,14 +2198,12 @@ const createBoxFromCoordinates = () => {
   // Store에 Box를 별도로 저장 (Zone/Wall과 동일한 방식)
   const boxData = {
     id: boxIdString, // boxIdString 사용으로 일관성 유지
-    name: `Box_${boxIdString}`,
     x: popupBoxX.value, // 미터 단위 원본 값
     y: popupBoxY.value,
     width: popupBoxWidth.value,
     depth: popupBoxDepth.value,
     height: popupBoxHeight.value,
-    color: popupSelectedBoxColor.value.hex,
-    rotation: 0
+    color: popupSelectedBoxColor.value.hex
   }
   
   floorplanStore.addBox(boxData)
@@ -2253,7 +2243,6 @@ const createBoxFromCoordinates = () => {
   console.log(`✅ Box 생성 완료: 위치(${popupBoxX.value}, ${popupBoxY.value}), 크기(${popupBoxWidth.value}×${popupBoxHeight.value}×${popupBoxDepth.value}m)`)
   console.log(`📦 Box Store 저장 정보:`, {
     id: boxIdString,
-    name: `Box_${boxId}`,
     category: 'etc',
     isBox: true,
     position: { x: popupBoxX.value, y: popupBoxY.value }
@@ -2281,28 +2270,53 @@ const addWall = (start: { x: number, y: number }, end: { x: number, y: number })
     moveCursor: isSelectMode ? 'move' : 'default',
   })
 
+  // base floor 기준으로 미터 단위 좌표 계산
+  const scale = 40 // 1m = 40px
+  const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+    obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+  )
+  
+  let startXMeters, startYMeters, endXMeters, endYMeters
+  
+  if (defaultFloor) {
+    const baseX = defaultFloor.left
+    const baseY = defaultFloor.top
+    
+    // 픽셀 좌표를 미터 단위로 변환
+    startXMeters = Math.round(((start.x - baseX) / scale) * 100) / 100
+    startYMeters = Math.round(((start.y - baseY) / scale) * 100) / 100
+    endXMeters = Math.round(((end.x - baseX) / scale) * 100) / 100
+    endYMeters = Math.round(((end.y - baseY) / scale) * 100) / 100
+  } else {
+    // fallback: 픽셀 좌표를 그대로 사용
+    startXMeters = start.x
+    startYMeters = start.y
+    endXMeters = end.x
+    endYMeters = end.y
+  }
+
   // 더 상세한 식별 정보 추가
   const wallId = Date.now() + Math.random() // 고유 ID
   wall.userData = {
-    type: 'general-wall',
+    type: 'wall',
     id: wallId,
-    startX: start.x,
-    startY: start.y,
-    endX: end.x,
-    endY: end.y,
+    startX: startXMeters, // 미터 단위 좌표 저장
+    startY: startYMeters,
+    endX: endXMeters,
+    endY: endYMeters,
     isSaved: false // 새로 생성된 Wall
   }
 
   fabricCanvas.add(wall)
 
-  // Store에 일반 벽 추가
+  // Store에 벽 추가 (미터 단위 좌표 사용)
   const wallData = {
-    start: { x: start.x, y: start.y },
-    end: { x: end.x, y: end.y },
+    start: { x: startXMeters, y: startYMeters },
+    end: { x: endXMeters, y: endYMeters },
     id: wallId
   }
 
-  floorplanStore.addInteriorWall(wallData)
+  floorplanStore.addWall(wallData)
   
 
 
@@ -2330,30 +2344,55 @@ const addGlassWallWithClass = (start: { x: number, y: number }, end: { x: number
     moveCursor: isSelectMode ? 'move' : 'default',
   })
 
+  // base floor 기준으로 미터 단위 좌표 계산
+  const scale = 40 // 1m = 40px
+  const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+    obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+  )
+  
+  let startXMeters, startYMeters, endXMeters, endYMeters
+  
+  if (defaultFloor) {
+    const baseX = defaultFloor.left
+    const baseY = defaultFloor.top
+    
+    // 픽셀 좌표를 미터 단위로 변환
+    startXMeters = Math.round(((start.x - baseX) / scale) * 100) / 100
+    startYMeters = Math.round(((start.y - baseY) / scale) * 100) / 100
+    endXMeters = Math.round(((end.x - baseX) / scale) * 100) / 100
+    endYMeters = Math.round(((end.y - baseY) / scale) * 100) / 100
+  } else {
+    // fallback: 픽셀 좌표를 그대로 사용
+    startXMeters = start.x
+    startYMeters = start.y
+    endXMeters = end.x
+    endYMeters = end.y
+  }
+
   // 더 상세한 식별 정보 추가 (isClass 포함)
   const wallId = Date.now() + Math.random() // 고유 ID
   wall.userData = {
     type: 'glass-wall',
     id: wallId,
-    startX: start.x,
-    startY: start.y,
-    endX: end.x,
-    endY: end.y,
+    startX: startXMeters, // 미터 단위 좌표 저장
+    startY: startYMeters,
+    endX: endXMeters,
+    endY: endYMeters,
     isClass: isClass, // isClass 옵션 추가
     isSaved: false // 새로 생성된 Wall
   }
 
   fabricCanvas.add(wall)
 
-  // Store에 유리 벽 추가 (isClass 포함)
+  // Store에 유리 벽 추가 (미터 단위 좌표 사용)
   const wallData = {
-    start: { x: start.x, y: start.y },
-    end: { x: end.x, y: end.y },
+    start: { x: startXMeters, y: startYMeters },
+    end: { x: endXMeters, y: endYMeters },
     id: wallId,
     isClass: isClass // isClass 옵션 추가
   }
 
-  floorplanStore.addInteriorWall(wallData)
+  floorplanStore.addWall(wallData)
   
 
 
@@ -2677,54 +2716,6 @@ const handleZoneModified = (zoneRect: any) => {
   }
 }
 
-
-
-// 실시간 3D 업데이트 제거로 인해 updateAllWalls 함수 비활성화
-// collect2DData 함수로 대체됨
-// const updateAllWalls = () => {
-//   console.log('🔄 updateAllWalls 함수 시작')
-//   
-//   if (!currentRoom.value) {
-//     console.log('❌ currentRoom.value가 없음')
-//     return
-//   }
-// 
-//   const bounds = currentRoom.value.bounds
-//   if (!bounds) {
-//     console.log('❌ bounds가 없음')
-//     return
-//   }
-// 
-//   // 캔버스 크기 정보
-//   const canvasWidth = fabricCanvas?.width || 800
-//   const canvasHeight = fabricCanvas?.height || 600
-// 
-//   // 외벽 정보
-//   const exteriorWalls = [
-//     { start: { x: bounds.left, y: bounds.top }, end: { x: bounds.right, y: bounds.top } }, // 위
-//     { start: { x: bounds.right, y: bounds.top }, end: { x: bounds.right, y: bounds.bottom } }, // 오른쪽
-//     { start: { x: bounds.right, y: bounds.bottom }, end: { x: bounds.left, y: bounds.bottom } }, // 아래
-//     { start: { x: bounds.left, y: bounds.bottom }, end: { x: bounds.left, y: bounds.top } } // 왼쪽
-//   ]
-// 
-//   const eventData = {
-//     exteriorWalls: exteriorWalls,
-//     interiorWalls: interiorWalls.value,
-//     roomSize: {
-//       width: currentRoom.value.width,
-//       height: currentRoom.value.height,
-//       centerX: (bounds.left + bounds.right) / 2,
-//       centerY: (bounds.top + bounds.bottom) / 2
-//     },
-//     canvasSize: {
-//       width: canvasWidth,
-//       height: canvasHeight
-//     }
-//   }
-// 
-//   // window.dispatchEvent 제거
-// }
-
 // 중복된 updateWallSelectability 함수 제거됨
 
 // 벽 길이 표시 레이블 추가
@@ -3022,8 +3013,7 @@ const moveObjectsOnBox = (boxObject: any) => {
 
       const updatedObject = {
         ...obj,
-        position: { x: worldX, y: worldY },
-        rotation: (boxObject.angle || 0) * (Math.PI / 180) // 상자와 같은 회전각 (라디안)
+        position: { x: worldX, y: worldY }
       }
       floorplanStore.updatePlacedObject(obj.id, updatedObject)
     }
@@ -3360,8 +3350,8 @@ const clearCanvasData = async () => {
     const objectsToRemove = fabricCanvas.getObjects().filter((obj: any) => {
       const type = obj.userData?.type
       return type === 'zone-floor' || 
-             type === 'interior-wall' || 
-             type === 'exterior-wall' ||
+             type === 'wall' || 
+             type === 'glass-wall' ||
              type === 'custom-box' ||
              type === 'placed-object'
     })
@@ -3455,7 +3445,7 @@ const saveFloorPlan = async () => {
 
     // 현재 캔버스에 그려진 Wall들 수집
     const walls = fabricCanvas.getObjects().filter((obj: any) => 
-      obj.userData?.type === 'interior-wall' || obj.userData?.type === 'exterior-wall'
+      obj.userData?.type === 'wall' || obj.userData?.type === 'glass-wall'
     )
 
 
@@ -3490,16 +3480,7 @@ const saveFloorPlan = async () => {
         startY: Math.round(startY * 100) / 100,
         endX: Math.round(endX * 100) / 100,
         endY: Math.round(endY * 100) / 100,
-
-
       }
-    })
-
-
-    
-    // 디버깅: 각 Wall의 상세 정보 출력
-    wallsToSave.forEach((wall: any, index: number) => {
-
     })
 
     // 현재 캔버스에 그려진 Box들 수집
@@ -3532,18 +3513,14 @@ const saveFloorPlan = async () => {
       
       return {
         id: box.userData?.id,
-        name: `Box_${box.userData?.id}`,
         x: Math.round(boxX * 100) / 100, // 소수점 2자리까지
         y: Math.round(boxY * 100) / 100,
         width: box.userData?.width || 1.0,
         depth: box.userData?.depth || 1.0,
         height: box.userData?.height || 1.0,
-        color: box.fill || '#D2B48C',
-        rotation: box.angle || 0
+        color: (box as any).fill || '#D2B48C'
       }
-    }).filter(box => box !== null)
-
-
+    }).filter((box: unknown) => box !== null)
 
     // 백엔드에서 최신 Zone, Wall, Box 데이터 가져오기
     const [zonesResponse, wallsResponse, boxesResponse] = await Promise.all([
@@ -3636,9 +3613,6 @@ const loadSavedWalls = async () => {
       floorplanStore.setLoadingWalls(false)
       return
     }
-
-    // Store에 Wall 데이터 저장
-    floorplanStore.setWalls(savedWalls)
 
     // 각 Wall을 캔버스에 그리기
     savedWalls.forEach((wallData: any) => {
@@ -3761,21 +3735,9 @@ const loadBoxes = async () => {
     floorplanStore.setBoxes(savedBoxes)
 
     // 각 Box를 캔버스에 그리기 (유효한 데이터만 처리)
-    console.log(`📦 DB에서 불러온 Box 데이터:`, savedBoxes)
-    
     savedBoxes.forEach((boxData: any) => {
       // Box 데이터 유효성 체크
       if (boxData && typeof boxData === 'object') {
-        console.log(`📦 Box 데이터 처리 중:`, {
-          id: boxData.id,
-          name: boxData.name,
-          x: boxData.x,
-          y: boxData.y,
-          width: boxData.width,
-          height: boxData.height,
-          depth: boxData.depth,
-          color: boxData.color
-        })
         createBoxFromSavedData(boxData)
       } else {
         console.warn('⚠️ Invalid Box data:', boxData)
@@ -3783,12 +3745,6 @@ const loadBoxes = async () => {
     })
 
     console.log(`✅ Box 정보 불러오기 완료: ${savedBoxes.length}개`)
-    console.log(`📋 현재 placedObjects 상태:`, floorplanStore.placedObjects.map(obj => ({
-      id: obj.id,
-      name: obj.name,
-      category: obj.category,
-      isBox: obj.isBox
-    })))
     floorplanStore.setLoadingBoxes(false)
     
   } catch (error: any) {
@@ -3821,14 +3777,12 @@ const createBoxFromSavedData = (boxData: any) => {
   // Box 데이터 유효성 체크 및 안전한 기본값 설정
   const safeBoxData = {
     id: boxData.id || 'unknown',
-    name: boxData.name || 'Unknown Box',
     x: boxData.x || 0,
     y: boxData.y || 0,
     width: boxData.width || 1.0,
     depth: boxData.depth || 1.0,
     height: boxData.height || 1.0,
-    color: boxData.color || '#D2B48C',
-    rotation: boxData.rotation || 0
+    color: boxData.color || '#D2B48C'
   }
 
   const scale = 40 // 1m = 40px
@@ -3893,7 +3847,7 @@ const createBoxFromSavedData = (boxData: any) => {
   if (!existingObject) {
     const placedObjectData = {
       id: safeBoxData.id,
-      name: safeBoxData.name,
+      name: `Box_${safeBoxData.id}`,
       category: 'etc',
       width: safeBoxData.width,
       depth: safeBoxData.depth,
@@ -3905,8 +3859,8 @@ const createBoxFromSavedData = (boxData: any) => {
         right: boxX + boxWidth,
         bottom: boxY + boxHeight
       },
-      rotation: safeBoxData.rotation || 0,
       color: safeBoxData.color,
+      rotation: 0,
       isOnBox: false,
       boxId: undefined,
       isBox: true,
@@ -3915,9 +3869,6 @@ const createBoxFromSavedData = (boxData: any) => {
     }
     
     floorplanStore.addPlacedObject(placedObjectData)
-    console.log(`📦 Box placedObjects 추가:`, placedObjectData)
-  } else {
-    console.log(`📦 Box 이미 존재함 (중복 추가 방지):`, safeBoxData.id)
   }
 
   console.log(`📦 Box 재생성: ID ${safeBoxData.id}, 위치(${safeBoxData.x}, ${safeBoxData.y})`)
@@ -3960,39 +3911,28 @@ const createWallFromSavedData = (wallData: any) => {
   })
 
   wall.userData = { 
-    type: 'interior-wall', // 기본값으로 interior-wall 사용
+    type: 'wall', // 통합된 wall 타입 사용
     id: wallData.id, // 백엔드의 실제 ID 사용
     isSaved: true,
-    startX: Math.round(wallData.startX * 100) / 100, // 1cm 정밀도로 반올림
-    startY: Math.round(wallData.startY * 100) / 100,
-    endX: Math.round(wallData.endX * 100) / 100,
-    endY: Math.round(wallData.endY * 100) / 100
+    startX: wallData.startX, // 미터 단위 좌표 저장 (base floor 기준)
+    startY: wallData.startY,
+    endX: wallData.endX,
+    endY: wallData.endY
   }
+
+  console.log('wall', wall)
 
   fabricCanvas.add(wall)
 
   // Wall 길이 라벨 추가
   addWallLengthLabel(wall, { x: startX, y: startY }, { x: endX, y: endY })
 
-  // Store에 Wall 정보 추가 (기본적으로 interior wall로 처리)
-  floorplanStore.addInteriorWall({
+  // Store에 Wall 정보 추가 (통합된 함수 사용)
+  floorplanStore.addWall({
     start: { x: startX, y: startY },
     end: { x: endX, y: endY },
     id: wallData.id
   })
-
-  // walls 배열에도 추가
-  if (wallData.id) {
-    floorplanStore.addWall({
-      id: wallData.id,
-      startX: Math.round(wallData.startX * 100) / 100, // 1cm 정밀도로 반올림
-      startY: Math.round(wallData.startY * 100) / 100,
-      endX: Math.round(wallData.endX * 100) / 100,
-      endY: Math.round(wallData.endY * 100) / 100,
-
-
-    })
-  }
 
   fabricCanvas.renderAll()
 }
@@ -4162,10 +4102,8 @@ const getObjectDisplayName = (obj: any): string => {
       return obj.userData.objectName || 'Object'
     case 'zone-floor':
       return 'Zone Floor'
-    case 'interior-wall':
-      return 'Interior Wall'
-    case 'exterior-wall':
-      return 'Exterior Wall'
+    case 'wall':
+      return 'Wall'
     default:
       return type || 'Unknown'
   }
@@ -4242,8 +4180,8 @@ const deleteSingleObject = (objectToDelete: any) => {
       rerender2DObjectsFromStore()
     }
 
-  } else if (objectType === 'glass-wall' || objectType === 'general-wall') {
-    // 벽 삭제 (기존 로직)
+  } else if (objectType === 'glass-wall' || objectType === 'wall') {
+    // 벽 삭제 (통합된 로직)
     const associatedLabel = fabricCanvas.getObjects().find((obj: any) =>
       obj.userData?.type === 'wall-length-label' && obj.userData?.wallId === objectId
     )
@@ -4256,22 +4194,16 @@ const deleteSingleObject = (objectToDelete: any) => {
 
     const allObjects = fabricCanvas.getObjects()
     const wallsToRemove = allObjects.filter((obj: any) =>
-      obj.userData?.id === objectId && (obj.userData?.type === 'glass-wall' || obj.userData?.type === 'general-wall')
+      obj.userData?.id === objectId && (obj.userData?.type === 'glass-wall' || obj.userData?.type === 'wall')
     )
 
     wallsToRemove.forEach((wall: any) => {
       fabricCanvas.remove(wall)
     })
 
-    // Store에서 벽 제거
-    if (objectType === 'glass-wall') {
-      if (objectId) {
-        floorplanStore.removeInteriorWall(objectId)
-      }
-    } else if (objectType === 'general-wall') {
-      if (objectId) {
-        floorplanStore.removeExteriorWall(objectId)
-      }
+    // Store에서 벽 제거 (통합된 함수 사용)
+    if (objectId) {
+      floorplanStore.removeWall(objectId)
     }
 
   } else if (objectType === 'zone-floor') {
@@ -4323,7 +4255,7 @@ const deleteSingleObject = (objectToDelete: any) => {
       }
       
       console.log(`🔍 Store에서 Box 검색: ID ${boxIdString}`)
-      console.log(`📦 현재 Store의 placedObjects:`, floorplanStore.placedObjects.map(obj => ({ id: obj.id, name: obj.name, isBox: obj.isBox })))
+      console.log(`📦 현재 Store의 placedObjects:`, floorplanStore.placedObjects.map(obj => ({ id: obj.id, isBox: obj.isBox })))
       
       const placedObject = floorplanStore.placedObjects.find(obj => obj.id === boxIdString)
       if (placedObject) {
@@ -4333,7 +4265,7 @@ const deleteSingleObject = (objectToDelete: any) => {
         console.warn(`⚠️ Store에서 Box를 찾을 수 없음: ID ${boxIdString}`)
         // Store에서 찾을 수 없는 경우, isBox가 true인 객체들을 확인
         const boxObjects = floorplanStore.placedObjects.filter(obj => obj.isBox)
-        console.log(`📦 Store의 Box 객체들:`, boxObjects.map(obj => ({ id: obj.id, name: obj.name })))
+        console.log(`📦 Store의 Box 객체들:`, boxObjects.map(obj => ({ id: obj.id })))
       }
       
       // Box 사각형 제거
@@ -4538,8 +4470,7 @@ const getObjectSize = (obj: any) => {
       const depth = obj.userData?.depth || 1.0
       return `${width.toFixed(1)}m × ${height.toFixed(1)}m × ${depth.toFixed(1)}m`
     
-    case 'interior-wall':
-    case 'exterior-wall':
+    case 'wall':
       const startX = obj.userData?.startX || 0
       const startY = obj.userData?.startY || 0
       const endX = obj.userData?.endX || 0
@@ -4572,8 +4503,7 @@ const getCategoryDisplayName = (category: string) => {
     'appliances': '가전',
     'etc': '기타',
     'av': 'AV 장비',
-    'interior-wall': '내부 벽',
-    'exterior-wall': '외부 벽',
+    'wall': '벽',
     'zone-floor': 'Zone 바닥',
     'room-floor': 'Room 바닥',
     'base-floor': '기본 바닥'
@@ -4614,8 +4544,7 @@ const updateBoxInStore = (box: any) => {
         top: box.top,
         right: box.left + (box.width * box.scaleX),
         bottom: box.top + (box.height * box.scaleY)
-      },
-      rotation: (box.angle || 0) * (Math.PI / 180) // Fabric.js 각도를 라디안으로 변환
+      }
     }
     floorplanStore.updatePlacedObject(boxId, updatedBox)
   }
@@ -4626,8 +4555,7 @@ const updateBoxInStore = (box: any) => {
     const updatedBoxData = {
       ...existingBoxData,
       x: worldX, // 미터 단위로 변환된 값 저장
-      y: worldY,
-      rotation: (box.angle || 0) * (Math.PI / 180) // Fabric.js 각도를 라디안으로 변환
+      y: worldY
     }
     floorplanStore.updateBox(boxId, updatedBoxData)
 
