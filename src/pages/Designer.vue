@@ -26,7 +26,11 @@
       <div v-show="activeTab === '2d'" class="tab-panel tab-2d">
         <div class="layout-2d">
           <section class="editor-2d">
-            <FloorPlanEditor2D />
+            <FloorPlanEditor2D 
+              @wall-created="handleWallCreated"
+              @wall-updated="handleWallUpdated"
+              @wall-deleted="handleWallDeleted"
+            />
           </section>
           <aside class="object-library">
             <ObjectLibrary />
@@ -98,14 +102,62 @@ const handle3DViewerMounted = async () => {
       // 3D 뷰어가 완전히 마운트될 때까지 추가 대기
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // make3D 함수가 존재하면 자동 실행
-      if (typeof viewer3dRef.value.make3D === 'function') {
-  
+      // 3D 뷰어 참조가 여전히 유효한지 확인
+      if (viewer3dRef.value && typeof viewer3dRef.value.make3D === 'function') {
+        console.log('3D 뷰어 마운트 완료, Make3D 실행')
         await viewer3dRef.value.make3D()
+      } else {
+        console.warn('⚠️ 3D 뷰어 참조가 유효하지 않거나 make3D 함수를 찾을 수 없습니다')
       }
     } catch (error) {
       console.error('❌ 3D 뷰어 마운트 후 자동 Make3D 오류:', error)
     }
+  }
+}
+
+// 2D 에디터에서 벽 관련 이벤트 처리
+const handleWallCreated = async () => {
+  console.log('벽 생성 이벤트 수신, 3D 업데이트 시도')
+  // 3D 뷰어가 마운트된 경우에만 실행 (탭 상태와 관계없이)
+  if (viewer3dRef.value && typeof viewer3dRef.value.make3D === 'function') {
+    try {
+      await viewer3dRef.value.make3D()
+      console.log('3D 벽 업데이트 완료')
+    } catch (error) {
+      console.error('3D 벽 업데이트 오류:', error)
+    }
+  } else {
+    console.log('3D 뷰어가 마운트되지 않음')
+  }
+}
+
+const handleWallUpdated = async () => {
+  console.log('벽 업데이트 이벤트 수신, 3D 업데이트 시도')
+  // 3D 뷰어가 마운트된 경우에만 실행 (탭 상태와 관계없이)
+  if (viewer3dRef.value && typeof viewer3dRef.value.make3D === 'function') {
+    try {
+      await viewer3dRef.value.make3D()
+      console.log('3D 벽 업데이트 완료')
+    } catch (error) {
+      console.error('3D 벽 업데이트 오류:', error)
+    }
+  } else {
+    console.log('3D 뷰어가 마운트되지 않음')
+  }
+}
+
+const handleWallDeleted = async () => {
+  console.log('벽 삭제 이벤트 수신, 3D 업데이트 시도')
+  // 3D 뷰어가 마운트된 경우에만 실행 (탭 상태와 관계없이)
+  if (viewer3dRef.value && typeof viewer3dRef.value.make3D === 'function') {
+    try {
+      await viewer3dRef.value.make3D()
+      console.log('3D 벽 업데이트 완료')
+    } catch (error) {
+      console.error('3D 벽 업데이트 오류:', error)
+    }
+  } else {
+    console.log('3D 뷰어가 마운트되지 않음')
   }
 }
 </script>

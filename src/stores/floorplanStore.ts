@@ -12,6 +12,7 @@ interface Wall {
   start: Point
   end: Point
   id: string | number
+  isGlass?: boolean // 유리벽 여부
 }
 
 interface Room {
@@ -88,6 +89,7 @@ interface WallData {
   endX: number
   endY: number
   type?: string // wall 또는 glass-wall
+  isGlass?: boolean // 유리벽 여부
 }
 
 // Wall 변경사항 타입 정의
@@ -179,9 +181,11 @@ export const useFloorplanStore = defineStore('floorplan', () => {
       startY: wall.start.y,
       endX: wall.end.x,
       endY: wall.end.y,
-      type: 'wall'
+      type: wall.isGlass ? 'glass-wall' : 'wall',
+      isGlass: wall.isGlass || false
     }
     walls.value.push(wallData)
+    console.log('Store에 벽 추가됨:', wallData) // 디버깅용 로그
   }
   
   const updateWall = (wallId: string | number, updatedWall: Wall) => {
@@ -192,7 +196,9 @@ export const useFloorplanStore = defineStore('floorplan', () => {
         startX: updatedWall.start.x,
         startY: updatedWall.start.y,
         endX: updatedWall.end.x,
-        endY: updatedWall.end.y
+        endY: updatedWall.end.y,
+        type: updatedWall.isGlass ? 'glass-wall' : 'wall',
+        isGlass: updatedWall.isGlass || false
       }
     }
   }

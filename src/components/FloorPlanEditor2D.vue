@@ -422,7 +422,7 @@
     <div v-if="showWallCreatorPopup" class="wall-creator-overlay">
       <div class="wall-creator-dialog" @click.stop>
         <div class="dialog-header">
-          <h3>🧱 Wall 생성</h3>
+          <h3>🧱 Create Wall</h3>
           <button @click="closeWallCreatorPopup" class="close-btn">×</button>
         </div>
         
@@ -431,32 +431,32 @@
             <div class="input-row">
               <div class="input-group">
                 <label>Start Point X (m):</label>
-                <input v-model.number="popupWallStartX" type="number" min="0" max="100" step="0.01" placeholder="X 시작점" />
+                <input v-model.number="popupWallStartX" type="number" min="0" max="100" step="0.01" placeholder="Start X" />
               </div>
               <div class="input-group">
                 <label>Start Point Y (m):</label>
-                <input v-model.number="popupWallStartY" type="number" min="0" max="70" step="0.01" placeholder="Y 시작점" />
+                <input v-model.number="popupWallStartY" type="number" min="0" max="70" step="0.01" placeholder="Start Y" />
               </div>
             </div>
             <div class="input-row">
               <div class="input-group">
                 <label>End Point X (m):</label>
-                <input v-model.number="popupWallEndX" type="number" min="0" max="100" step="0.01" placeholder="X 끝점" />
+                <input v-model.number="popupWallEndX" type="number" min="0" max="100" step="0.01" placeholder="End X" />
               </div>
               <div class="input-group">
                 <label>End Point Y (m):</label>
-                <input v-model.number="popupWallEndY" type="number" min="0" max="70" step="0.01" placeholder="Y 끝점" />
+                <input v-model.number="popupWallEndY" type="number" min="0" max="70" step="0.01" placeholder="End Y" />
               </div>
             </div>
             <div class="checkbox-section">
               <div class="checkbox-group">
                 <input 
-                  v-model="popupWallIsClass" 
+                  v-model="popupWallIsGlass" 
                   type="checkbox" 
-                  id="wallIsClass" 
+                  id="wallIsGlass" 
                   class="wall-checkbox"
                 />
-                <label for="wallIsClass">isClass</label>
+                <label for="wallIsGlass">Glass Wall</label>
                 <small class="checkbox-description">(Default: False)</small>
               </div>
             </div>
@@ -464,8 +464,8 @@
         </div>
 
         <div class="dialog-footer">
-          <button @click="closeWallCreatorPopup" class="btn btn-secondary">취소</button>
-          <button @click="createWallFromPopup" class="btn btn-primary" :disabled="!isValidPopupWallCoordinates">확인</button>
+          <button @click="closeWallCreatorPopup" class="btn btn-secondary">Cancel</button>
+          <button @click="createWallFromPopup" class="btn btn-primary" :disabled="!isValidPopupWallCoordinates">Create</button>
         </div>
       </div>
     </div>
@@ -531,6 +531,13 @@ import { useFloorplanStore } from '../stores/floorplanStore'
 import axios from 'axios'
 import AdvancedColorPicker from './AdvancedColorPicker.vue'
 
+// 이벤트 emit 정의
+const emit = defineEmits<{
+  wallCreated: []
+  wallUpdated: []
+  wallDeleted: []
+}>()
+
 // Fabric.js v5 호환성을 위한 처리
 const fabric = (fabricLib as any).fabric || fabricLib
 
@@ -593,7 +600,7 @@ const popupWallStartX = ref(0)  // 팝업 Wall 시작점 X (m)
 const popupWallStartY = ref(0)  // 팝업 Wall 시작점 Y (m)
 const popupWallEndX = ref(10)   // 팝업 Wall 끝점 X (m)
 const popupWallEndY = ref(0)    // 팝업 Wall 끝점 Y (m)
-const popupWallIsClass = ref(false) // 팝업 Wall isClass 옵션
+const popupWallIsGlass = ref(false) // 팝업 Wall isGlass 옵션
 
 // Box Creator 팝업 관련 상태
 const showBoxCreatorPopup = ref(false)
@@ -830,7 +837,7 @@ const openWallCreatorPopup = () => {
   popupWallStartY.value = 0
   popupWallEndX.value = 10
   popupWallEndY.value = 0
-  popupWallIsClass.value = false
+  popupWallIsGlass.value = false
 }
 
 const closeWallCreatorPopup = () => {
@@ -1202,8 +1209,15 @@ const updateWallSelectability = () => {
     if (obj.userData?.type === 'glass-wall' || obj.userData?.type === 'wall') {
       obj.selectable = isSelectMode
       obj.evented = isSelectMode
-      obj.opacity = isSelectMode ? 1.0 : 0.7
-              obj.stroke = isSelectMode ? '#8B7355' : '#D2B48C'
+      
+      // 벽 타입에 따라 색상 설정
+      if (obj.userData?.type === 'glass-wall') {
+        // 유리벽: 파란색
+        obj.stroke = '#4682B4'
+      } else {
+        // 일반벽: 갈색
+        obj.stroke = '#8B4513'
+      }
     }
   })
   
@@ -1822,7 +1836,7 @@ const updateWallInList = (modifiedWall: any) => {
   let startPoint, endPoint
 
   // 벽 타입에 따라 좌표 계산 방법 분기 (유리벽과 일반벽 모두 Line 객체로 통일)
-  if (wallType === 'glass-wall' || wallType === 'general-wall') {
+  if (wallType === 'glass-wall' || wallType === 'wall') {
     // 유리벽과 일반벽 모두 Line 객체로 동일하게 처리
     const linePoints = modifiedWall.calcLinePoints()
     const matrix = modifiedWall.calcTransformMatrix()
@@ -1852,11 +1866,15 @@ const updateWallInList = (modifiedWall: any) => {
   const updatedWall = {
     start: { x: startPoint.x, y: startPoint.y },
     end: { x: endPoint.x, y: endPoint.y },
-    id: wallId
+    id: wallId,
+    isGlass: modifiedWall.userData?.type === 'glass-wall'
   }
 
   // Store에서 벽 정보 업데이트 (통합된 함수 사용)
   floorplanStore.updateWall(wallId, updatedWall)
+
+  // 벽 업데이트 이벤트 emit
+  emit('wallUpdated')
 
   updateWallLengthLabel(modifiedWall)
 }
@@ -2124,8 +2142,8 @@ const createWallFromCoordinatesWithClass = () => {
   const endX = baseX + (endXValue * scale)
   const endY = baseY + (endYValue * scale)
   
-  // 벽 그리기 (isClass 옵션 포함)
-  addGlassWallWithClass({ x: startX, y: startY }, { x: endX, y: endY }, popupWallIsClass.value)
+  // 벽 그리기 (isGlass 옵션 포함)
+  addWall({ x: startX, y: startY }, { x: endX, y: endY }, popupWallIsGlass.value)
   
   // 벽 그리기 완료 후 자동으로 Select 모드로 전환
   setTool('select')
@@ -2253,19 +2271,22 @@ const createBoxFromCoordinates = () => {
 
 
 // Store를 사용한 일반 벽 추가
-const addWall = (start: { x: number, y: number }, end: { x: number, y: number }) => {
+const addWall = (start: { x: number, y: number }, end: { x: number, y: number }, isGlass: boolean = false) => {
   if (!fabricCanvas) return
 
   // 현재 툴에 따라 선택 가능 여부 및 시각적 스타일 결정
   const isSelectMode = currentTool.value === 'select'
 
+  // isGlass에 따라 색상 설정
+  const wallColor = isGlass ? '#4682B4' : '#8B4513' // glass-wall: 파란색, wall: 갈색
+  const wallType = isGlass ? 'glass-wall' : 'wall'
+
   const wall = new fabric.Line([start.x, start.y, end.x, end.y], {
-    stroke: isSelectMode ? '#654321' : '#8B4513', // Select 모드: 진한 갈색, Draw 모드: 중간 갈색
+    stroke: wallColor,
     strokeWidth: 5, // 두께 증가
     strokeLineCap: 'round',
     selectable: isSelectMode,
     evented: isSelectMode,
-    opacity: 1.0, // 항상 불투명하게
     hoverCursor: isSelectMode ? 'move' : 'default',
     moveCursor: isSelectMode ? 'move' : 'default',
   })
@@ -2298,7 +2319,7 @@ const addWall = (start: { x: number, y: number }, end: { x: number, y: number })
   // 더 상세한 식별 정보 추가
   const wallId = Date.now() + Math.random() // 고유 ID
   wall.userData = {
-    type: 'wall',
+    type: wallType,
     id: wallId,
     startX: startXMeters, // 미터 단위 좌표 저장
     startY: startYMeters,
@@ -2309,16 +2330,18 @@ const addWall = (start: { x: number, y: number }, end: { x: number, y: number })
 
   fabricCanvas.add(wall)
 
-  // Store에 벽 추가 (미터 단위 좌표 사용)
+  // Store에 벽 추가 (픽셀 단위 좌표 사용 - 3D 뷰어에서 미터 단위로 변환)
   const wallData = {
-    start: { x: startXMeters, y: startYMeters },
-    end: { x: endXMeters, y: endYMeters },
-    id: wallId
+    start: { x: start.x, y: start.y },
+    end: { x: end.x, y: end.y },
+    id: wallId,
+    isGlass: isGlass
   }
 
   floorplanStore.addWall(wallData)
   
-
+  // 벽 생성 이벤트 emit
+  emit('wallCreated')
 
   addWallLengthLabel(wall, start, end)
 
@@ -2326,81 +2349,7 @@ const addWall = (start: { x: number, y: number }, end: { x: number, y: number })
   updateWallSelectability()
 }
 
-// Store를 사용한 유리 벽 추가 (isClass 옵션 포함)
-const addGlassWallWithClass = (start: { x: number, y: number }, end: { x: number, y: number }, isClass: boolean) => {
-  if (!fabricCanvas) return
 
-  // 현재 툴에 따라 선택 가능 여부 및 시각적 스타일 결정
-  const isSelectMode = currentTool.value === 'select'
-
-  const wall = new fabric.Line([start.x, start.y, end.x, end.y], {
-    stroke: isSelectMode ? '#87CEEB' : '#4682B4', // Select 모드: 밝은 파란색, Draw 모드: 어두운 파란색
-    strokeWidth: 5, // 두께 증가
-    strokeLineCap: 'round',
-    selectable: isSelectMode,
-    evented: isSelectMode,
-    opacity: 0.8, // 유리벽은 약간 투명하게
-    hoverCursor: isSelectMode ? 'move' : 'default',
-    moveCursor: isSelectMode ? 'move' : 'default',
-  })
-
-  // base floor 기준으로 미터 단위 좌표 계산
-  const scale = 40 // 1m = 40px
-  const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
-    obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
-  )
-  
-  let startXMeters, startYMeters, endXMeters, endYMeters
-  
-  if (defaultFloor) {
-    const baseX = defaultFloor.left
-    const baseY = defaultFloor.top
-    
-    // 픽셀 좌표를 미터 단위로 변환
-    startXMeters = Math.round(((start.x - baseX) / scale) * 100) / 100
-    startYMeters = Math.round(((start.y - baseY) / scale) * 100) / 100
-    endXMeters = Math.round(((end.x - baseX) / scale) * 100) / 100
-    endYMeters = Math.round(((end.y - baseY) / scale) * 100) / 100
-  } else {
-    // fallback: 픽셀 좌표를 그대로 사용
-    startXMeters = start.x
-    startYMeters = start.y
-    endXMeters = end.x
-    endYMeters = end.y
-  }
-
-  // 더 상세한 식별 정보 추가 (isClass 포함)
-  const wallId = Date.now() + Math.random() // 고유 ID
-  wall.userData = {
-    type: 'glass-wall',
-    id: wallId,
-    startX: startXMeters, // 미터 단위 좌표 저장
-    startY: startYMeters,
-    endX: endXMeters,
-    endY: endYMeters,
-    isClass: isClass, // isClass 옵션 추가
-    isSaved: false // 새로 생성된 Wall
-  }
-
-  fabricCanvas.add(wall)
-
-  // Store에 유리 벽 추가 (미터 단위 좌표 사용)
-  const wallData = {
-    start: { x: startXMeters, y: startYMeters },
-    end: { x: endXMeters, y: endYMeters },
-    id: wallId,
-    isClass: isClass // isClass 옵션 추가
-  }
-
-  floorplanStore.addWall(wallData)
-  
-
-
-  addWallLengthLabel(wall, start, end)
-
-  // 새로 생성된 벽의 선택 가능 여부를 현재 툴에 맞게 설정
-  updateWallSelectability()
-}
 
 
 
@@ -2827,7 +2776,7 @@ const updateWallLengthLabel = (wall: any) => {
   // 새로운 좌표로 레이블 재생성
   let start, end
 
-  if (wall.userData?.type === 'glass-wall' || wall.userData?.type === 'general-wall') {
+  if (wall.userData?.type === 'glass-wall' || wall.userData?.type === 'wall') {
     // 유리벽과 일반벽 모두 Line 객체로 동일하게 처리
     const linePoints = wall.calcLinePoints()
     const matrix = wall.calcTransformMatrix()
@@ -3480,6 +3429,8 @@ const saveFloorPlan = async () => {
         startY: Math.round(startY * 100) / 100,
         endX: Math.round(endX * 100) / 100,
         endY: Math.round(endY * 100) / 100,
+        type: wall.userData?.type || 'wall',
+        isGlass: wall.userData?.type === 'glass-wall'
       }
     })
 
@@ -3898,20 +3849,22 @@ const createWallFromSavedData = (wallData: any) => {
   const endX = baseX + (wallData.endX * scale)
   const endY = baseY + (wallData.endY * scale)
 
-  // Wall 생성
+  // Wall 생성 - 타입에 따라 색상 설정
+  const isGlassWall = wallData.isGlass || wallData.type === 'glass-wall'
+  const wallColor = isGlassWall ? '#4682B4' : '#8B4513' // glass-wall: 파란색, wall: 갈색
+  
   const wall = new fabric.Line([startX, startY, endX, endY], {
-    stroke: '#8B4513', // 진한 갈색으로 변경
+    stroke: wallColor,
     strokeWidth: 5, // 두께 증가
     strokeLineCap: 'round',
     selectable: true,
     evented: true,
-    opacity: 1.0,
     hoverCursor: 'move',
     moveCursor: 'move',
   })
 
   wall.userData = { 
-    type: 'wall', // 통합된 wall 타입 사용
+    type: isGlassWall ? 'glass-wall' : 'wall', // 타입에 따라 설정
     id: wallData.id, // 백엔드의 실제 ID 사용
     isSaved: true,
     startX: wallData.startX, // 미터 단위 좌표 저장 (base floor 기준)
@@ -3931,7 +3884,8 @@ const createWallFromSavedData = (wallData: any) => {
   floorplanStore.addWall({
     start: { x: startX, y: startY },
     end: { x: endX, y: endY },
-    id: wallData.id
+    id: wallData.id,
+    isGlass: wallData.isGlass || false
   })
 
   fabricCanvas.renderAll()
@@ -4131,7 +4085,7 @@ const getObjectTypeDisplayName = (type: string): string => {
       return 'Zone Floor'
     case 'glass-wall':
       return 'Glass Wall'
-    case 'general-wall':
+    case 'wall':
       return 'General Wall'
     case 'custom-box':
       return 'Box'
@@ -4204,6 +4158,8 @@ const deleteSingleObject = (objectToDelete: any) => {
     // Store에서 벽 제거 (통합된 함수 사용)
     if (objectId) {
       floorplanStore.removeWall(objectId)
+      // 벽 삭제 이벤트 emit
+      emit('wallDeleted')
     }
 
   } else if (objectType === 'zone-floor') {

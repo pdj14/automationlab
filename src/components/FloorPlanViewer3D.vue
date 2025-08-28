@@ -41,17 +41,6 @@
              @input="updateWallHeight"
            />
          </label>
-                   <label v-if="wallTransparencyEnabled">
-            Opacity: {{ wallOpacity }}%
-            <input 
-              type="range" 
-              v-model="wallOpacity" 
-              min="10" 
-              max="100" 
-              step="5"
-              @input="updateWallOpacity"
-            />
-          </label>
        </div>
     </div>
 
@@ -111,7 +100,6 @@ let projScreenMatrix: THREE.Matrix4
 
 const loading = ref(false)
 const wallHeight = ref(2.5)
-const wallOpacity = ref(50) // 벽 투명도 (10-100%) - 기본값 50%
 const wallTransparencyEnabled = ref(true) // 벽 투명도 활성화 여부 - 기본값 true
 const objects = ref<THREE.Object3D[]>([])
 const polygonCount = ref(0)
@@ -473,12 +461,16 @@ const create3DFloorFromRoom = (data: any) => {
 
 // 2D 평면도에서 3D 벽 생성
 const create3DWalls = (wallsData: any) => {
+  console.log('create3DWalls 호출됨:', wallsData)
+  
   const existingWalls: any[] = []
   scene.traverse((child) => {
     if (child.userData.type === 'wall' || child.userData.type === 'glass-wall') {
       existingWalls.push(child)
     }
   })
+  
+  console.log('기존 3D 벽 개수:', existingWalls.length)
   
   existingWalls.forEach(wall => {
     scene.remove(wall)
@@ -488,27 +480,37 @@ const create3DWalls = (wallsData: any) => {
 
   // 새로운 통합 벽 데이터 구조 사용
   if (!wallsData.walls || wallsData.walls.length === 0) {
+    console.log('벽 데이터가 없어서 3D 벽 생성 건너뜀')
     return
   }
 
+  console.log('3D 벽 생성 시작, 벽 개수:', wallsData.walls.length)
   const canvasWidth = wallsData.canvasSize?.width || 800
   const canvasHeight = wallsData.canvasSize?.height || 600
 
   // 통합된 walls 배열에서 벽 생성
-  wallsData.walls.forEach((wall: any) => {
-    const wallType = wall.type || 'wall' // 기본값은 'wall'
-    const color = wallType === 'glass-wall' ? 0x87CEEB : 0xD2B48C // 유리벽은 하늘색, 일반벽은 베이지색
-    createWall(wall, wallType, color, canvasWidth, canvasHeight)
+  wallsData.walls.forEach((wall: any, index: number) => {
+    console.log(`벽 ${index + 1} 생성:`, wall)
+    const isGlass = wall.isGlass || wall.type === 'glass-wall'
+    const wallType = isGlass ? 'glass-wall' : 'wall'
+    const color = isGlass ? 0x4682B4 : 0x8B4513 // glass-wall: 파란색, wall: 갈색
+    createWall(wall, wallType, color, canvasWidth, canvasHeight, isGlass)
   })
+  
+  console.log('3D 벽 생성 완료')
 }
 
 // 개별 벽 생성 함수
-const createWall = (wall: any, wallType: string, color: number, canvasWidth: number, canvasHeight: number) => {
+const createWall = (wall: any, wallType: string, color: number, canvasWidth: number, canvasHeight: number, isGlass: boolean = false) => {
+  console.log('createWall 호출됨:', { wall, wallType, color, isGlass })
+  
   // 새로운 벽 데이터 구조에 맞게 좌표 추출
-  const startX = wall.startX || wall.start?.x
-  const startY = wall.startY || wall.start?.y
-  const endX = wall.endX || wall.end?.x
-  const endY = wall.endY || wall.end?.y
+  const startX = wall.startX !== undefined ? wall.startX : wall.start?.x
+  const startY = wall.startY !== undefined ? wall.startY : wall.start?.y
+  const endX = wall.endX !== undefined ? wall.endX : wall.end?.x
+  const endY = wall.endY !== undefined ? wall.endY : wall.end?.y
+  
+  console.log('추출된 좌표:', { startX, startY, endX, endY })
   
   if (startX === undefined || startY === undefined || endX === undefined || endY === undefined) {
     console.warn('벽 데이터에 좌표 정보가 없습니다:', wall)
@@ -521,10 +523,10 @@ const createWall = (wall: any, wallType: string, color: number, canvasWidth: num
   const angle = Math.atan2(startY - endY, endX - startX)
   
   const wallGeometry = new THREE.BoxGeometry(length / 40, wallHeight.value, 0.1)
-  const opacity = wallTransparencyEnabled.value ? wallOpacity.value / 100 : 1.0
+  const opacity = isGlass ? 0.3 : 0.7 // glass-wall: 30%, wall: 70%
   const wallMaterial = new THREE.MeshLambertMaterial({ 
     color: color,
-    transparent: wallTransparencyEnabled.value && opacity < 1,
+    transparent: true,
     opacity: opacity
   })
   
@@ -863,19 +865,6 @@ const updateWallHeight = () => {
   })
 }
 
-const updateWallOpacity = () => {
-  scene.traverse((object) => {
-    if ((object.userData.type === 'wall' || object.userData.type === 'glass-wall') && object instanceof THREE.Mesh) {
-      if (object.material instanceof THREE.MeshLambertMaterial) {
-        const opacity = wallOpacity.value / 100
-        object.material.transparent = opacity < 1
-        object.material.opacity = opacity
-        object.material.needsUpdate = true
-      }
-    }
-  })
-}
-
 const toggleWallTransparency = () => {
   wallTransparencyEnabled.value = !wallTransparencyEnabled.value
   
@@ -884,7 +873,7 @@ const toggleWallTransparency = () => {
       if (object.material instanceof THREE.MeshLambertMaterial) {
         if (wallTransparencyEnabled.value) {
           // 투명도 활성화: 설정된 투명도 적용
-          const opacity = wallOpacity.value / 100
+          const opacity = object.userData.type === 'glass-wall' ? 0.3 : 0.7
           object.material.transparent = opacity < 1
           object.material.opacity = opacity
         } else {
@@ -2122,10 +2111,10 @@ const make3D = async () => {
   
   try {
     const data = floorplanStore.floorplanData
+    console.log('Make3D 실행 - Store 데이터:', data)
 
-
-    if (!data || !data.roomSize) {
-
+    if (!data) {
+      console.log('Store 데이터가 없음')
       return
     }
 
@@ -2136,7 +2125,10 @@ const make3D = async () => {
 
     // 벽이 있을 때만 3D 벽 생성
     if (data.walls && data.walls.length > 0) {
+      console.log('벽 데이터 발견, 3D 벽 생성:', data.walls)
       create3DWalls(data)
+    } else {
+      console.log('벽 데이터가 없음')
     }
 
 
@@ -2393,6 +2385,44 @@ defineExpose({
 const emit = defineEmits<{
   mounted: []
 }>()
+
+// Store의 walls 데이터 변화 감지하여 3D 벽 자동 업데이트
+watch(() => floorplanStore.walls, (newWalls, oldWalls) => {
+  // scene이 초기화되지 않았으면 실행하지 않음
+  if (!scene) {
+    console.log('Scene이 초기화되지 않음, 3D 벽 업데이트 건너뜀')
+    return
+  }
+  
+  // walls 배열이 변경되었을 때 실행 (길이 또는 내용 변화)
+  if (newWalls && (newWalls.length !== (oldWalls?.length || 0) || 
+      JSON.stringify(newWalls) !== JSON.stringify(oldWalls))) {
+    console.log('Store walls 변경 감지, 3D 벽 업데이트:', newWalls)
+    
+    // 기존 3D 벽들 제거
+    const existingWalls = scene.children.filter(child => 
+      child.userData.type === 'wall' || child.userData.type === 'glass-wall'
+    )
+    existingWalls.forEach(wall => {
+      scene.remove(wall)
+      if ((wall as any).geometry) (wall as any).geometry.dispose()
+      if ((wall as any).material) (wall as any).material.dispose()
+    })
+    
+    // 새로운 벽들 생성
+    if (newWalls.length > 0) {
+      const canvasWidth = floorplanStore.canvasSize?.width || 800
+      const canvasHeight = floorplanStore.canvasSize?.height || 600
+      
+      newWalls.forEach((wall: any) => {
+        const isGlass = wall.isGlass || wall.type === 'glass-wall'
+        const wallType = isGlass ? 'glass-wall' : 'wall'
+        const color = isGlass ? 0x4682B4 : 0x8B4513
+        createWall(wall, wallType, color, canvasWidth, canvasHeight, isGlass)
+      })
+    }
+  }
+}, { deep: true })
 
 // 컴포넌트 마운트 완료 시 이벤트 emit
 onMounted(() => {
