@@ -27,59 +27,13 @@
 
       <!-- 선택된 객체 정보 -->
       <div v-if="selectedObject || selectedObjects.length > 0" class="selection-info">
-        <!-- 멀티 선택 정보 -->
-        <div v-if="selectedObjects.length > 1" class="multi-selection-info">
-          <span class="selection-text">✅ {{ selectedObjects.length }}개 객체 선택됨</span>
+        <!-- Selection count info -->
+        <div class="multi-selection-info">
+          <span class="selection-text">✅ {{ selectedObjects.length || 1 }} objects selected</span>
           <div class="selected-objects-summary">
             <span v-for="(count, type) in getObjectTypeCounts()" :key="type" class="type-count">
-              {{ type }}: {{ count }}개
+              {{ type }}: {{ count }}
             </span>
-          </div>
-        </div>
-        <!-- 단일 선택 정보 -->
-        <div v-else-if="selectedObject" class="single-selection-info">
-          <span class="selection-text">
-            ✅ {{ getObjectTypeDisplayName(selectedObject.userData?.type) }} 선택됨
-          </span>
-          <div class="object-details">
-            <div class="detail-item">
-              <span class="detail-label">위치:</span>
-              <span class="detail-value">
-                X: {{ getObjectPosition(selectedObject).x.toFixed(2) }}m, 
-                Y: {{ getObjectPosition(selectedObject).y.toFixed(2) }}m
-              </span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">크기:</span>
-              <span class="detail-value">
-                {{ getObjectSize(selectedObject) }}
-              </span>
-            </div>
-            <div v-if="selectedObject.angle !== undefined" class="detail-item">
-              <span class="detail-label">회전:</span>
-              <span class="detail-value">
-                {{ (selectedObject.angle || 0).toFixed(1) }}°
-              </span>
-            </div>
-            <div v-if="selectedObject.userData?.category" class="detail-item">
-              <span class="detail-label">카테고리:</span>
-              <span class="detail-value">
-                {{ getCategoryDisplayName(selectedObject.userData.category) }}
-              </span>
-            </div>
-            <div v-if="selectedObject.userData?.id" class="detail-item">
-              <span class="detail-label">ID:</span>
-              <span class="detail-value">
-                {{ selectedObject.userData.id.toString().slice(0, 8) }}...
-              </span>
-            </div>
-            <div v-if="selectedObject.userData?.color" class="detail-item">
-              <span class="detail-label">색상:</span>
-              <span class="detail-value">
-                <span class="color-preview" :style="{ backgroundColor: selectedObject.userData.color }"></span>
-                {{ selectedObject.userData.color }}
-              </span>
-            </div>
           </div>
         </div>
       </div>
@@ -1206,12 +1160,12 @@ const updateWallSelectability = () => {
   
   // 모든 벽 오브젝트의 선택 가능 여부 업데이트
   fabricCanvas.getObjects().forEach((obj: any) => {
-    if (obj.userData?.type === 'glass-wall' || obj.userData?.type === 'wall') {
+    if (obj.userData?.type === 'wall') {
       obj.selectable = isSelectMode
       obj.evented = isSelectMode
       
       // 벽 타입에 따라 색상 설정
-      if (obj.userData?.type === 'glass-wall') {
+      if (obj.userData?.isGlass) {
         // 유리벽: 파란색
         obj.stroke = '#4682B4'
       } else {
@@ -1634,7 +1588,7 @@ const setupWallDrawing = () => {
       return
     }
 
-    if (singleSelected && (singleSelected.userData?.type === 'glass-wall' || singleSelected.userData?.type === 'wall')) {
+    if (singleSelected && singleSelected.userData?.type === 'wall') {
       selectedObject.value = singleSelected
       selectedObjects.value = [singleSelected]
     } else {
@@ -1684,7 +1638,7 @@ const setupWallDrawing = () => {
       return
     }
 
-    if (singleSelected && (singleSelected.userData?.type === 'glass-wall' || singleSelected.userData?.type === 'wall')) {
+    if (singleSelected && singleSelected.userData?.type === 'wall') {
       selectedObject.value = singleSelected
       selectedObjects.value = [singleSelected]
     } else {
@@ -1702,8 +1656,8 @@ const setupWallDrawing = () => {
 
   fabricCanvas.on('object:modified', (e: any) => {
     const modifiedObject = e.target
-    if (modifiedObject && (modifiedObject.userData?.type === 'glass-wall' || modifiedObject.userData?.type === 'wall')) {
-      const wallType = modifiedObject.userData?.type === 'glass-wall' ? '유리 벽' : '벽'
+    if (modifiedObject && modifiedObject.userData?.type === 'wall') {
+      const wallType = modifiedObject.userData?.isGlass ? '유리 벽' : '벽'
       updateWallInList(modifiedObject)
     } else if (modifiedObject && modifiedObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(modifiedObject)
@@ -1718,8 +1672,8 @@ const setupWallDrawing = () => {
 
   fabricCanvas.on('object:moving', (e: any) => {
     const movingObject = e.target
-    if (movingObject && (movingObject.userData?.type === 'glass-wall' || movingObject.userData?.type === 'wall')) {
-      const wallType = movingObject.userData?.type === 'glass-wall' ? '유리 벽' : '벽'
+    if (movingObject && movingObject.userData?.type === 'wall') {
+      const wallType = movingObject.userData?.isGlass ? '유리 벽' : '벽'
       updateWallInList(movingObject)
     } else if (movingObject && movingObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(movingObject)
@@ -1734,8 +1688,8 @@ const setupWallDrawing = () => {
 
   fabricCanvas.on('object:scaling', (e: any) => {
     const scalingObject = e.target
-    if (scalingObject && (scalingObject.userData?.type === 'glass-wall' || scalingObject.userData?.type === 'wall')) {
-      const wallType = scalingObject.userData?.type === 'glass-wall' ? '유리 벽' : '벽'
+    if (scalingObject && scalingObject.userData?.type === 'wall') {
+      const wallType = scalingObject.userData?.isGlass ? '유리 벽' : '벽'
       updateWallInList(scalingObject)
     } else if (scalingObject && scalingObject.userData?.type === 'custom-box') {
       // Box가 크기가 조정될 때 크기 라벨 업데이트 및 Store 업데이트
@@ -1746,8 +1700,8 @@ const setupWallDrawing = () => {
 
   fabricCanvas.on('object:rotating', (e: any) => {
     const rotatingObject = e.target
-    if (rotatingObject && (rotatingObject.userData?.type === 'glass-wall' || rotatingObject.userData?.type === 'wall')) {
-      const wallType = rotatingObject.userData?.type === 'glass-wall' ? '유리 벽' : '벽'
+    if (rotatingObject && rotatingObject.userData?.type === 'wall') {
+      const wallType = rotatingObject.userData?.isGlass ? '유리 벽' : '벽'
       updateWallInList(rotatingObject)
     } else if (rotatingObject && rotatingObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(rotatingObject)
@@ -1836,7 +1790,7 @@ const updateWallInList = (modifiedWall: any) => {
   let startPoint, endPoint
 
   // 벽 타입에 따라 좌표 계산 방법 분기 (유리벽과 일반벽 모두 Line 객체로 통일)
-  if (wallType === 'glass-wall' || wallType === 'wall') {
+  if (modifiedWall.userData?.type === 'wall') {
     // 유리벽과 일반벽 모두 Line 객체로 동일하게 처리
     const linePoints = modifiedWall.calcLinePoints()
     const matrix = modifiedWall.calcTransformMatrix()
@@ -1867,7 +1821,7 @@ const updateWallInList = (modifiedWall: any) => {
     start: { x: startPoint.x, y: startPoint.y },
     end: { x: endPoint.x, y: endPoint.y },
     id: wallId,
-    isGlass: modifiedWall.userData?.type === 'glass-wall'
+    isGlass: modifiedWall.userData?.isGlass || false
   }
 
   // Store에서 벽 정보 업데이트 (통합된 함수 사용)
@@ -2278,8 +2232,7 @@ const addWall = (start: { x: number, y: number }, end: { x: number, y: number },
   const isSelectMode = currentTool.value === 'select'
 
   // isGlass에 따라 색상 설정
-  const wallColor = isGlass ? '#4682B4' : '#8B4513' // glass-wall: 파란색, wall: 갈색
-  const wallType = isGlass ? 'glass-wall' : 'wall'
+  const wallColor = isGlass ? '#4682B4' : '#8B4513' // 유리벽: 파란색, 일반벽: 갈색
 
   const wall = new fabric.Line([start.x, start.y, end.x, end.y], {
     stroke: wallColor,
@@ -2319,8 +2272,9 @@ const addWall = (start: { x: number, y: number }, end: { x: number, y: number },
   // 더 상세한 식별 정보 추가
   const wallId = Date.now() + Math.random() // 고유 ID
   wall.userData = {
-    type: wallType,
+    type: 'wall', // 모든 벽은 'wall' 타입으로 통일
     id: wallId,
+    isGlass: isGlass, // 유리벽 여부만 별도 저장
     startX: startXMeters, // 미터 단위 좌표 저장
     startY: startYMeters,
     endX: endXMeters,
@@ -2710,7 +2664,7 @@ const addWallLengthLabel = (wall: any, start: { x: number, y: number }, end: { x
   lengthLabel.userData = {
     type: 'wall-length-label',
     wallId: wall.userData?.id,
-    wallType: wall.userData?.type
+    isGlass: wall.userData?.isGlass || false
   }
 
   fabricCanvas.add(lengthLabel)
@@ -2776,14 +2730,14 @@ const updateWallLengthLabel = (wall: any) => {
   // 새로운 좌표로 레이블 재생성
   let start, end
 
-  if (wall.userData?.type === 'glass-wall' || wall.userData?.type === 'wall') {
+  if (wall.userData?.type === 'wall') {
     // 유리벽과 일반벽 모두 Line 객체로 동일하게 처리
     const linePoints = wall.calcLinePoints()
     const matrix = wall.calcTransformMatrix()
     start = fabric.util.transformPoint({ x: linePoints.x1, y: linePoints.y1 }, matrix)
     end = fabric.util.transformPoint({ x: linePoints.x2, y: linePoints.y2 }, matrix)
 
-    const wallType = wall.userData?.type === 'glass-wall' ? '유리벽' : '일반벽'
+    const wallType = wall.userData?.isGlass ? '유리벽' : '일반벽'
   }
 
   if (start && end) {
@@ -3300,7 +3254,6 @@ const clearCanvasData = async () => {
       const type = obj.userData?.type
       return type === 'zone-floor' || 
              type === 'wall' || 
-             type === 'glass-wall' ||
              type === 'custom-box' ||
              type === 'placed-object'
     })
@@ -3394,7 +3347,7 @@ const saveFloorPlan = async () => {
 
     // 현재 캔버스에 그려진 Wall들 수집
     const walls = fabricCanvas.getObjects().filter((obj: any) => 
-      obj.userData?.type === 'wall' || obj.userData?.type === 'glass-wall'
+      obj.userData?.type === 'wall'
     )
 
 
@@ -3429,8 +3382,7 @@ const saveFloorPlan = async () => {
         startY: Math.round(startY * 100) / 100,
         endX: Math.round(endX * 100) / 100,
         endY: Math.round(endY * 100) / 100,
-        type: wall.userData?.type || 'wall',
-        isGlass: wall.userData?.type === 'glass-wall'
+        isGlass: wall.userData?.isGlass || false
       }
     })
 
@@ -3849,9 +3801,9 @@ const createWallFromSavedData = (wallData: any) => {
   const endX = baseX + (wallData.endX * scale)
   const endY = baseY + (wallData.endY * scale)
 
-  // Wall 생성 - 타입에 따라 색상 설정
-  const isGlassWall = wallData.isGlass || wallData.type === 'glass-wall'
-  const wallColor = isGlassWall ? '#4682B4' : '#8B4513' // glass-wall: 파란색, wall: 갈색
+  // Wall 생성 - isGlass에 따라 색상 설정
+  const isGlassWall = wallData.isGlass || false
+  const wallColor = isGlassWall ? '#4682B4' : '#8B4513' // 유리벽: 파란색, 일반벽: 갈색
   
   const wall = new fabric.Line([startX, startY, endX, endY], {
     stroke: wallColor,
@@ -3864,8 +3816,9 @@ const createWallFromSavedData = (wallData: any) => {
   })
 
   wall.userData = { 
-    type: isGlassWall ? 'glass-wall' : 'wall', // 타입에 따라 설정
+    type: 'wall', // 모든 벽은 'wall' 타입으로 통일
     id: wallData.id, // 백엔드의 실제 ID 사용
+    isGlass: isGlassWall, // 유리벽 여부만 별도 저장
     isSaved: true,
     startX: wallData.startX, // 미터 단위 좌표 저장 (base floor 기준)
     startY: wallData.startY,
@@ -4083,10 +4036,8 @@ const getObjectTypeDisplayName = (type: string): string => {
       return 'Object'
     case 'zone-floor':
       return 'Zone Floor'
-    case 'glass-wall':
-      return 'Glass Wall'
     case 'wall':
-      return 'General Wall'
+      return 'Wall'
     case 'custom-box':
       return 'Box'
     default:
@@ -4134,7 +4085,7 @@ const deleteSingleObject = (objectToDelete: any) => {
       rerender2DObjectsFromStore()
     }
 
-  } else if (objectType === 'glass-wall' || objectType === 'wall') {
+  } else if (objectType === 'wall') {
     // 벽 삭제 (통합된 로직)
     const associatedLabel = fabricCanvas.getObjects().find((obj: any) =>
       obj.userData?.type === 'wall-length-label' && obj.userData?.wallId === objectId
@@ -4148,7 +4099,7 @@ const deleteSingleObject = (objectToDelete: any) => {
 
     const allObjects = fabricCanvas.getObjects()
     const wallsToRemove = allObjects.filter((obj: any) =>
-      obj.userData?.id === objectId && (obj.userData?.type === 'glass-wall' || obj.userData?.type === 'wall')
+      obj.userData?.id === objectId && obj.userData?.type === 'wall'
     )
 
     wallsToRemove.forEach((wall: any) => {
