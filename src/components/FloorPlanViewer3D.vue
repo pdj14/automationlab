@@ -27,6 +27,9 @@
         <button @click="clearAll3D" class="btn btn-danger" title="Clear All 3D Objects">
           🗑️ Clear 3D
         </button>
+        <button @click="export3DToPNG" class="btn btn-success" title="Export 3D View to PNG">
+          📸 Export PNG
+        </button>
       </div>
       
              <div class="control-group">
@@ -2374,11 +2377,75 @@ onUnmounted(() => {
   
 })
 
+// 3D 뷰를 PNG로 Export하는 함수
+const export3DToPNG = () => {
+  export3DWithResolution(2, '3d-floorplan-export.png')
+}
+
+// 해상도별 3D Export 공통 함수
+const export3DWithResolution = (scale: number, filename: string) => {
+  if (!renderer || !scene || !camera) {
+    console.warn('3D 렌더러가 초기화되지 않았습니다.')
+    return
+  }
+
+  try {
+    // 원본 크기 저장
+    const originalSize = {
+      width: renderer.domElement.width,
+      height: renderer.domElement.height
+    }
+    
+    // 스케일 적용한 해상도
+    const exportSize = {
+      width: originalSize.width * scale,
+      height: originalSize.height * scale
+    }
+    
+    console.log(`3D Export 시작 - 해상도: ${exportSize.width}x${exportSize.height} (${scale}x 스케일)`)
+    
+    // 렌더러 크기 임시 변경
+    renderer.setSize(exportSize.width, exportSize.height, false)
+    camera.aspect = exportSize.width / exportSize.height
+    camera.updateProjectionMatrix()
+    
+    // 렌더링 실행
+    renderer.render(scene, camera)
+    
+    // Canvas에서 이미지 데이터 추출
+    const canvas = renderer.domElement
+    const dataURL = canvas.toDataURL('image/png', 1.0)
+    
+    // 원래 크기로 복원
+    renderer.setSize(originalSize.width, originalSize.height, false)
+    camera.aspect = originalSize.width / originalSize.height
+    camera.updateProjectionMatrix()
+    
+    // 파일 다운로드
+    downloadImage(dataURL, filename)
+    
+    console.log(`3D PNG Export 완료 - ${filename}`)
+  } catch (error) {
+    console.error('3D PNG Export 실패:', error)
+  }
+}
+
+// 이미지 다운로드 함수
+const downloadImage = (dataURL: string, filename: string) => {
+  const link = document.createElement('a')
+  link.download = filename
+  link.href = dataURL
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
 // 외부에서 호출할 수 있는 함수들
 defineExpose({
   create3DWalls,
   make3D,
-  clearAll3D
+  clearAll3D,
+  export3DToPNG
 })
 
 // mounted 이벤트 emit
@@ -2509,6 +2576,17 @@ onMounted(() => {
 
 .btn-danger:hover {
   background: #c0392b;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.btn-success {
+  background: #27ae60;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #229954;
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
