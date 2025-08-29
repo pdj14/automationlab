@@ -493,7 +493,7 @@ const create3DWalls = (wallsData: any) => {
     console.log(`벽 ${index + 1} 생성:`, wall)
     const isGlass = wall.isGlass || wall.type === 'glass-wall'
     const wallType = isGlass ? 'glass-wall' : 'wall'
-    const color = isGlass ? 0x4682B4 : 0x8B4513 // glass-wall: 파란색, wall: 갈색
+    const color = isGlass ? 0x4682B4 : 0x8A7B78 // glass-wall: 파란색, wall: 갈색
     createWall(wall, wallType, color, canvasWidth, canvasHeight, isGlass)
   })
   
@@ -523,7 +523,7 @@ const createWall = (wall: any, wallType: string, color: number, canvasWidth: num
   const angle = Math.atan2(startY - endY, endX - startX)
   
   const wallGeometry = new THREE.BoxGeometry(length / 40, wallHeight.value, 0.1)
-  const opacity = isGlass ? 0.3 : 0.7 // glass-wall: 30%, wall: 70%
+  const opacity = isGlass ? 0.2 : 0.7 // glass-wall: 20%, wall: 70%
   const wallMaterial = new THREE.MeshLambertMaterial({ 
     color: color,
     transparent: true,
@@ -873,7 +873,7 @@ const toggleWallTransparency = () => {
       if (object.material instanceof THREE.MeshLambertMaterial) {
         if (wallTransparencyEnabled.value) {
           // 투명도 활성화: 설정된 투명도 적용
-          const opacity = object.userData.type === 'glass-wall' ? 0.3 : 0.7
+          const opacity = object.userData.type === 'glass-wall' ? 0.2 : 0.7
           object.material.transparent = opacity < 1
           object.material.opacity = opacity
         } else {
@@ -2417,7 +2417,7 @@ watch(() => floorplanStore.walls, (newWalls, oldWalls) => {
       newWalls.forEach((wall: any) => {
         const isGlass = wall.isGlass || wall.type === 'glass-wall'
         const wallType = isGlass ? 'glass-wall' : 'wall'
-        const color = isGlass ? 0x4682B4 : 0x8B4513
+        const color = isGlass ? 0x4682B4 : 0x8A7B78
         createWall(wall, wallType, color, canvasWidth, canvasHeight, isGlass)
       })
     }

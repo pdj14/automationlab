@@ -1170,7 +1170,7 @@ const updateWallSelectability = () => {
         obj.stroke = '#4682B4'
       } else {
         // 일반벽: 갈색
-        obj.stroke = '#8B4513'
+        obj.stroke = '#8A7B78'
       }
     }
   })
@@ -2232,7 +2232,7 @@ const addWall = (start: { x: number, y: number }, end: { x: number, y: number },
   const isSelectMode = currentTool.value === 'select'
 
   // isGlass에 따라 색상 설정
-  const wallColor = isGlass ? '#4682B4' : '#8B4513' // 유리벽: 파란색, 일반벽: 갈색
+  const wallColor = isGlass ? '#4682B4' : '#8A7B78' // 유리벽: 파란색, 일반벽: 갈색
 
   const wall = new fabric.Line([start.x, start.y, end.x, end.y], {
     stroke: wallColor,
@@ -3290,13 +3290,6 @@ const saveFloorPlan = async () => {
       obj.userData?.type === 'zone-floor'
     )
 
-    if (zones.length === 0) {
-      alert('저장할 Zone이 없습니다. Zone을 먼저 생성해주세요.')
-      return
-    }
-
-
-
     // Zone 정보를 백엔드 형식으로 변환
     const zonesToSave = zones.map((zone: any) => {
       const scale = 40 // 1m = 40px
@@ -3719,7 +3712,7 @@ const createBoxFromSavedData = (boxData: any) => {
     width: boxWidth,
     height: boxHeight,
     fill: safeBoxData.color,
-    stroke: '#8B4513',
+    stroke: '#8A7B78',
     strokeWidth: 2,
     selectable: true,
     evented: true,
@@ -3803,7 +3796,7 @@ const createWallFromSavedData = (wallData: any) => {
 
   // Wall 생성 - isGlass에 따라 색상 설정
   const isGlassWall = wallData.isGlass || false
-  const wallColor = isGlassWall ? '#4682B4' : '#8B4513' // 유리벽: 파란색, 일반벽: 갈색
+  const wallColor = isGlassWall ? '#4682B4' : '#8A7B78' // 유리벽: 파란색, 일반벽: 갈색
   
   const wall = new fabric.Line([startX, startY, endX, endY], {
     stroke: wallColor,
@@ -5721,7 +5714,7 @@ const updateBoxInStore = (box: any) => {
 /* 상자 모드 표시 스타일 */
 .box-mode-indicator {
   background: #D2B48C;
-  color: #8B4513;
+  color: #8A7B78;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   font-weight: bold;

@@ -7,60 +7,6 @@
       </button>
     </div>
 
-    <!-- 카테고리 필터 -->
-    <div class="category-filter">
-      <select v-model="selectedCategory" @change="filterObjects">
-        <option value="all">All Categories</option>
-        <option value="robot">🤖 Robot</option>
-        <option value="equipment">⚙️ Equipment</option>
-        <option value="appliances">🔌 Appliances</option>
-        <option value="av">📺 AV</option>
-        <option value="etc">📂 ETC</option>
-      </select>
-    </div>
-
-    <!-- 검색 -->
-    <div class="search-box">
-      <input 
-        v-model="searchQuery" 
-        type="text" 
-        placeholder="Search objects..."
-        @input="filterObjects"
-      />
-    </div>
-
-    <!-- 오브젝트 목록 -->
-    <div class="objects-grid">
-      <div 
-        v-for="object in filteredObjects" 
-        :key="object.id"
-        class="object-item"
-        :class="{ selected: selectedObject?.id === object.id }"
-        @click="selectObject(object)"
-        @dragstart="startDrag(object, $event)"
-        draggable="true"
-      >
-        <div class="object-preview">
-          <img 
-            v-if="object.thumbnail" 
-            :src="object.thumbnail" 
-            :alt="object.name"
-            @error="handleImageError"
-          />
-          <div v-else class="placeholder-icon">📦</div>
-        </div>
-        <div class="object-info">
-          <h4>{{ object.name }}</h4>
-          <p>{{ object.category }}</p>
-          <small>{{ object.size || 'Unknown size' }}</small>
-        </div>
-        <div class="object-actions">
-          <button @click.stop="editObject(object)" class="btn-icon" title="Edit">✏️</button>
-          <button @click.stop="deleteObject(object)" class="btn-icon" title="Delete">🗑️</button>
-        </div>
-      </div>
-    </div>
-
     <!-- 업로드 모달 -->
     <div v-if="showUploadModal" class="modal-overlay" @click="closeModal">
       <div class="modal" @click.stop>
@@ -86,8 +32,6 @@
                 <option value="etc">ETC</option>
               </select>
             </div>
-            
-
             
             <div class="form-group">
               <label>Width (m):</label>
@@ -128,18 +72,14 @@
               />
             </div>
             
-
-
-            
             <div class="form-group">
               <label>GLB File:</label>
               <input 
                 @change="handleFileSelect" 
                 type="file" 
                 accept=".glb,.gltf" 
-required
+                required
               />
-
             </div>
             
             <div class="form-group">
@@ -168,52 +108,13 @@ required
         </div>
       </div>
     </div>
-
-    <!-- 선택된 오브젝트 정보 -->
-    <div v-if="selectedObject" class="selected-object-info">
-      <h4>Selected Object</h4>
-      <div class="object-details">
-        <p><strong>Name:</strong> {{ selectedObject.name }}</p>
-        <p><strong>Category:</strong> {{ selectedObject.category }}</p>
-        <p><strong>Size:</strong> {{ selectedObject.size || 'Unknown' }}</p>
-        <p v-if="selectedObject.width && selectedObject.depth && selectedObject.height">
-          <strong>Dimensions:</strong> {{ selectedObject.width }}m (W) × {{ selectedObject.depth }}m (D) × {{ selectedObject.height }}m (H)
-        </p>
-        <p v-if="selectedObject.description">
-          <strong>Description:</strong> {{ selectedObject.description }}
-        </p>
-      </div>
-      
-      <div class="placement-controls">
-        <button @click="placeObject" class="btn btn-primary">
-          Place in 2D View
-        </button>
-      </div>
-    </div>
-
-
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref } from 'vue'
 
 // 타입 정의
-interface GameObject {
-  id: string
-  name: string
-  category: string
-  glbUrl: string
-  thumbnail?: string
-  description?: string
-  size?: string
-  width?: number  // 가로
-  depth?: number  // 세로
-  height?: number // 높이
-  lodUrl?: string // LOD용 GLB 파일 URL
-  instancing?: boolean // 인스턴싱 활성화 여부
-}
-
 interface NewObject {
   name: string
   category: string
@@ -224,17 +125,9 @@ interface NewObject {
   etcType?: string // ETC 타입 (general)
 }
 
-
-
 // 상태 관리
-const objects = ref<GameObject[]>([])
-const filteredObjects = ref<GameObject[]>([])
-const selectedCategory = ref('all')
-const searchQuery = ref('')
-const selectedObject = ref<GameObject | null>(null)
 const showUploadModal = ref(false)
 const uploading = ref(false)
-
 
 const newObject = ref<NewObject>({
   name: '',
@@ -246,184 +139,8 @@ const newObject = ref<NewObject>({
   etcType: 'general'
 })
 
-
-
-
-
 let selectedFile: File | null = null
 let selectedThumbnail: File | null = null
-
-// 기본 오브젝트들
-const defaultObjects: GameObject[] = [
-  
-
-  {
-    id: 'default-robot-arm',
-    name: 'Robot Arm',
-    category: 'robot',
-    glbUrl: '/robotArm.glb',
-    thumbnail: '/로봇팔.png',
-    description: '산업용 로봇 팔',
-    size: '0.8m × 0.8m × 0.8m',
-    width: 0.8,
-    depth: 0.8,
-    height: 0.8,
-    instancing: false
-  },
-  {
-    id: 'default-robot2',
-    name: '로봇2',
-    category: 'robot',
-    glbUrl: '/로봇2.glb',
-    thumbnail: '/로봇2.png',
-    description: '로봇2',
-    size: '1.0m × 1.0m × 1.5m',
-    width: 1.0,
-    depth: 1.0,
-    height: 1.5,
-    instancing: false
-  },
-  {
-    id: 'default-dubot',
-    name: '두봇',
-    category: 'robot',
-    glbUrl: '/두봇.glb',
-    thumbnail: '/두봇.png',
-    description: '두봇 로봇',
-    size: '1.0m × 1.0m × 1.5m',
-    width: 1.0,
-    depth: 1.0,
-    height: 1.5,
-    instancing: false
-  },
-  {
-    id: 'default-robot-cage',
-    name: '로봇케이지',
-    category: 'robot',
-    glbUrl: '/로봇케이지.glb',
-    lodUrl: '/로봇케이지_light.glb',
-    thumbnail: '/로봇케이지.png',
-    description: '로봇을 보호하는 케이지',
-    size: '2.0m × 1.2m × 2.0m',
-    width: 2.0,
-    depth: 1.2,
-    height: 2.0,
-    instancing: false
-  },
-
-  {
-    id: 'default-rack1',
-    name: 'Rack1',
-    category: 'equipment',
-    glbUrl: '/Rack1.glb',
-    lodUrl: '/Rack1_light.glb',
-    thumbnail: '/Rack1.png',
-    description: 'Rack1 설비',
-    size: '2.0m ×1.0m × 2.0m',
-    width: 2.0,
-    depth: 1.0,
-    height: 2.0,
-    instancing: true // RACK1은 인스턴싱 적용
-  },
-
-
-  {
-    id: 'default-tv',
-    name: 'TV',
-    category: 'av',
-    glbUrl: '/TV.glb',
-    thumbnail: '/TV.png',
-    description: '65인치 스마트 TV',
-    size: '1.45m × 0.84m × 0.08m',
-    width: 1.45,  // 가로 (화면 너비)
-    depth: 0.08,  // 세로 (두께) - TV는 얇음
-    height: 0.84,  // 높이 (화면 높이) - TV는 세로가 더 큼
-    instancing: false
-  },
-
-  {
-    id: 'default-washing-machine',
-    name: '세탁기',
-    category: 'appliances',
-    glbUrl: '/세탁기.glb',
-    lodUrl: '/로봇케이지_light.glb',
-    thumbnail: '/세탁기.png',
-    description: '드럼 세탁기',
-    size: '0.6m × 0.6m × 0.85m',
-    width: 0.6,   // 가로
-    depth: 0.6,   // 세로
-    height: 0.85,  // 높이
-    instancing: false
-  },
-  {
-    id: 'default-family-hub',
-    name: 'FamilyHub',
-    category: 'appliances',
-    glbUrl: '/패밀리허브.glb',
-    thumbnail: '/패밀리허브.png',
-    description: '스마트 패밀리 허브 냉장고',
-    size: '1.2m × 1.0m × 2.2m',
-    width: 1.2,   // 가로
-    depth: 1.0,   // 세로
-    height: 2.2,   // 높이
-    instancing: false
-  },
-  {
-    id: 'default-refrigerator',
-    name: '냉장고',
-    category: 'appliances',
-    glbUrl: '/pearl_refrigerator_final.glb',
-    thumbnail: '/냉장고1.png',
-    description: '가정용 양문냉장고',
-    size: '1.2m × 1.0m × 2.0m',
-    width: 1.2,
-    depth: 1.0,
-    height: 2.0,
-    instancing: false
-  },
-
-]
-
-// 계산된 속성
-const filteredObjects_computed = computed(() => {
-  let result = objects.value
-
-  // 카테고리 필터
-  if (selectedCategory.value !== 'all') {
-    result = result.filter(obj => obj.category === selectedCategory.value)
-  }
-
-  // 검색 필터
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(obj => 
-      obj.name.toLowerCase().includes(query) ||
-      obj.description?.toLowerCase().includes(query)
-    )
-  }
-
-  return result
-})
-
-// 오브젝트 필터링
-const filterObjects = () => {
-  filteredObjects.value = filteredObjects_computed.value
-}
-
-// 오브젝트 선택
-const selectObject = (object: GameObject) => {
-  selectedObject.value = object
-}
-
-// 드래그 시작
-const startDrag = (object: GameObject, event: DragEvent) => {
-  if (event.dataTransfer) {
-    event.dataTransfer.setData('application/json', JSON.stringify({
-      type: 'object',
-      object: object
-    }))
-  }
-}
 
 // 카테고리 변경 핸들러
 const handleCategoryChange = () => {
@@ -448,13 +165,6 @@ const handleThumbnailSelect = (event: Event) => {
   }
 }
 
-// 이미지 에러 핸들링
-const handleImageError = (event: Event) => {
-  const target = event.target as HTMLImageElement
-  target.style.display = 'none'
-  target.parentElement!.innerHTML = '<div class="placeholder-icon">📦</div>'
-}
-
 // 오브젝트 업로드
 const uploadObject = async () => {
   if (!selectedFile) {
@@ -472,21 +182,14 @@ const uploadObject = async () => {
       thumbnailUrl = URL.createObjectURL(selectedThumbnail)
     }
 
-    const newObj: GameObject = {
-      id: Date.now().toString(),
-      name: newObject.value.name,
-      category: newObject.value.category,
-      description: newObject.value.description,
+    // 여기에 실제 업로드 로직을 구현할 수 있습니다
+    console.log('New Object:', {
+      ...newObject.value,
       glbUrl: objectUrl,
-      thumbnail: thumbnailUrl,
-      size: `${newObject.value.width}m × ${newObject.value.depth}m × ${newObject.value.height}m`,
-      width: newObject.value.width,
-      depth: newObject.value.depth,
-      height: newObject.value.height
-    }
+      thumbnail: thumbnailUrl
+    })
 
-    objects.value.push(newObj)
-    filterObjects()
+    alert('Object added successfully!')
     closeModal()
 
   } catch (error) {
@@ -496,41 +199,6 @@ const uploadObject = async () => {
     uploading.value = false
   }
 }
-
-// 오브젝트 편집
-const editObject = (object: GameObject) => {
-  // 편집 모달 표시 로직
-  
-}
-
-// 오브젝트 삭제
-const deleteObject = (object: GameObject) => {
-  if (confirm(`"${object.name}"을(를) 삭제하시겠습니까?`)) {
-    const index = objects.value.findIndex(obj => obj.id === object.id)
-    if (index > -1) {
-      objects.value.splice(index, 1)
-      filterObjects()
-      
-      if (selectedObject.value?.id === object.id) {
-        selectedObject.value = null
-      }
-    }
-  }
-}
-
-// 2D 뷰에 오브젝트 배치
-const placeObject = () => {
-  if (!selectedObject.value) return
-
-  // 일반 오브젝트는 바로 배치
-  window.dispatchEvent(new CustomEvent('placeObject', {
-    detail: {
-      object: selectedObject.value
-    }
-  }))
-}
-
-
 
 // 모달 관련
 const closeModal = () => {
@@ -547,12 +215,6 @@ const closeModal = () => {
   selectedFile = null
   selectedThumbnail = null
 }
-
-// 라이프사이클
-onMounted(() => {
-  objects.value = [...defaultObjects]
-  filterObjects()
-})
 </script>
 
 <style scoped>
@@ -577,125 +239,6 @@ onMounted(() => {
   margin: 0;
   font-size: 1.1rem;
   color: #2c3e50;
-}
-
-.category-filter, .search-box {
-  margin-bottom: 1rem;
-}
-
-.category-filter select,
-.search-box input {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.9rem;
-}
-
-.objects-grid {
-  flex: 1;
-  overflow-y: auto;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.5rem;
-  padding-right: 0.5rem;
-}
-
-.object-item {
-  display: flex;
-  flex-direction: column;
-  background: var(--color-bg-level-1, #0f1011);
-  border: 1px solid var(--color-border-secondary, #34343a);
-  border-radius: 8px;
-  padding: 0.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.object-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  border-color: #3498db;
-}
-
-.object-item.selected {
-  border-color: var(--color-accent-primary, #3b82f6);
-  background: var(--color-bg-tertiary, #232326);
-}
-
-.object-preview {
-  width: 100%;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-bg-level-2, #141516);
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
-  overflow: hidden;
-}
-
-.object-preview img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: cover;
-}
-
-.placeholder-icon {
-  font-size: 2rem;
-  color: var(--color-text-secondary, #a1a1aa);
-}
-
-.object-info h4 {
-  margin: 0 0 0.25rem 0;
-  font-size: 0.9rem;
-  color: var(--color-text-primary, #f7f8f8);
-}
-
-.object-info p {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--color-text-secondary, #a1a1aa);
-  text-transform: capitalize;
-}
-
-.object-info small {
-  font-size: 0.7rem;
-  color: var(--color-text-tertiary, #71717a);
-}
-
-.object-actions {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  display: flex;
-  gap: 0.25rem;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.object-item:hover .object-actions {
-  opacity: 1;
-}
-
-.btn-icon {
-  background: var(--color-bg-tertiary, #232326);
-  border: 1px solid var(--color-border-secondary, #34343a);
-  border-radius: 4px;
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-primary, #f7f8f8);
-}
-
-.btn-icon:hover {
-  background: var(--color-bg-quaternary, #28282c);
-  border-color: var(--color-accent-primary, #3b82f6);
 }
 
 /* 모달 스타일 */
@@ -790,38 +333,6 @@ onMounted(() => {
   margin-top: 1rem;
 }
 
-/* 선택된 오브젝트 정보 */
-.selected-object-info {
-  background: var(--color-bg-level-1, #0f1011);
-  border: 1px solid var(--color-border-primary, #23252a);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-top: 1rem;
-}
-
-.selected-object-info h4 {
-  margin: 0 0 0.5rem 0;
-  color: var(--color-text-primary, #f7f8f8);
-  font-weight: 600;
-}
-
-.object-details p {
-  margin: 0.25rem 0;
-  font-size: 0.9rem;
-  color: var(--color-text-secondary, #a1a1aa);
-}
-
-.object-details strong {
-  color: var(--color-text-primary, #f7f8f8);
-  font-weight: 600;
-}
-
-.placement-controls {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-border-secondary, #34343a);
-}
-
 /* 버튼 스타일 */
 .btn {
   padding: 0.5rem 1rem;
@@ -858,4 +369,4 @@ onMounted(() => {
   background: var(--color-bg-quaternary, #28282c);
   border-color: var(--color-accent-primary, #3b82f6);
 }
-</style> 
+</style>
