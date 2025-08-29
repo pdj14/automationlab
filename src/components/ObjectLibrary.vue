@@ -1,9 +1,9 @@
 <template>
   <div class="object-library">
     <div class="library-header">
-      <h3>📦 Object Library</h3>
-      <button @click="showUploadModal = true" class="btn btn-primary">
-        ➕ Add Object
+      <h3>📦 Object Template</h3>
+      <button @click="showUploadModal = true" class="btn-add-object" title="Add Object">
+        ➕
       </button>
     </div>
 
@@ -233,12 +233,43 @@ const closeModal = () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  min-height: 40px;
 }
 
 .library-header h3 {
   margin: 0;
-  font-size: 1.1rem;
-  color: #2c3e50;
+  font-size: 1rem;
+  color: var(--color-text-primary, #f7f8f8);
+  white-space: nowrap;
+  flex: 1;
+}
+
+.btn-add-object {
+  background: var(--color-bg-level-1, #0f1011);
+  color: var(--color-text-primary, #f7f8f8);
+  border: 1px solid var(--color-border-primary, #23252a);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.btn-add-object:hover {
+  background: var(--color-bg-level-2, #141516);
+  border-color: var(--color-border-secondary, #2a2d33);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+.btn-add-object:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 /* 모달 스타일 */

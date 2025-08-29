@@ -43,7 +43,7 @@
       <!-- 우측 정렬된 도구 그룹 -->
       <div class="right-tool-group">
         <button @click="clearCanvas" class="btn btn-warning">
-          🗑️ Clear
+          🗑️ Clear 2D
         </button>
         <button @click="deleteSelectedObject" :disabled="!selectedObject && selectedObjects.length === 0" class="btn btn-danger"
           title="Delete Selected Object(s)">
@@ -53,7 +53,7 @@
           💾 Save
         </button>
         <button @click="exportFloorPlan" class="btn btn-primary">
-          📤 Export
+          📸 Export PNG
         </button>
       </div>
     </div>
@@ -2955,7 +2955,7 @@ const updatePlacedObjectInStore = (fabricObject: any) => {
   }
 }
 
-// Object Library에서 오브젝트 배치 처리
+// Object Template에서 오브젝트 배치 처리
 const handlePlaceObject = (event: any) => {
   if (!fabricCanvas) return
 
@@ -4478,9 +4478,9 @@ const updateBoxInStore = (box: any) => {
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background: white;
-  border-bottom: 1px solid #ddd;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: var(--color-bg-level-1, #0f1011);
+  border-bottom: 1px solid var(--color-border-primary, #23252a);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   gap: 2rem;
 }
 
@@ -4494,12 +4494,12 @@ const updateBoxInStore = (box: any) => {
   width: 24px;
   height: 24px;
   border-radius: 4px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--color-border-primary, #23252a);
   cursor: pointer;
 }
 
 .swatch.selected {
-  outline: 2px solid #333;
+  outline: 2px solid var(--color-text-primary, #f7f8f8);
 }
 
 .color-section {
@@ -4517,7 +4517,7 @@ const updateBoxInStore = (box: any) => {
 .custom-color-input label {
   font-size: 0.9rem;
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .color-input-group {
@@ -4529,15 +4529,17 @@ const updateBoxInStore = (box: any) => {
 .color-hex-input {
   width: 80px;
   padding: 0.25rem 0.5rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 4px;
   font-family: monospace;
   font-size: 0.8rem;
+  background: var(--color-bg-level-2, #141516);
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .color-hex-input.invalid {
-  border-color: #e74c3c;
-  background-color: #fdf2f2;
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
 }
 
 .color-opacity-slider {
@@ -4546,14 +4548,14 @@ const updateBoxInStore = (box: any) => {
 
 .opacity-value {
   font-size: 0.8rem;
-  color: #666;
+  color: var(--color-text-secondary, #a1a1aa);
   min-width: 35px;
 }
 
 .custom-color-preview {
   width: 100%;
   height: 24px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 4px;
   margin-top: 0.25rem;
 }
@@ -4573,7 +4575,8 @@ const updateBoxInStore = (box: any) => {
 }
 
 .color-picker-dialog {
-  background: white;
+  background: var(--color-bg-level-1, #0f1011);
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 12px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   width: 95%;
@@ -4587,12 +4590,12 @@ const updateBoxInStore = (box: any) => {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 1.5rem 1rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-primary, #23252a);
 }
 
 .dialog-header h3 {
   margin: 0;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
   font-size: 1.3rem;
 }
 
@@ -4601,14 +4604,14 @@ const updateBoxInStore = (box: any) => {
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #666;
+  color: var(--color-text-secondary, #a1a1aa);
   padding: 0.25rem;
   border-radius: 4px;
 }
 
 .close-btn:hover {
-  background: #f5f5f5;
-  color: #333;
+  background: var(--color-bg-level-2, #141516);
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .dialog-content {
@@ -4625,7 +4628,7 @@ const updateBoxInStore = (box: any) => {
 .custom-color-section h4,
 .selected-color-info h4 {
   margin: 0 0 1rem 0;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
   font-size: 1.1rem;
 }
 
@@ -4644,7 +4647,7 @@ const updateBoxInStore = (box: any) => {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  background: white;
+  background: var(--color-bg-level-2, #141516);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -4654,14 +4657,14 @@ const updateBoxInStore = (box: any) => {
 }
 
 .preset-color-item.selected {
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+  border-color: var(--color-accent-primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .color-label {
   margin-top: 0.5rem;
   font-size: 0.8rem;
-  color: #333;
+  color: var(--color-text-primary, #f7f8f8);
   text-align: center;
   font-weight: 500;
 }
@@ -4681,7 +4684,7 @@ const updateBoxInStore = (box: any) => {
 .color-input-row label {
   min-width: 80px;
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .opacity-controls {
@@ -4710,7 +4713,7 @@ const updateBoxInStore = (box: any) => {
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: #f8f9fa;
+  background: var(--color-bg-level-2, #141516);
   border-radius: 8px;
 }
 
@@ -4730,14 +4733,14 @@ const updateBoxInStore = (box: any) => {
 
 .color-name {
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .color-hex,
 .color-rgba {
   font-family: monospace;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--color-text-secondary, #a1a1aa);
 }
 
 .dialog-footer {
@@ -4745,8 +4748,8 @@ const updateBoxInStore = (box: any) => {
   justify-content: flex-end;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  border-top: 1px solid #eee;
-  background: #f8f9fa;
+  border-top: 1px solid var(--color-border-primary, #23252a);
+  background: var(--color-bg-level-2, #141516);
   border-radius: 0 0 12px 12px;
 }
 
@@ -4760,7 +4763,7 @@ const updateBoxInStore = (box: any) => {
 .color-selector label {
   font-size: 0.9rem;
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .color-picker-button {
@@ -4770,19 +4773,19 @@ const updateBoxInStore = (box: any) => {
   padding: 0.75rem 1rem;
   border: 2px solid #ddd;
   border-radius: 6px;
-  background: white;
+  background: var(--color-bg-level-1, #0f1011);
   cursor: pointer;
   transition: all 0.2s;
   min-width: 150px;
 }
 
 .color-picker-button:hover {
-  border-color: #3498db;
-  box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+  border-color: var(--color-accent-primary, #3b82f6);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
 }
 
 .color-preview-text {
-  color: #333;
+  color: var(--color-text-primary, #f7f8f8);
   font-weight: 500;
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
 }
@@ -4840,7 +4843,7 @@ const updateBoxInStore = (box: any) => {
 .slider-group label {
   min-width: 80px;
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .color-slider {
@@ -4867,7 +4870,7 @@ const updateBoxInStore = (box: any) => {
 .slider-value {
   min-width: 40px;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--color-text-secondary, #a1a1aa);
   text-align: right;
 }
 
@@ -4890,13 +4893,13 @@ const updateBoxInStore = (box: any) => {
 
 .input-group label {
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
   font-size: 0.9rem;
 }
 
 .color-input {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 4px;
   font-family: monospace;
   font-size: 0.9rem;
@@ -4904,7 +4907,7 @@ const updateBoxInStore = (box: any) => {
 
 .color-input.invalid {
   border-color: #e74c3c;
-  background-color: #fdf2f2;
+  background-color: rgba(239, 68, 68, 0.1);
 }
 
 .rgb-inputs,
@@ -4917,7 +4920,7 @@ const updateBoxInStore = (box: any) => {
 .hsl-input {
   flex: 1;
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 4px;
   text-align: center;
   font-size: 0.9rem;
@@ -4933,7 +4936,7 @@ const updateBoxInStore = (box: any) => {
 .opacity-section label {
   min-width: 80px;
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .opacity-controls {
@@ -4979,7 +4982,8 @@ const updateBoxInStore = (box: any) => {
 }
 
 .zone-creator-dialog {
-  background: white;
+  background: var(--color-bg-level-1, #0f1011);
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 12px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   width: 95%;
@@ -5003,7 +5007,7 @@ const updateBoxInStore = (box: any) => {
 
 .zone-creator-dialog .dialog-footer {
   padding: 1rem 1.5rem;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--color-border-primary, #23252a);
   flex-shrink: 0;
   display: flex;
   gap: 1rem;
@@ -5031,40 +5035,87 @@ const updateBoxInStore = (box: any) => {
 
 .zone-inputs .input-group label {
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
   font-size: 0.9rem;
 }
 
 .zone-inputs .input-group input {
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 6px;
   font-size: 0.9rem;
   transition: border-color 0.2s;
+  background: var(--color-bg-level-2, #141516);
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .zone-inputs .input-group input:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  border-color: var(--color-accent-primary, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* 일반 버튼 스타일 */
+.btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border-primary, #23252a);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  background: var(--color-bg-level-1, #0f1011);
+  color: var(--color-text-primary, #f7f8f8);
+}
+
+.btn:hover {
+  background: var(--color-bg-level-2, #141516);
+  border-color: var(--color-border-secondary, #2a2d33);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+.btn-primary {
+  background: var(--color-bg-level-1, #0f1011);
+  color: var(--color-text-primary, #f7f8f8);
+  border-color: var(--color-border-primary, #23252a);
+}
+
+.btn-primary:hover {
+  background: var(--color-bg-level-2, #141516);
+  border-color: var(--color-border-secondary, #2a2d33);
+}
+
+.btn-secondary {
+  background: var(--color-bg-level-1, #0f1011);
+  color: var(--color-text-secondary, #a1a1aa);
+  border-color: var(--color-border-primary, #23252a);
+}
+
+.btn-secondary:hover {
+  background: var(--color-bg-level-2, #141516);
+  color: var(--color-text-primary, #f7f8f8);
+  border-color: var(--color-border-secondary, #2a2d33);
 }
 
 .zone-create-btn {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
+  background: var(--color-bg-level-1, #0f1011);
+  color: var(--color-text-primary, #f7f8f8);
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .zone-create-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+  background: var(--color-bg-level-2, #141516);
+  border-color: var(--color-border-secondary, #2a2d33);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .zone-create-btn:active {
@@ -5086,7 +5137,8 @@ const updateBoxInStore = (box: any) => {
 }
 
 .wall-creator-dialog {
-  background: white;
+  background: var(--color-bg-level-1, #0f1011);
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 12px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   width: 95%;
@@ -5115,22 +5167,24 @@ const updateBoxInStore = (box: any) => {
 
 .wall-inputs .input-group label {
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
   font-size: 0.9rem;
 }
 
 .wall-inputs .input-group input {
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 6px;
   font-size: 0.9rem;
   transition: border-color 0.2s;
+  background: var(--color-bg-level-2, #141516);
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .wall-inputs .input-group input:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  border-color: var(--color-accent-primary, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .checkbox-section {
@@ -5151,12 +5205,12 @@ const updateBoxInStore = (box: any) => {
 
 .checkbox-group label {
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
   font-size: 1rem;
 }
 
 .checkbox-description {
-  color: #666;
+  color: var(--color-text-secondary, #a1a1aa);
   font-size: 0.85rem;
 }
 
@@ -5164,18 +5218,20 @@ const updateBoxInStore = (box: any) => {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-  color: white;
-  border: none;
+  background: var(--color-bg-level-1, #0f1011);
+  color: var(--color-text-primary, #f7f8f8);
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .wall-create-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
+  background: var(--color-bg-level-2, #141516);
+  border-color: var(--color-border-secondary, #2a2d33);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .wall-create-btn:active {
@@ -5197,7 +5253,8 @@ const updateBoxInStore = (box: any) => {
 }
 
 .box-creator-dialog {
-  background: white;
+  background: var(--color-bg-level-1, #0f1011);
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 12px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   width: 95%;
@@ -5235,41 +5292,45 @@ const updateBoxInStore = (box: any) => {
 
 .box-inputs .input-group label {
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
   font-size: 0.85rem; /* 폰트 크기 축소 */
   margin-bottom: 0.2rem;
 }
 
 .box-inputs .input-group input {
   padding: 0.6rem; /* 패딩 축소 */
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 6px;
   font-size: 0.9rem;
   transition: border-color 0.2s;
+  background: var(--color-bg-level-2, #141516);
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .box-inputs .input-group input:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  border-color: var(--color-accent-primary, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .box-create-btn {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-  color: white;
-  border: none;
+  background: var(--color-bg-level-1, #0f1011);
+  color: var(--color-text-primary, #f7f8f8);
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .box-create-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(243, 156, 18, 0.6);
+  background: var(--color-bg-level-2, #141516);
+  border-color: var(--color-border-secondary, #2a2d33);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .box-create-btn:active {
@@ -5295,7 +5356,7 @@ const updateBoxInStore = (box: any) => {
 
 .box-creator-dialog .dialog-footer {
   padding: 1rem 1.5rem;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--color-border-primary, #23252a);
   flex-shrink: 0;
   display: flex;
   gap: 1rem;
@@ -5305,8 +5366,8 @@ const updateBoxInStore = (box: any) => {
 /* Box Creator 팝업 푸터 스타일 */
 .box-creator-dialog .dialog-footer {
   padding: 1rem 1.5rem;
-  border-top: 1px solid #e9ecef;
-  background: #f8f9fa;
+  border-top: 1px solid var(--color-border-primary, #23252a);
+  background: var(--color-bg-level-2, #141516);
   border-radius: 0 0 12px 12px;
   display: flex;
   gap: 1rem;
@@ -5351,7 +5412,7 @@ const updateBoxInStore = (box: any) => {
   gap: 0.75rem;
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--color-border-primary, #23252a);
 }
 
 .common-tools .btn {
@@ -5361,7 +5422,7 @@ const updateBoxInStore = (box: any) => {
 /* 선택된 객체 정보 텍스트 스타일 */
 .selection-text {
   font-size: 1rem;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
   font-weight: 500;
   line-height: 1.4;
 }
@@ -5389,16 +5450,19 @@ const updateBoxInStore = (box: any) => {
 
 /* Clear 버튼 색상 스타일 */
 .btn-warning {
-  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-  color: white;
-  border: none;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+  background: var(--color-bg-level-1, #0f1011);
+  color: #f59e0b;
+  border-color: #f59e0b;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .btn-warning:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(243, 156, 18, 0.6);
+  background: #f59e0b;
+  color: white;
+  border-color: #d97706;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .btn-warning:active {
@@ -5429,7 +5493,7 @@ const updateBoxInStore = (box: any) => {
 .color-rgba-display {
   font-family: monospace;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--color-text-secondary, #a1a1aa);
 }
 
 .room-controls {
@@ -5441,7 +5505,7 @@ const updateBoxInStore = (box: any) => {
 .room-controls h3 {
   margin: 0;
   font-size: 1.1rem;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .left-tool-group {
@@ -5460,7 +5524,7 @@ const updateBoxInStore = (box: any) => {
 .zone-controls h3 {
   margin: 0;
   font-size: 1.1rem;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
   font-weight: 600;
 }
 
@@ -5480,7 +5544,7 @@ const updateBoxInStore = (box: any) => {
 .wall-tools h4 {
   margin: 0;
   font-size: 1rem;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .box-tools {
@@ -5493,7 +5557,7 @@ const updateBoxInStore = (box: any) => {
 .box-tools h4 {
   margin: 0;
   font-size: 1rem;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
 }
 
 .tool-buttons {
@@ -5580,7 +5644,7 @@ const updateBoxInStore = (box: any) => {
   width: 16px;
   height: 16px;
   border-radius: 2px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--color-border-primary, #23252a);
   margin-right: 0.5rem;
   vertical-align: middle;
 }
@@ -5615,23 +5679,25 @@ const updateBoxInStore = (box: any) => {
 
 .input-group label {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--color-text-secondary, #a1a1aa);
   font-weight: 500;
 }
 
 .input-group input {
   width: 80px;
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 4px;
   font-size: 0.9rem;
+  background: var(--color-bg-level-2, #141516);
+  color: var(--color-text-primary, #f7f8f8);
   text-align: center;
 }
 
 .input-group input:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  border-color: var(--color-accent-primary, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .tool-group {
@@ -5640,31 +5706,39 @@ const updateBoxInStore = (box: any) => {
 }
 
 .btn.active {
-  background: #3498db !important;
-  color: white;
+  background: var(--color-bg-level-2, #141516) !important;
+  color: var(--color-text-primary, #f7f8f8);
+  border-color: var(--color-border-secondary, #2a2d33);
 }
 
 .btn-danger {
-  background: #e74c3c;
-  color: white;
+  background: var(--color-bg-level-1, #0f1011);
+  color: #ef4444;
+  border-color: #ef4444;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #c0392b;
+  background: #ef4444;
+  color: white;
+  border-color: #dc2626;
 }
 
 .btn-danger:disabled {
-  background: #bdc3c7;
-  color: #7f8c8d;
+  background: var(--color-bg-level-1, #0f1011);
+  color: var(--color-text-secondary, #a1a1aa);
+  border-color: var(--color-border-primary, #23252a);
 }
 
 .btn-success {
-  background: #27ae60;
-  color: white;
+  background: var(--color-bg-level-1, #0f1011);
+  color: #10b981;
+  border-color: #10b981;
 }
 
 .btn-success:hover:not(:disabled) {
-  background: #229954;
+  background: #10b981;
+  color: white;
+  border-color: #059669;
 }
 
 .canvas-wrapper {
@@ -5764,7 +5838,7 @@ const updateBoxInStore = (box: any) => {
 }
 
 .change-confirm-dialog {
-  background: white;
+  background: var(--color-bg-level-1, #0f1011);
   border-radius: 12px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   max-width: 600px;
@@ -5783,7 +5857,7 @@ const updateBoxInStore = (box: any) => {
 
 .dialog-header h3 {
   margin: 0;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
   font-size: 1.3rem;
 }
 
@@ -5792,7 +5866,7 @@ const updateBoxInStore = (box: any) => {
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #666;
+  color: var(--color-text-secondary, #a1a1aa);
   padding: 0;
   width: 30px;
   height: 30px;
@@ -5817,7 +5891,7 @@ const updateBoxInStore = (box: any) => {
 
 .change-section h4 {
   margin: 0 0 0.75rem 0;
-  color: #2c3e50;
+  color: var(--color-text-primary, #f7f8f8);
   font-size: 1.1rem;
   font-weight: 600;
 }
@@ -5833,7 +5907,7 @@ const updateBoxInStore = (box: any) => {
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem;
-  background: #f8f9fa;
+  background: var(--color-bg-level-2, #141516);
   border-radius: 8px;
   border-left: 4px solid #3498db;
 }
@@ -5863,7 +5937,7 @@ const updateBoxInStore = (box: any) => {
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem;
-  background: #f8f9fa;
+  background: var(--color-bg-level-2, #141516);
   border-radius: 8px;
   border: 1px solid #e9ecef;
 }
@@ -5893,7 +5967,7 @@ const updateBoxInStore = (box: any) => {
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem;
-  background: #f8f9fa;
+  background: var(--color-bg-level-2, #141516);
   border-radius: 8px;
   border-left: 4px solid #e74c3c;
 }
@@ -5946,8 +6020,8 @@ const updateBoxInStore = (box: any) => {
   justify-content: flex-end;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  border-top: 1px solid #e0e0e0;
-  background: #f8f9fa;
+  border-top: 1px solid var(--color-border-primary, #23252a);
+  background: var(--color-bg-level-2, #141516);
   border-radius: 0 0 12px 12px;
 }
 
@@ -5955,7 +6029,7 @@ const updateBoxInStore = (box: any) => {
 .wall-coordinates {
   margin-top: 1rem;
   padding: 1rem;
-  background: #f8f9fa;
+  background: var(--color-bg-level-2, #141516);
   border: 1px solid #dee2e6;
   border-radius: 8px;
 }
