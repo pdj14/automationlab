@@ -21,6 +21,12 @@
       </div>
       
       <div class="control-group">
+        <button @click="make3D" class="btn btn-primary" title="Convert 2D to 3D">
+          🎯 Make3D
+        </button>
+        <button @click="clearAll3D" class="btn btn-danger" title="Clear All 3D Objects">
+          🗑️ Clear 3D
+        </button>
         <button @click="export3DToPNG" class="btn btn-success" title="Export 3D View to PNG">
           📸 Export PNG
         </button>
@@ -2094,7 +2100,56 @@ const handleObjectsOnBoxes = () => {
   })
 }
 
+// Store를 사용한 Make3D - 2D 객체들을 상세한 3D로 변환
+const make3D = async () => {
 
+  
+  if (loading.value) {
+
+    return
+  }
+  
+  loading.value = true
+
+  
+  try {
+    const data = floorplanStore.floorplanData
+    console.log('Make3D 실행 - Store 데이터:', data)
+
+    if (!data) {
+      console.log('Store 데이터가 없음')
+      return
+    }
+
+    // 바닥 생성 (2D에서 room-floor만 있는 케이스 지원)
+    if (data.roomSize) {
+      create3DFloorFromRoom(data)
+    }
+
+    // 벽이 있을 때만 3D 벽 생성
+    if (data.walls && data.walls.length > 0) {
+      console.log('벽 데이터 발견, 3D 벽 생성:', data.walls)
+      create3DWalls(data)
+    } else {
+      console.log('벽 데이터가 없음')
+    }
+
+
+
+    await create3DObjects(data.placedObjects || [], data.canvasSize)
+    
+
+    handleObjectsOnBoxes()
+    
+    // console.log('✨ addEnhanced3DFeatures 호출')
+    // addEnhanced3DFeatures()
+    
+  } catch (error) {
+    console.error('❌ Make3D 중 오류 발생:', error)
+  } finally {
+    loading.value = false
+  }
+}
 
 // 향상된 3D 기능 추가
 const addEnhanced3DFeatures = () => {
@@ -2135,7 +2190,59 @@ const addEnhancedLighting = (centerX: number, centerZ: number, width: number, de
   scene.add(roomLight)
 }
 
+// Clear All 3D - 모든 3D 객체 제거
+const clearAll3D = () => {
+  if (!scene) return
+  
+  // 3D 팝업 제거
+  remove3DPopup()
 
+  const objectTypesToRemove = [
+    'wall', 'glass-wall', 'room-floor', 'base-floor', 'zone-floor', 'ceiling', 
+    'room-light', 'corner-light', 'wall-decoration', 'placed-object', 'status-sphere', '3d-popup',
+    'instanced-objects'
+  ]
+  
+  const objectsToRemove: THREE.Object3D[] = []
+  
+  scene.traverse((child) => {
+    if (child !== scene && child.userData.type && objectTypesToRemove.includes(child.userData.type)) {
+      objectsToRemove.push(child)
+    }
+  })
+  
+  objectsToRemove.forEach(obj => {
+    scene.remove(obj)
+    
+    if (obj instanceof THREE.Mesh) {
+      if (obj.geometry) {
+        obj.geometry.dispose()
+      }
+      if (obj.material) {
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach(mat => mat.dispose())
+        } else {
+          obj.material.dispose()
+        }
+      }
+    }
+  })
+
+  // 인스턴싱 메쉬 전역 캐시 정리
+  if (instancedMeshes.length > 0) {
+    instancedMeshes.forEach(mesh => {
+      mesh.geometry.dispose()
+      if (mesh.material && 'dispose' in mesh.material) {
+        mesh.material.dispose()
+      }
+    })
+    instancedMeshes = []
+  }
+  
+  objects.value = objects.value.filter(obj => !objectsToRemove.includes(obj))
+  
+  renderer.render(scene, camera)
+}
 
 // 윈도우 리사이즈 처리
 const handleResize = () => {
@@ -2336,6 +2443,8 @@ const downloadImage = (dataURL: string, filename: string) => {
 // 외부에서 호출할 수 있는 함수들
 defineExpose({
   create3DWalls,
+  make3D,
+  clearAll3D,
   export3DToPNG
 })
 
@@ -2407,9 +2516,9 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem;
-  background: var(--color-bg-level-1, #0f1011);
-  border-bottom: 1px solid var(--color-border-primary, #23252a);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  background: white;
+  border-bottom: 1px solid #ddd;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .control-group {
@@ -2422,7 +2531,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   font-size: 0.85rem;
-  color: var(--color-text-secondary, #a1a1aa);
+  color: #666;
 }
 
 .control-group input[type="range"] {
@@ -2432,94 +2541,54 @@ onMounted(() => {
 
 .btn {
   padding: 0.5rem 1rem;
-  border: 1px solid var(--color-border-primary, #23252a);
+  border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 500;
   transition: all 0.2s;
-  background: var(--color-bg-level-1, #0f1011);
-  color: var(--color-text-primary, #f7f8f8);
-}
-
-.btn:hover {
-  background: var(--color-bg-level-2, #141516);
-  border-color: var(--color-border-secondary, #2a2d33);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
 }
 
 .btn-primary {
-  background: var(--color-bg-level-1, #0f1011);
-  color: var(--color-text-primary, #f7f8f8);
-  border-color: var(--color-border-primary, #23252a);
+  background: #3498db;
+  color: white;
 }
 
 .btn-primary:hover {
-  background: var(--color-bg-level-2, #141516);
-  border-color: var(--color-border-secondary, #2a2d33);
+  background: #2980b9;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .btn-secondary {
-  background: var(--color-bg-level-1, #0f1011);
-  color: var(--color-text-secondary, #a1a1aa);
-  border-color: var(--color-border-primary, #23252a);
+  background: #95a5a6;
+  color: white;
 }
 
 .btn-secondary:hover {
-  background: var(--color-bg-level-2, #141516);
-  color: var(--color-text-primary, #f7f8f8);
-  border-color: var(--color-border-secondary, #2a2d33);
+  background: #7f8c8d;
 }
 
 .btn-danger {
-  background: var(--color-bg-level-1, #0f1011);
-  color: #ef4444;
-  border-color: #ef4444;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #ef4444;
+  background: #e74c3c;
   color: white;
-  border-color: #dc2626;
 }
 
-.btn-danger:disabled {
-  background: var(--color-bg-level-1, #0f1011);
-  color: var(--color-text-secondary, #a1a1aa);
-  border-color: var(--color-border-primary, #23252a);
+.btn-danger:hover {
+  background: #c0392b;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .btn-success {
-  background: var(--color-bg-level-1, #0f1011);
-  color: #10b981;
-  border-color: #10b981;
+  background: #27ae60;
+  color: white;
 }
 
 .btn-success:hover {
-  background: #10b981;
-  color: white;
-  border-color: #059669;
-}
-
-.btn-warning {
-  background: var(--color-bg-level-1, #0f1011);
-  color: #f59e0b;
-  border-color: #f59e0b;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.btn-warning:hover {
-  background: #f59e0b;
-  color: white;
-  border-color: #d97706;
+  background: #229954;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.btn-warning:active {
-  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .canvas-3d {
