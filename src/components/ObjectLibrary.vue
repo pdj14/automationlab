@@ -55,7 +55,7 @@
           </div>
           <div class="object-category">{{ template.category }}</div>
           <div class="object-dimensions">
-            {{ template.width }}m × {{ template.depth }}m × {{ template.height }}m
+            {{ template.width }}m × {{ template.height }}m × {{ template.depth }}m
           </div>
           <div v-if="template.description" class="object-description">
             {{ template.description }}
@@ -245,7 +245,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useFloorplanStore } from '../stores/floorplanStore'
+import { useObjectStore } from '../stores/objectStore'
 
 // Props와 Emits 정의
 const emit = defineEmits<{
@@ -309,8 +309,8 @@ let selectedFile: File | null = null
 let selectedThumbnail: File | null = null
 let selectedLodFile: File | null = null
 
-// floorplanStore 인스턴스
-const floorplanStore = useFloorplanStore()
+// objectStore 인스턴스
+const objectStore = useObjectStore()
 
 // API 함수들
 const fetchObjectTemplates = async () => {
@@ -318,7 +318,7 @@ const fetchObjectTemplates = async () => {
   error.value = null
   
   try {
-    const templates = await floorplanStore.fetchObjectTemplates()
+    const templates = await objectStore.fetchObjectTemplates()
     objectTemplates.value = templates
     console.log('Fetched templates:', templates)
   } catch (err) {
@@ -365,7 +365,7 @@ const deleteObject = async () => {
   deleting.value = true
   
   try {
-    const success = await floorplanStore.deleteObjectTemplate(objectToDelete.value.id)
+    const success = await objectStore.deleteObjectTemplate(objectToDelete.value.id)
     
     if (success) {
       console.log('Object deleted successfully')
@@ -461,7 +461,7 @@ const uploadObject = async () => {
     }
 
     // API 호출
-    const createdTemplate = await floorplanStore.uploadObjectTemplate(formData)
+    const createdTemplate = await objectStore.uploadObjectTemplate(formData)
 
     if (createdTemplate) {
       console.log('Created template:', createdTemplate)
@@ -591,9 +591,12 @@ const closeModal = () => {
 }
 
 .object-thumbnail img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  max-width: 80%;
+  max-height: 80%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 4px;
 }
 
 .no-thumbnail {

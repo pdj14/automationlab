@@ -86,6 +86,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
 import { useFloorplanStore } from '../stores/floorplanStore'
+import { useObjectStore } from '../stores/objectStore'
+import { useBoxStore } from '../stores/boxStore'
 
 // Three.js LOD 클래스는 THREE.LOD로 사용 가능
 
@@ -124,6 +126,8 @@ let current3DPopup: THREE.Group | null = null
 
 // Pinia Store 사용
 const floorplanStore = useFloorplanStore()
+const objectStore = useObjectStore()
+const boxStore = useBoxStore()
 
 // Frustum Culling 관련 함수들
 const updateFrustum = () => {
@@ -880,8 +884,8 @@ const toggleLOD = () => {
   lodEnabled.value = !lodEnabled.value
   
   // LOD 상태 변경 시 기존 객체들의 LOD 적용/해제
-  if (floorplanStore.placedObjects.length > 0) {
-    updatePlacedObjectsIn3D(floorplanStore.placedObjects)
+  if (objectStore.placedObjects.length > 0) {
+    updatePlacedObjectsIn3D(objectStore.placedObjects)
   }
 }
 
@@ -1259,7 +1263,7 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
     } catch (error) {
       console.error(`❌ GLB 모델 로딩 실패 (${placedObj.name}):`, error)
       
-      // 오류 시 기본 큐브로 대체
+      // 오류 시 기본 큐브로 대체 (width, height, depth 순서)
       const fallbackGeometry = new THREE.BoxGeometry(placedObj.width, placedObj.height, placedObj.depth)
       const fallbackMaterial = new THREE.MeshStandardMaterial({ 
         color: '#ff0000' // 빨간색으로 오류 표시
@@ -1673,7 +1677,7 @@ const handleCanvasClick = (event: MouseEvent) => {
     )
     
     // Store에서 원본 데이터 찾기 (인스턴싱 경로 포함)
-    const originalData = floorplanStore.placedObjects.find(obj => obj.id === parentObjectId)
+    const originalData = objectStore.placedObjects.find(obj => obj.id === parentObjectId)
     
     if (originalData) {
       const objectData = {
@@ -1721,9 +1725,8 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
   
   const boxDepth = placedObj.depth  // 원본 depth 값 사용
   
-  // Box의 높이를 depth로 표현하기 위해 매개변수 순서 조정
-  // BoxGeometry(width, depth, height) - width: X축, depth: Z축, height: Y축
-  const boxGeometry = new THREE.BoxGeometry(boxWidth, boxDepth, placedObj.height)
+  // BoxGeometry(width, height, depth) - width: X축, height: Y축, depth: Z축
+  const boxGeometry = new THREE.BoxGeometry(boxWidth, placedObj.height, boxDepth)
   const boxMaterial = new THREE.MeshStandardMaterial({ 
     color: boxColor,
     transparent: true,
@@ -2068,7 +2071,7 @@ const createInstancedObjects = (instancedObjects: any[]) => {
 
 // 상자 위 오브젝트 배치 처리
 const handleObjectsOnBoxes = () => {
-  const storeObjects = floorplanStore.placedObjects
+  const storeObjects = objectStore.placedObjects
   const boxes = storeObjects.filter(obj => obj.category === 'etc' && obj.isBox)
   const allObjects = storeObjects.filter(obj => !obj.isBox)
   
@@ -2171,7 +2174,7 @@ const make3D = async () => {
 
 
 
-    await create3DObjects(data.placedObjects || [], data.canvasSize)
+    await create3DObjects(objectStore.placedObjects || [], data.canvasSize)
     
 
     handleObjectsOnBoxes()
@@ -2298,7 +2301,7 @@ const handleResize = () => {
 // Store 변경 감지 - 배치된 오브젝트 실시간 동기화
 let isUpdating = false
 watch(
-  () => floorplanStore.placedObjects,
+  () => objectStore.placedObjects,
   async (newObjects, oldObjects) => {
     if (!scene || !renderer || !camera || isUpdating) return
     

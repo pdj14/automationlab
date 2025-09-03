@@ -482,6 +482,9 @@
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import * as fabricLib from 'fabric'
 import { useFloorplanStore } from '../stores/floorplanStore'
+import { useObjectStore } from '../stores/objectStore'
+import { useBoxStore } from '../stores/boxStore'
+import { useZoneStore } from '../stores/zoneStore'
 import axios from 'axios'
 import AdvancedColorPicker from './AdvancedColorPicker.vue'
 
@@ -497,6 +500,9 @@ const fabric = (fabricLib as any).fabric || fabricLib
 
 // Pinia Store 사용
 const floorplanStore = useFloorplanStore()
+const objectStore = useObjectStore()
+const boxStore = useBoxStore()
+const zoneStore = useZoneStore()
 
 // 상태 관리
 const canvas2d = ref<HTMLCanvasElement>()
@@ -1202,7 +1208,7 @@ const throttle = (func: Function, delay: number) => {
 
 // 실시간 3D 업데이트 제거로 인해 throttledUpdate3D 함수 제거
 // const throttledUpdate3D = throttle(() => {
-//   console.log('🔄 Throttled 3D 업데이트 실행')
+
 //   updateAllWalls()
 // }, 300)
 
@@ -1576,7 +1582,7 @@ const setupWallDrawing = () => {
     if (singleSelected && singleSelected.userData?.type === 'custom-box') {
       selectedObject.value = singleSelected
       selectedObjects.value = [singleSelected]
-      console.log(`📦 Box 선택됨: ID ${singleSelected.userData?.id}`)
+
       return
     }
 
@@ -1626,7 +1632,7 @@ const setupWallDrawing = () => {
     if (singleSelected && singleSelected.userData?.type === 'custom-box') {
       selectedObject.value = singleSelected
       selectedObjects.value = [singleSelected]
-      console.log(`📦 Box 선택됨 (updated): ID ${singleSelected.userData?.id}`)
+
       return
     }
 
@@ -2178,7 +2184,7 @@ const createBoxFromCoordinates = () => {
     color: popupSelectedBoxColor.value.hex
   }
   
-  floorplanStore.addBox(boxData)
+  boxStore.addBox(boxData)
   
   // 3D에서 보이도록 placedObject에도 저장 (기존 방식 유지)
   const placedObjectData = {
@@ -2207,19 +2213,12 @@ const createBoxFromCoordinates = () => {
     description: '2D에서 생성된 Box'
   }
   
-  floorplanStore.addPlacedObject(placedObjectData)
+  objectStore.addPlacedObject(placedObjectData)
   
   // Box 생성 완료 후 자동으로 Select 모드로 전환
   setTool('select')
   
-  console.log(`✅ Box 생성 완료: 위치(${popupBoxX.value}, ${popupBoxY.value}), 크기(${popupBoxWidth.value}×${popupBoxHeight.value}×${popupBoxDepth.value}m)`)
-  console.log(`📦 Box Store 저장 정보:`, {
-    id: boxIdString,
-    category: 'etc',
-    isBox: true,
-    position: { x: popupBoxX.value, y: popupBoxY.value }
-  })
-  console.log(`🔍 현재 Store의 placedObjects 개수:`, floorplanStore.placedObjects.length)
+
 }
 
 
@@ -2769,21 +2768,21 @@ const updateObjectColorOnCanvas = (placedObjectId: string, newColor: string) => 
 const rerender2DObjectsFromStore = () => {
   if (!fabricCanvas) return
 
-  console.log(`🔄 2D 재구성 시작: Store의 placedObjects ${floorplanStore.placedObjects.length}개`)
+
 
   // 기존 배치 오브젝트와 Box 오브젝트 모두 제거
   const objectsToRemove = (fabricCanvas.getObjects() as Array<fabric.Object & { userData?: any }>).filter((obj) =>
     obj.userData?.type === 'placed-object' || obj.userData?.type === 'custom-box'
   )
 
-  console.log(`🗑️ 제거할 오브젝트: ${objectsToRemove.length}개`, objectsToRemove.map(obj => ({ type: obj.userData?.type, id: obj.userData?.id })))
+
 
   objectsToRemove.forEach(obj => {
     fabricCanvas.remove(obj)
   })
 
   // Store 데이터 기반으로 모든 오브젝트 재생성
-  floorplanStore.placedObjects.forEach(placedObj => {
+  objectStore.placedObjects.forEach(placedObj => {
     const canvasWidth = fabricCanvas.width || 800
     const canvasHeight = fabricCanvas.height || 600
 
@@ -2825,7 +2824,7 @@ const rerender2DObjectsFromStore = () => {
       // Box 크기 라벨 추가
       addBoxSizeLabel(box, placedObj.width, placedObj.depth)
 
-      console.log(`📦 Box 재생성: ID ${placedObj.id}, 위치(${placedObj.position.x}, ${placedObj.position.y})`)
+
     } else {
       // 일반 오브젝트 생성
       const objectShape = new fabric.Rect({
@@ -2872,11 +2871,11 @@ const rerender2DObjectsFromStore = () => {
       }
 
       fabricCanvas.add(group)
-      console.log(`🎯 일반 오브젝트 재생성: ID ${placedObj.id}, 이름 ${placedObj.name}`)
+
     }
   })
 
-  console.log(`✅ 2D 재구성 완료: 총 ${floorplanStore.placedObjects.length}개 오브젝트`)
+
   fabricCanvas.renderAll()
 }
 
@@ -2888,7 +2887,7 @@ const moveObjectsOnBox = (boxObject: any) => {
   if (!boxId) return
 
   // 상자 위에 있는 모든 장비 찾기
-  const objectsOnBox = floorplanStore.placedObjects.filter(obj => obj.boxId === boxId)
+  const objectsOnBox = objectStore.placedObjects.filter(obj => obj.boxId === boxId)
 
   objectsOnBox.forEach(obj => {
     // 해당 장비의 Fabric.js 오브젝트 찾기
@@ -2918,7 +2917,7 @@ const moveObjectsOnBox = (boxObject: any) => {
         ...obj,
         position: { x: worldX, y: worldY }
       }
-      floorplanStore.updatePlacedObject(obj.id, updatedObject)
+      objectStore.updatePlacedObject(obj.id, updatedObject)
     }
   })
 
@@ -2944,14 +2943,14 @@ const updatePlacedObjectInStore = (fabricObject: any) => {
 
 
   // Store에서 해당 오브젝트 찾기
-  const existingObject = floorplanStore.placedObjects.find(obj => obj.id === placedObjectId)
+  const existingObject = objectStore.placedObjects.find(obj => obj.id === placedObjectId)
   if (existingObject) {
     const updatedObject = {
       ...existingObject,
       position: { x: worldX, y: worldY },
       rotation: rotationRadians
     }
-    floorplanStore.updatePlacedObject(placedObjectId, updatedObject)
+    objectStore.updatePlacedObject(placedObjectId, updatedObject)
   }
 }
 
@@ -2959,7 +2958,7 @@ const updatePlacedObjectInStore = (fabricObject: any) => {
 const placeObject = (object: any) => {
   if (!fabricCanvas) return
   
-  console.log('placeObject 호출됨:', object)
+
   
   // 오브젝트 배치 로직 실행
   executeObjectPlacement(object)
@@ -2971,7 +2970,7 @@ const handlePlaceObject = (event: any) => {
 
   const { object } = event.detail
   
-  console.log('handlePlaceObject 호출됨:', object)
+
   
   // 오브젝트 배치 로직 실행
   executeObjectPlacement(object)
@@ -2979,6 +2978,7 @@ const handlePlaceObject = (event: any) => {
 
 // 실제 오브젝트 배치 로직
 const executeObjectPlacement = (object: any) => {
+
   if (!fabricCanvas) return
 
   let centerX: number
@@ -3026,10 +3026,10 @@ const executeObjectPlacement = (object: any) => {
     centerY = canvasHeight / 2
   }
 
-  // 오브젝트 크기 (미터 단위를 픽셀로 변환) - 2D에서는 width(가로), depth(세로) 사용
+  // 오브젝트 크기 (미터 단위를 픽셀로 변환) - 2D에서는 width(가로), height(세로) 사용
   const meterToPixel = 40 // 1m = 40px
   let objectWidth = (object.width || 1) * meterToPixel   // 가로
-  let objectHeight = (object.depth || 1) * meterToPixel  // 세로 (2D 표현용)
+  let objectHeight = (object.height || 1) * meterToPixel  // 세로 (2D 표현용)
 
   // 상자 위 배치인 경우 크기를 약간 작게 조정
   if (boxPlacementMode.value && selectedBox.value && object.category !== 'etc') {
@@ -3149,7 +3149,7 @@ const executeObjectPlacement = (object: any) => {
     instancing: object.instancing || false // 인스턴싱 값 추가
   }
 
-  floorplanStore.addPlacedObject(placedObjectData)
+  objectStore.addPlacedObject(placedObjectData)
 
   // 🚀 핵심 개선: Store 기반 2D 재구성 (일관성 있는 렌더링)
   rerender2DObjectsFromStore()
@@ -3214,10 +3214,10 @@ const clearCanvas = () => {
 
   // Store 초기화
   floorplanStore.clearRoom()
-  floorplanStore.clearPlacedObjects()
-  floorplanStore.clearZones()
+  objectStore.clearPlacedObjects()
+  zoneStore.clearZones()
   floorplanStore.clearWalls()
-  floorplanStore.clearBoxes()
+  boxStore.clearBoxes()
 
   // 캔버스 크기 정보 업데이트
   const canvasWidth = fabricCanvas.width || 800
@@ -3235,9 +3235,9 @@ const confirmAndSaveZones = async () => {
   try {
     // Zone, Wall, Box 동기화를 병렬로 실행
     const [zoneSuccess, wallSuccess, boxSuccess] = await Promise.all([
-      floorplanStore.syncZones(zoneChangeSummary.value),
+      zoneStore.syncZones(zoneChangeSummary.value),
       floorplanStore.syncWalls(wallChangeSummary.value),
-      floorplanStore.syncBoxes(boxChangeSummary.value)
+      boxStore.syncBoxes(boxChangeSummary.value)
     ])
     
     if (zoneSuccess && wallSuccess && boxSuccess) {
@@ -3286,9 +3286,9 @@ const clearCanvasData = async () => {
     
     
     // Store의 Zone, Wall, Box 데이터도 초기화
-    floorplanStore.setZones([])
+    zoneStore.setZones([])
     floorplanStore.setWalls([])
-    floorplanStore.setBoxes([])
+    boxStore.setBoxes([])
     
     
     
@@ -3440,9 +3440,9 @@ const saveFloorPlan = async () => {
 
     // 백엔드에서 최신 Zone, Wall, Box 데이터 가져오기
     const [savedZones, savedWalls, savedBoxes] = await Promise.all([
-      floorplanStore.fetchZones(),
+      zoneStore.fetchZones(),
       floorplanStore.fetchWalls(),
-      floorplanStore.fetchBoxes()
+      boxStore.fetchBoxes()
     ])
     
 
@@ -3458,9 +3458,9 @@ const saveFloorPlan = async () => {
     })
 
     // Store의 analyzeZoneChanges, analyzeWallChanges, analyzeBoxChanges 함수로 변경사항 분석
-    const zoneChanges = floorplanStore.analyzeZoneChanges(zonesToSave, savedZones)
+    const zoneChanges = zoneStore.analyzeZoneChanges(zonesToSave, savedZones)
     const wallChanges = floorplanStore.analyzeWallChanges(wallsToSave, savedWalls)
-    const boxChanges = floorplanStore.analyzeBoxChanges(boxesToSave, savedBoxes)
+    const boxChanges = boxStore.analyzeBoxChanges(boxesToSave, savedBoxes)
     
     zoneChangeSummary.value = zoneChanges
     wallChangeSummary.value = wallChanges
@@ -3558,17 +3558,17 @@ const loadSavedZones = async () => {
 
     
     // 백엔드 API에서 저장된 Zone 정보 가져오기
-    const savedZones = await floorplanStore.fetchZones()
+    const savedZones = await zoneStore.fetchZones()
     
 
     if (savedZones.length === 0) {
       
-      floorplanStore.setZones([])
+      zoneStore.setZones([])
       return
     }
 
     // Store에 Zone 데이터 저장
-    floorplanStore.setZones(savedZones)
+    zoneStore.setZones(savedZones)
 
     // 각 Zone을 캔버스에 그리기
     savedZones.forEach((zoneData: any) => {
@@ -3585,7 +3585,7 @@ const loadSavedZones = async () => {
       // 서버가 응답했지만 에러 상태 코드
       if (error.response.status === 404) {
 
-        floorplanStore.setZones([])
+        zoneStore.setZones([])
       } else {
         console.error('서버 응답 에러:', error.response.status, error.response.data)
       }
@@ -3606,19 +3606,19 @@ const loadSavedZones = async () => {
 // 저장된 Box 데이터 불러오기
 const loadBoxes = async () => {
   try {
-    console.log('📦 Box 정보 불러오기 시작...')
+
     
     // 백엔드 API에서 저장된 Box 정보 가져오기
-    const savedBoxes = await floorplanStore.fetchBoxes()
+    const savedBoxes = await boxStore.fetchBoxes()
     
     if (savedBoxes.length === 0) {
-      console.log('📦 저장된 Box가 없습니다.')
-      floorplanStore.setBoxes([])
+
+      boxStore.setBoxes([])
       return
     }
 
     // Store에 Box 데이터 저장
-    floorplanStore.setBoxes(savedBoxes)
+    boxStore.setBoxes(savedBoxes)
 
     // 각 Box를 캔버스에 그리기 (유효한 데이터만 처리)
     savedBoxes.forEach((boxData: any) => {
@@ -3626,11 +3626,11 @@ const loadBoxes = async () => {
       if (boxData && typeof boxData === 'object') {
         createBoxFromSavedData(boxData)
       } else {
-        console.warn('⚠️ Invalid Box data:', boxData)
+
       }
     })
 
-    console.log(`✅ Box 정보 불러오기 완료: ${savedBoxes.length}개`)
+
     
   } catch (error: any) {
     console.error('❌ Failed to load box information:', error)
@@ -3639,7 +3639,7 @@ const loadBoxes = async () => {
     if (error.response) {
       // 서버가 응답했지만 에러 상태 코드
       if (error.response.status === 404) {
-        console.log('📦 Box API 엔드포인트가 아직 구현되지 않았습니다.')
+
       } else {
         console.error('서버 에러:', error.response.status, error.response.data)
       }
@@ -3728,7 +3728,7 @@ const createBoxFromSavedData = (boxData: any) => {
 
   // Store에 Box를 placedObjects에도 추가 (3D 렌더링을 위해)
   // 중복 추가 방지: 이미 존재하는지 확인
-  const existingObject = floorplanStore.placedObjects.find(obj => obj.id === safeBoxData.id)
+  const existingObject = objectStore.placedObjects.find(obj => obj.id === safeBoxData.id)
   if (!existingObject) {
     const placedObjectData = {
       id: safeBoxData.id,
@@ -3753,10 +3753,10 @@ const createBoxFromSavedData = (boxData: any) => {
       description: 'DB에서 불러온 Box'
     }
     
-    floorplanStore.addPlacedObject(placedObjectData)
+    objectStore.addPlacedObject(placedObjectData)
   }
 
-  console.log(`📦 Box 재생성: ID ${safeBoxData.id}, 위치(${safeBoxData.x}, ${safeBoxData.y})`)
+
 }
 
 // 저장된 데이터로부터 Wall 생성
@@ -3808,7 +3808,7 @@ const createWallFromSavedData = (wallData: any) => {
     endY: wallData.endY
   }
 
-  console.log('wall', wall)
+
 
   fabricCanvas.add(wall)
 
@@ -3910,7 +3910,7 @@ const createZoneFromSavedData = (zoneData: any) => {
 
   // zones 배열에도 추가
   if (zoneData.id) {
-    floorplanStore.addZone({
+    zoneStore.addZone({
       id: zoneData.id,
       x: Math.round(zoneData.x * 100) / 100, // 1cm 정밀도로 반올림
       y: Math.round(zoneData.y * 100) / 100,
@@ -4044,7 +4044,7 @@ const deleteSingleObject = (objectToDelete: any) => {
     if (placedObjectId) {
       // 상자가 삭제되는 경우 그 위의 장비들도 함께 삭제
       if (objectToDelete.userData?.category === 'etc' && objectToDelete.userData?.isBox) {
-        const objectsOnBox = floorplanStore.placedObjects.filter(obj => obj.boxId === placedObjectId)
+        const objectsOnBox = objectStore.placedObjects.filter(obj => obj.boxId === placedObjectId)
 
         objectsOnBox.forEach(obj => {
           // Fabric.js에서도 제거
@@ -4057,11 +4057,11 @@ const deleteSingleObject = (objectToDelete: any) => {
           }
 
           // Store에서 제거
-          floorplanStore.removePlacedObject(obj.id)
+          objectStore.removePlacedObject(obj.id)
         })
       }
 
-      floorplanStore.removePlacedObject(placedObjectId)
+      objectStore.removePlacedObject(placedObjectId)
 
       // 🚀 핵심 개선: Store 기반 2D 재구성 (3D와 동일한 방식)
       rerender2DObjectsFromStore()
@@ -4121,20 +4121,17 @@ const deleteSingleObject = (objectToDelete: any) => {
     // Box 삭제: 관련된 크기 라벨도 함께 제거하고 Store에서도 제거
     const boxId = objectToDelete.userData?.id
     if (boxId) {
-      console.log(`🔍 Box 삭제 시도: ID ${boxId}, 타입: ${typeof boxId}`)
+
       
       // Box 크기 라벨 제거
       const boxLabels = fabricCanvas.getObjects().filter((obj: any) => obj.userData?.type === 'box-size-label' && obj.userData?.boxId === boxId)
       if (boxLabels.length > 0) {
         boxLabels.forEach((lbl: any) => {
           fabricCanvas.remove(lbl)
-          console.log(`🗑️ Box 크기 라벨 제거: ${lbl.text}`)
+
         })
       } else {
-        console.log(`ℹ️ Box 크기 라벨을 찾을 수 없음: boxId ${boxId}`)
-        // 모든 box-size-label을 확인
-        const allBoxLabels = fabricCanvas.getObjects().filter((obj: any) => obj.userData?.type === 'box-size-label')
-        console.log(`📋 모든 Box 크기 라벨:`, allBoxLabels.map((lbl: any) => ({ text: lbl.text, boxId: lbl.userData?.boxId })))
+
       }
       
       // Store에서 Box 제거 - boxId가 이미 문자열인지 확인
@@ -4143,28 +4140,24 @@ const deleteSingleObject = (objectToDelete: any) => {
         boxIdString = boxId.toString()
       }
       
-      console.log(`🔍 Store에서 Box 검색: ID ${boxIdString}`)
-      console.log(`📦 현재 Store의 placedObjects:`, floorplanStore.placedObjects.map(obj => ({ id: obj.id, isBox: obj.isBox })))
+
       
-      const placedObject = floorplanStore.placedObjects.find(obj => obj.id === boxIdString)
+      const placedObject = objectStore.placedObjects.find(obj => obj.id === boxIdString)
       if (placedObject) {
-        floorplanStore.removePlacedObject(boxIdString)
-        console.log(`✅ Box Store에서 제거 완료: ID ${boxIdString}`)
+        objectStore.removePlacedObject(boxIdString)
+
       } else {
-        console.warn(`⚠️ Store에서 Box를 찾을 수 없음: ID ${boxIdString}`)
-        // Store에서 찾을 수 없는 경우, isBox가 true인 객체들을 확인
-        const boxObjects = floorplanStore.placedObjects.filter(obj => obj.isBox)
-        console.log(`📦 Store의 Box 객체들:`, boxObjects.map(obj => ({ id: obj.id })))
+
       }
       
       // Box 사각형 제거
       fabricCanvas.remove(objectToDelete)
-      console.log(`✅ Box 캔버스에서 제거 완료`)
+
       
       // 🚀 핵심 개선: Store 기반 2D 재구성 (3D와 동기화)
       rerender2DObjectsFromStore()
     } else {
-      console.warn(`⚠️ Box ID가 없음:`, objectToDelete.userData)
+
       // boxId가 없는 경우도 안전하게 제거
       fabricCanvas.remove(objectToDelete)
       
@@ -4223,7 +4216,7 @@ watch(currentTool, (newTool, oldTool) => {
 
 // Store의 배치된 오브젝트 색상 변경 감지
 watch(
-  () => floorplanStore.placedObjects,
+  () => objectStore.placedObjects,
   (newObjects, oldObjects) => {
     if (!fabricCanvas || !newObjects) return
 
@@ -4428,7 +4421,7 @@ const updateBoxInStore = (box: any) => {
   const worldY = (box.top - baseY) / scale
 
   // Store에서 해당 Box 찾기 및 업데이트 (placedObjects)
-  const existingBox = floorplanStore.placedObjects.find(obj => obj.id === boxId)
+  const existingBox = objectStore.placedObjects.find(obj => obj.id === boxId)
   if (existingBox) {
     const updatedBox = {
       ...existingBox,
@@ -4440,18 +4433,18 @@ const updateBoxInStore = (box: any) => {
         bottom: box.top + (box.height * box.scaleY)
       }
     }
-    floorplanStore.updatePlacedObject(boxId, updatedBox)
+    objectStore.updatePlacedObject(boxId, updatedBox)
   }
 
   // Store에서 해당 Box 찾기 및 업데이트 (boxes)
-  const existingBoxData = floorplanStore.boxes.find(boxData => boxData.id === boxId)
+  const existingBoxData = boxStore.boxes.find(boxData => boxData.id === boxId)
   if (existingBoxData) {
     const updatedBoxData = {
       ...existingBoxData,
       x: worldX, // 미터 단위로 변환된 값 저장
       y: worldY
     }
-    floorplanStore.updateBox(boxId, updatedBoxData)
+    boxStore.updateBox(boxId, updatedBoxData)
 
   }
 }
