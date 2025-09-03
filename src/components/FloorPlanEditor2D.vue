@@ -2171,7 +2171,7 @@ const createBoxFromCoordinates = () => {
   fabricCanvas.add(box)
   
   // Box 크기 라벨 추가
-  addBoxSizeLabel(box, popupBoxWidth.value, popupBoxHeight.value)
+  addBoxSizeLabel(box, popupBoxWidth.value, popupBoxHeight.value, popupBoxDepth.value)
   
   // Store에 Box를 별도로 저장 (Zone/Wall과 동일한 방식)
   const boxData = {
@@ -2669,16 +2669,58 @@ const addWallLengthLabel = (wall: any, start: { x: number, y: number }, end: { x
   fabricCanvas.add(lengthLabel)
 }
 
-// Box 크기 표시 레이블 추가
-const addBoxSizeLabel = (box: any, width: number, height: number) => {
+// Object 크기 표시 레이블 추가
+const addObjectSizeLabel = (object: any, width: number, height: number, depth?: number) => {
   if (!fabricCanvas) return
 
   // 안전한 값 사용 (undefined나 null 체크)
   const safeWidth = width || 1.0
   const safeHeight = height || 1.0
+  const safeDepth = depth || 1.0
 
-  // Box 크기 텍스트 (미터 단위) - 2D에서는 width × height로 표시
-  const sizeText = `${safeWidth.toFixed(1)}×${safeHeight.toFixed(1)}m`
+  // Object 크기 텍스트 (미터 단위) - width × height × depth로 표시
+  const sizeText = `${safeWidth.toFixed(1)}×${safeHeight.toFixed(1)}×${safeDepth.toFixed(1)}m`
+
+  // Object의 중점 계산
+  const centerX = object.left + (object.width / 2)
+  const centerY = object.top + (object.height / 2)
+
+  // 텍스트 객체 생성
+  const sizeLabel = new fabric.Text(sizeText, {
+    left: centerX,
+    top: centerY + 15, // Object 아래쪽에 배치
+    fontSize: 10,
+    fill: '#333333',
+    fontFamily: 'Arial',
+    textAlign: 'center',
+    originX: 'center',
+    originY: 'center',
+    selectable: false,
+    evented: false,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    padding: 2
+  })
+
+  // 라벨 식별 정보 추가
+  sizeLabel.userData = {
+    type: 'object-size-label',
+    objectId: object.userData?.placedObjectId || object.userData?.id
+  }
+
+  fabricCanvas.add(sizeLabel)
+}
+
+// Box 크기 표시 레이블 추가
+const addBoxSizeLabel = (box: any, width: number, height: number, depth?: number) => {
+  if (!fabricCanvas) return
+
+  // 안전한 값 사용 (undefined나 null 체크)
+  const safeWidth = width || 1.0
+  const safeHeight = height || 1.0
+  const safeDepth = depth || 1.0
+
+  // Box 크기 텍스트 (미터 단위) - width × height × depth로 표시
+  const sizeText = `${safeWidth.toFixed(1)}×${safeHeight.toFixed(1)}×${safeDepth.toFixed(1)}m`
 
   // Box의 중점 계산
   const centerX = box.left + (box.width / 2)
@@ -2783,21 +2825,36 @@ const rerender2DObjectsFromStore = () => {
 
   // Store 데이터 기반으로 모든 오브젝트 재생성
   objectStore.placedObjects.forEach(placedObj => {
-    const canvasWidth = fabricCanvas.width || 800
-    const canvasHeight = fabricCanvas.height || 600
-
-    // Store 좌표 → 2D Canvas 좌표 변환
-    const fabricX = placedObj.position.x * 40 + canvasWidth / 2
-    const fabricY = placedObj.position.y * 40 + canvasHeight / 2
+    // 기본 회색 바닥의 위치를 찾기
+    const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+      obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+    )
+    
+    let fabricX: number
+    let fabricY: number
+    
+    if (defaultFloor) {
+      // basefloor의 왼쪽 상단을 기준으로 픽셀 좌표 계산
+      const baseX = defaultFloor.left
+      const baseY = defaultFloor.top
+      fabricX = baseX + (placedObj.position.x * 40)  // 미터를 픽셀로 변환
+      fabricY = baseY + (placedObj.position.y * 40)  // 미터를 픽셀로 변환
+    } else {
+      // 기본 바닥을 찾을 수 없는 경우 캔버스 중앙 기준으로 계산 (fallback)
+      const canvasWidth = fabricCanvas.width || 800
+      const canvasHeight = fabricCanvas.height || 600
+      fabricX = placedObj.position.x * 40 + canvasWidth / 2
+      fabricY = placedObj.position.y * 40 + canvasHeight / 2
+    }
 
     // Box인 경우와 일반 오브젝트인 경우를 구분하여 처리
     if (placedObj.isBox) {
       // Box 오브젝트 생성
       const box = new fabric.Rect({
         left: fabricX - (placedObj.width * 40) / 2,
-        top: fabricY - (placedObj.depth * 40) / 2,
+        top: fabricY - (placedObj.height * 40) / 2,
         width: placedObj.width * 40,
-        height: placedObj.depth * 40,
+        height: placedObj.height * 40,
         fill: placedObj.color || '#FFE082',
         stroke: '#F57F17',
         strokeWidth: 2,
@@ -2822,16 +2879,16 @@ const rerender2DObjectsFromStore = () => {
       fabricCanvas.add(box)
 
       // Box 크기 라벨 추가
-      addBoxSizeLabel(box, placedObj.width, placedObj.depth)
+      addBoxSizeLabel(box, placedObj.width, placedObj.height, placedObj.depth)
 
 
     } else {
       // 일반 오브젝트 생성
       const objectShape = new fabric.Rect({
         left: fabricX - (placedObj.width * 40) / 2,
-        top: fabricY - (placedObj.depth * 40) / 2,
+        top: fabricY - (placedObj.height * 40) / 2,
         width: placedObj.width * 40,
-        height: placedObj.depth * 40,
+        height: placedObj.height * 40,
         fill: placedObj.color || getObjectColor(placedObj.category, placedObj.isOnBox),
         stroke: '#333',
         strokeWidth: 1,
@@ -2872,6 +2929,9 @@ const rerender2DObjectsFromStore = () => {
 
       fabricCanvas.add(group)
 
+      // Object 크기 라벨 추가
+      addObjectSizeLabel(group, placedObj.width, placedObj.height, placedObj.depth)
+
     }
   })
 
@@ -2907,11 +2967,27 @@ const moveObjectsOnBox = (boxObject: any) => {
         angle: boxObject.angle || 0 // 상자와 같은 회전각 적용
       })
 
-      // Store도 업데이트
-      const canvasWidth = fabricCanvas?.width || 800
-      const canvasHeight = fabricCanvas?.height || 600
-      const worldX = (boxLeft - canvasWidth / 2) / 40
-      const worldY = (boxTop - canvasHeight / 2) / 40
+      // Store도 업데이트 (basefloor 기준 좌표 계산)
+      const defaultFloor = fabricCanvas?.getObjects().find((obj: any) =>
+        obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+      )
+      
+      let worldX: number
+      let worldY: number
+      
+      if (defaultFloor) {
+        // basefloor의 왼쪽 상단을 기준으로 미터 단위 좌표 계산
+        const baseX = defaultFloor.left
+        const baseY = defaultFloor.top
+        worldX = (boxLeft - baseX) / 40   // 픽셀을 미터로 변환
+        worldY = (boxTop - baseY) / 40    // 픽셀을 미터로 변환
+      } else {
+        // 기본 바닥을 찾을 수 없는 경우 캔버스 중앙 기준으로 계산 (fallback)
+        const canvasWidth = fabricCanvas?.width || 800
+        const canvasHeight = fabricCanvas?.height || 600
+        worldX = (boxLeft - canvasWidth / 2) / 40
+        worldY = (boxTop - canvasHeight / 2) / 40
+      }
 
       const updatedObject = {
         ...obj,
@@ -2929,12 +3005,28 @@ const updatePlacedObjectInStore = (fabricObject: any) => {
   if (!fabricObject || !fabricObject.userData?.placedObjectId) return
 
   const placedObjectId = fabricObject.userData.placedObjectId
-  const canvasWidth = fabricCanvas?.width || 800
-  const canvasHeight = fabricCanvas?.height || 600
-
-  // Fabric.js 좌표를 3D 월드 좌표로 변환 (벽과 동일한 방식)
-  const worldX = (fabricObject.left - canvasWidth / 2) / 40   // X축 좌표
-  const worldY = (fabricObject.top - canvasHeight / 2) / 40   // Y축 좌표 (벽과 동일한 방식)
+  
+  // 기본 회색 바닥의 위치를 찾기
+  const defaultFloor = fabricCanvas?.getObjects().find((obj: any) =>
+    obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+  )
+  
+  let worldX: number
+  let worldY: number
+  
+  if (defaultFloor) {
+    // basefloor의 왼쪽 상단을 기준으로 미터 단위 좌표 계산
+    const baseX = defaultFloor.left
+    const baseY = defaultFloor.top
+    worldX = (fabricObject.left - baseX) / 40   // 픽셀을 미터로 변환
+    worldY = (fabricObject.top - baseY) / 40    // 픽셀을 미터로 변환
+  } else {
+    // 기본 바닥을 찾을 수 없는 경우 캔버스 중앙 기준으로 계산 (fallback)
+    const canvasWidth = fabricCanvas?.width || 800
+    const canvasHeight = fabricCanvas?.height || 600
+    worldX = (fabricObject.left - canvasWidth / 2) / 40
+    worldY = (fabricObject.top - canvasHeight / 2) / 40
+  }
 
   // 회전값 변환 (Fabric.js는 도 단위, Store는 라디안 단위)
   const fabricAngle = fabricObject.angle || 0
@@ -3019,11 +3111,26 @@ const executeObjectPlacement = (object: any) => {
       centerY = canvasHeight / 2
     }
   } else {
-    // 일반 배치 - 캔버스 중앙에 배치
-    const canvasWidth = fabricCanvas.width || 800
-    const canvasHeight = fabricCanvas.height || 600
-    centerX = canvasWidth / 2
-    centerY = canvasHeight / 2
+    // 일반 배치 - basefloor 중앙에 배치
+    const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+      obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+    )
+    
+    if (defaultFloor) {
+      // basefloor의 중앙에 배치
+      const baseX = defaultFloor.left
+      const baseY = defaultFloor.top
+      const baseWidth = defaultFloor.width || 0
+      const baseHeight = defaultFloor.height || 0
+      centerX = baseX + baseWidth / 2
+      centerY = baseY + baseHeight / 2
+    } else {
+      // 기본 바닥을 찾을 수 없는 경우 캔버스 중앙에 배치 (fallback)
+      const canvasWidth = fabricCanvas.width || 800
+      const canvasHeight = fabricCanvas.height || 600
+      centerX = canvasWidth / 2
+      centerY = canvasHeight / 2
+    }
   }
 
   // 오브젝트 크기 (미터 단위를 픽셀로 변환) - 2D에서는 width(가로), height(세로) 사용
@@ -3124,9 +3231,33 @@ const executeObjectPlacement = (object: any) => {
   })
 
   fabricCanvas.add(objectGroup)
+  
+  // Object 크기 라벨 추가
+  addObjectSizeLabel(objectGroup, object.width || 1, object.height || 1, object.depth || 1)
+  
   fabricCanvas.renderAll()
 
-  // Store에 배치된 오브젝트 정보 추가 (벽과 동일한 좌표계 사용)
+  // Store에 배치된 오브젝트 정보 추가 (basefloor 왼쪽 상단 기준 좌표계 사용)
+  // 기본 회색 바닥의 위치를 찾기
+  const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+    obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+  )
+  
+  let storeX: number
+  let storeY: number
+  
+  if (defaultFloor) {
+    // basefloor의 왼쪽 상단을 (0,0) 기준으로 미터 단위 좌표 계산
+    const baseX = defaultFloor.left
+    const baseY = defaultFloor.top
+    storeX = (centerX - baseX) / 40  // 픽셀을 미터로 변환
+    storeY = (centerY - baseY) / 40  // 픽셀을 미터로 변환
+  } else {
+    // 기본 바닥을 찾을 수 없는 경우 캔버스 중앙 기준으로 계산 (fallback)
+    storeX = (centerX - (fabricCanvas.width || 800) / 2) / 40
+    storeY = (centerY - (fabricCanvas.height || 600) / 2) / 40
+  }
+  
   const placedObjectData = {
     id: placedObjectId,
     name: object.name,
@@ -3138,8 +3269,8 @@ const executeObjectPlacement = (object: any) => {
     depth: object.depth || 1,    // 세로 (2D Y축)
     height: object.height || 2,  // 높이 (3D에서만 사용)
     position: {
-      x: (centerX - (fabricCanvas.width || 800) / 2) / 40,  // 벽과 동일한 좌표 변환
-      y: (centerY - (fabricCanvas.height || 600) / 2) / 40  // 벽과 동일한 좌표 변환
+      x: storeX,  // basefloor 왼쪽 상단 기준 미터 단위 좌표
+      y: storeY   // basefloor 왼쪽 상단 기준 미터 단위 좌표
     },
     rotation: 0, // 초기 회전값
     color: object.color, // GLB에서 추출한 색상 (있다면)
@@ -3724,7 +3855,7 @@ const createBoxFromSavedData = (boxData: any) => {
   fabricCanvas.add(box)
 
   // Box 크기 라벨 추가 (안전한 값 사용)
-  addBoxSizeLabel(box, safeBoxData.width, safeBoxData.depth)
+  addBoxSizeLabel(box, safeBoxData.width, safeBoxData.height, safeBoxData.depth)
 
   // Store에 Box를 placedObjects에도 추가 (3D 렌더링을 위해)
   // 중복 추가 방지: 이미 존재하는지 확인
@@ -4321,7 +4452,8 @@ const updateBoxSizeLabel = (box: any) => {
   // 새로운 위치로 라벨 재생성
   const width = box.userData?.width || 1.0
   const height = box.userData?.height || 1.0
-  addBoxSizeLabel(box, width, height)
+  const depth = box.userData?.depth || 1.0
+  addBoxSizeLabel(box, width, height, depth)
 }
 
 // Object의 위치 정보를 가져오는 함수

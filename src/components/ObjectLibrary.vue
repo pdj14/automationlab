@@ -28,7 +28,6 @@
         v-for="template in objectTemplates" 
         :key="template.id" 
         class="object-card"
-        @click="selectObject(template)"
       >
         <div class="object-thumbnail">
           <img 
@@ -45,13 +44,24 @@
         <div class="object-info">
           <div class="object-header">
             <h4 class="object-name">{{ template.name }}</h4>
-            <button 
-              @click.stop="confirmDelete(template)" 
-              class="btn-delete"
-              title="Delete object"
-            >
-              🗑️
-            </button>
+            <div class="header-actions">
+              <button 
+                @click.stop="placeObject(template)" 
+                class="btn-place"
+                title="Place object on floor plan"
+              >
+                <span class="btn-icon">📍</span>
+                <span class="btn-text">Place</span>
+              </button>
+              <button 
+                @click.stop="confirmDelete(template)" 
+                class="btn-delete"
+                title="Delete object"
+              >
+                <span class="btn-icon">🗑️</span>
+                <span class="btn-text">Delete</span>
+              </button>
+            </div>
           </div>
           <div class="object-category">{{ template.category }}</div>
           <div class="object-dimensions">
@@ -68,6 +78,7 @@
               {{ template.color }}
             </span>
           </div>
+
         </div>
       </div>
     </div>
@@ -334,11 +345,11 @@ onMounted(() => {
   fetchObjectTemplates()
 })
 
-// 오브젝트 선택 핸들러
-const selectObject = (template: ObjectTemplate) => {
-  console.log('Selected object:', template)
+// 오브젝트 배치 핸들러
+const placeObject = (template: ObjectTemplate) => {
+  console.log('Placing object:', template)
   
-  // 2D 에디터에 오브젝트 선택 이벤트 전달
+  // 2D 에디터에 오브젝트 배치 이벤트 전달
   emit('objectSelected', template)
 }
 
@@ -554,7 +565,7 @@ const closeModal = () => {
 .object-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
+  gap: 0.75rem;
   padding: 0.5rem 0;
   max-height: calc(100vh - 200px);
   overflow-y: auto;
@@ -564,23 +575,23 @@ const closeModal = () => {
   background: var(--color-bg-level-1, #0f1011);
   border: 1px solid var(--color-border-primary, #23252a);
   border-radius: 8px;
-  padding: 1rem;
-  cursor: pointer;
+  padding: 0.75rem;
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  width: 100%;
+  height: auto;
 }
 
 .object-card:hover {
-  border-color: var(--color-accent-primary, #3b82f6);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  border-color: var(--color-border-secondary, #34343a);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .object-thumbnail {
   width: 100%;
-  height: 120px;
+  height: 80px;
   background: var(--color-bg-level-2, #141516);
   border-radius: 6px;
   display: flex;
@@ -600,7 +611,7 @@ const closeModal = () => {
 }
 
 .no-thumbnail {
-  font-size: 2rem;
+  font-size: 1.5rem;
   color: var(--color-text-secondary, #a1a1aa);
 }
 
@@ -608,7 +619,7 @@ const closeModal = () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .object-header {
@@ -618,36 +629,81 @@ const closeModal = () => {
   gap: 0.5rem;
 }
 
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .object-name {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--color-text-primary, #f7f8f8);
   line-height: 1.2;
   flex: 1;
 }
 
-.btn-delete {
-  background: none;
+.btn-place {
+  background: var(--color-accent-primary, #3b82f6);
   border: none;
-  font-size: 1.2rem;
+  color: white;
   cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
   transition: all 0.2s ease;
-  opacity: 0.6;
-  color: var(--color-text-secondary, #a1a1aa);
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 70px;
+  height: 28px;
+  font-weight: 500;
+}
+
+.btn-place:hover {
+  background: var(--color-accent-secondary, #2563eb);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.btn-delete {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 70px;
+  height: 28px;
+  font-weight: 500;
 }
 
 .btn-delete:hover {
-  opacity: 1;
-  background: rgba(239, 68, 68, 0.1);
-  color: #fca5a5;
-  transform: scale(1.1);
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #f87171;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.2);
+}
+
+.btn-icon {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.btn-text {
+  font-size: 0.7rem;
+  line-height: 1;
 }
 
 .object-category {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--color-accent-primary, #3b82f6);
   font-weight: 500;
   text-transform: uppercase;
@@ -655,7 +711,7 @@ const closeModal = () => {
 }
 
 .object-dimensions {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--color-text-secondary, #a1a1aa);
   font-family: monospace;
 }
@@ -674,17 +730,19 @@ const closeModal = () => {
 .object-meta {
   display: flex;
   gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-top: auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .instancing-badge {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem;
   border-radius: 4px;
   background: var(--color-bg-tertiary, #232326);
   color: var(--color-text-secondary, #a1a1aa);
   border: 1px solid var(--color-border-secondary, #34343a);
+  white-space: nowrap;
 }
 
 .instancing-badge.enabled {
@@ -694,14 +752,15 @@ const closeModal = () => {
 }
 
 .color-badge {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem;
   border-radius: 4px;
   color: white;
   font-weight: 500;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  min-width: 60px;
+  min-width: 50px;
   text-align: center;
+  white-space: nowrap;
 }
 
 /* 빈 상태 */
@@ -936,4 +995,6 @@ const closeModal = () => {
   color: var(--color-text-secondary, #a1a1aa);
   font-size: 0.9rem;
 }
+
+
 </style>

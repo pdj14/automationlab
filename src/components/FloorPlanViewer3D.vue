@@ -1264,12 +1264,13 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
       console.error(`❌ GLB 모델 로딩 실패 (${placedObj.name}):`, error)
       
       // 오류 시 기본 큐브로 대체 (width, height, depth 순서)
-      const fallbackGeometry = new THREE.BoxGeometry(placedObj.width, placedObj.height, placedObj.depth)
+      // 3D: width(X축) × depth(Y축 높이) × height(Z축 깊이)
+      const fallbackGeometry = new THREE.BoxGeometry(placedObj.width, placedObj.depth, placedObj.height)
       const fallbackMaterial = new THREE.MeshStandardMaterial({ 
         color: '#ff0000' // 빨간색으로 오류 표시
       })
       const fallbackMesh = new THREE.Mesh(fallbackGeometry, fallbackMaterial)
-      fallbackMesh.position.set(placedObj.position.x, placedObj.height / 2, placedObj.position.y)
+      fallbackMesh.position.set(placedObj.position.x, placedObj.depth / 2, placedObj.position.y)
       fallbackMesh.userData = {
         type: 'placed-object',
         placedObjectId: placedObj.id,
@@ -1716,17 +1717,15 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
   // width: boundsPx에서 계산 (2D 가로)
   // depth: 원본 depth 값 사용 (3D 깊이)
   // height: 원본 height 값 사용 (3D 높이)
-  let boxWidth
-  if (placedObj.boundsPx) {
-    boxWidth = (placedObj.boundsPx.right - placedObj.boundsPx.left) / 40
-  } else {
-    boxWidth = placedObj.width
-  }
-  
-  const boxDepth = placedObj.depth  // 원본 depth 값 사용
+  // 3D Box 차원 설정
+  // 2D: width(가로) × height(세로) × depth(높이)
+  // 3D: width(X축) × depth(Y축 높이) × height(Z축 깊이)
+  const boxWidth = placedObj.width   // X축 (가로)
+  const boxHeight = placedObj.depth  // Y축 (높이) - 2D의 depth가 3D의 높이
+  const boxDepth = placedObj.height  // Z축 (깊이) - 2D의 height가 3D의 깊이
   
   // BoxGeometry(width, height, depth) - width: X축, height: Y축, depth: Z축
-  const boxGeometry = new THREE.BoxGeometry(boxWidth, placedObj.height, boxDepth)
+  const boxGeometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth)
   const boxMaterial = new THREE.MeshStandardMaterial({ 
     color: boxColor,
     transparent: true,
@@ -1757,8 +1756,8 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
   }
   
   // Box를 바닥면에 맞추기 위해 Y 위치를 높이의 절반으로 설정
-  // Box의 중심이 아닌 바닥면이 Y=0에 오도록 조정
-  const pos3D_Y = placedObj.height / 2
+  // 3D에서는 placedObj.depth가 높이(Y축)이므로 그 절반으로 설정
+  const pos3D_Y = boxHeight / 2
   
 
   
