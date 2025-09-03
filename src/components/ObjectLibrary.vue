@@ -122,9 +122,9 @@
             </div>
             
             <div class="form-group">
-              <label>Depth (m):</label>
+              <label>Height (m):</label>
               <input 
-                v-model.number="newObject.depth" 
+                v-model.number="newObject.height" 
                 type="number" 
                 min="0.1" 
                 max="10" 
@@ -133,11 +133,11 @@
                 placeholder="세로 크기"
               />
             </div>
-            
+
             <div class="form-group">
-              <label>Height (m):</label>
+              <label>Depth (m):</label>
               <input 
-                v-model.number="newObject.height" 
+                v-model.number="newObject.depth" 
                 type="number" 
                 min="0.1" 
                 max="10" 
@@ -245,6 +245,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useFloorplanStore } from '../stores/floorplanStore'
 
 // Props와 Emits 정의
 const emit = defineEmits<{
@@ -298,7 +299,7 @@ const newObject = ref<NewObject>({
   description: '',
   width: 1.0,
   depth: 1.0,
-  height: 2.0,
+  height: 1.0,
   color: '#3B82F6',
   instancingEnabled: true,
   etcType: 'general'
@@ -308,23 +309,18 @@ let selectedFile: File | null = null
 let selectedThumbnail: File | null = null
 let selectedLodFile: File | null = null
 
+// floorplanStore 인스턴스
+const floorplanStore = useFloorplanStore()
+
 // API 함수들
 const fetchObjectTemplates = async () => {
   loading.value = true
   error.value = null
   
   try {
-    const response = await fetch('http://localhost:8080/api/object3d-templates')
-    
-    if (response.ok) {
-      const templates = await response.json()
-      objectTemplates.value = templates
-      console.log('Fetched templates:', templates)
-    } else {
-      const errorText = await response.text()
-      error.value = `Failed to fetch templates: ${errorText}`
-      console.error('Fetch failed:', errorText)
-    }
+    const templates = await floorplanStore.fetchObjectTemplates()
+    objectTemplates.value = templates
+    console.log('Fetched templates:', templates)
   } catch (err) {
     error.value = `Network error: ${err}`
     console.error('Fetch error:', err)
@@ -369,19 +365,16 @@ const deleteObject = async () => {
   deleting.value = true
   
   try {
-    const response = await fetch(`http://localhost:8080/api/object3d-templates/${objectToDelete.value.id}`, {
-      method: 'DELETE'
-    })
+    const success = await floorplanStore.deleteObjectTemplate(objectToDelete.value.id)
     
-    if (response.ok) {
+    if (success) {
       console.log('Object deleted successfully')
       alert('Object deleted successfully!')
       closeDeleteModal()
       // 삭제 성공 후 목록 새로고침
       await fetchObjectTemplates()
     } else {
-      const errorText = await response.text()
-      console.error('Delete failed:', errorText)
+      console.error('Delete failed')
       alert('Failed to delete object. Please try again.')
     }
   } catch (err) {
@@ -468,21 +461,16 @@ const uploadObject = async () => {
     }
 
     // API 호출
-    const response = await fetch('http://localhost:8080/api/object3d-templates/upload', {
-      method: 'POST',
-      body: formData
-    })
+    const createdTemplate = await floorplanStore.uploadObjectTemplate(formData)
 
-    if (response.ok) {
-      const createdTemplate = await response.json()
+    if (createdTemplate) {
       console.log('Created template:', createdTemplate)
       alert('Object added successfully!')
       closeModal()
       // 업로드 성공 후 목록 새로고침
       await fetchObjectTemplates()
     } else {
-      const errorText = await response.text()
-      console.error('Upload failed:', errorText)
+      console.error('Upload failed')
       alert('Failed to add object. Please check the form data.')
     }
 

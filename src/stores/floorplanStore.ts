@@ -37,6 +37,8 @@ interface FloorArea {
     bottom: number
   }
   color: string // hex like #FFF3B0
+  isZone?: boolean // Zone 여부
+  zonePosition?: { x: number; y: number } // Zone 위치
 }
 
 interface CanvasSize {
@@ -89,6 +91,7 @@ interface WallData {
   endX: number
   endY: number
   isGlass?: boolean // 유리벽 여부
+  type?: string // 벽 타입 (wall, glass-wall)
 }
 
 // Wall 변경사항 타입 정의
@@ -116,6 +119,27 @@ interface BoxChangeSummary {
   toDelete: BoxData[]
 }
 
+// Object3D 템플릿 데이터 타입 정의
+interface Object3DTemplate {
+  id: string
+  name: string
+  category: string
+  description?: string
+  glbUrl?: string
+  lodUrl?: string
+  width: number
+  depth: number
+  height: number
+  color?: string
+  instancingEnabled: boolean
+  etcType?: string
+  glbFileUrl?: string
+  lodFileUrl?: string
+  thumbnailUrl?: string
+  createdAt: string
+  updatedAt: string
+}
+
 // Floorplan Store
 export const useFloorplanStore = defineStore('floorplan', () => {
   // 상태 (state)
@@ -129,6 +153,8 @@ export const useFloorplanStore = defineStore('floorplan', () => {
   const isLoadingWalls = ref(false) // Wall 로딩 상태
   const boxes = ref<BoxData[]>([]) // Box 데이터
   const isLoadingBoxes = ref(false) // Box 로딩 상태
+  const objectTemplates = ref<Object3DTemplate[]>([]) // Object3D 템플릿 데이터
+  const isLoadingObjectTemplates = ref(false) // Object3D 템플릿 로딩 상태
   
   // Getters (computed)
   const hasRoom = computed(() => currentRoom.value !== null)
@@ -313,6 +339,34 @@ export const useFloorplanStore = defineStore('floorplan', () => {
 
   const setLoadingBoxes = (loading: boolean) => {
     isLoadingBoxes.value = loading
+  }
+
+  // Object3D 템플릿 관련 액션들
+  const setObjectTemplates = (newTemplates: Object3DTemplate[]) => {
+    objectTemplates.value = newTemplates
+  }
+
+  const addObjectTemplate = (template: Object3DTemplate) => {
+    objectTemplates.value.push(template)
+  }
+
+  const updateObjectTemplate = (templateId: string, updatedTemplate: Partial<Object3DTemplate>) => {
+    const index = objectTemplates.value.findIndex(template => template.id === templateId)
+    if (index > -1) {
+      objectTemplates.value[index] = { ...objectTemplates.value[index], ...updatedTemplate }
+    }
+  }
+
+  const removeObjectTemplate = (templateId: string) => {
+    objectTemplates.value = objectTemplates.value.filter(template => template.id !== templateId)
+  }
+
+  const clearObjectTemplates = () => {
+    objectTemplates.value = []
+  }
+
+  const setLoadingObjectTemplates = (loading: boolean) => {
+    isLoadingObjectTemplates.value = loading
   }
 
   // 부동소수점 정밀도를 고려한 데이터 비교 함수 (1cm 정밀도)
@@ -607,6 +661,90 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     }
   }
 
+  // API 호출 함수들
+  const fetchZones = async (): Promise<ZoneData[]> => {
+    try {
+      setLoadingZones(true)
+      const response = await axios.get('http://localhost:8080/api/zones')
+      return response.data
+    } catch (error) {
+      console.error('Zone 데이터 가져오기 실패:', error)
+      return []
+    } finally {
+      setLoadingZones(false)
+    }
+  }
+
+  const fetchWalls = async (): Promise<WallData[]> => {
+    try {
+      setLoadingWalls(true)
+      const response = await axios.get('http://localhost:8080/api/walls')
+      return response.data
+    } catch (error) {
+      console.error('Wall 데이터 가져오기 실패:', error)
+      return []
+    } finally {
+      setLoadingWalls(false)
+    }
+  }
+
+  const fetchBoxes = async (): Promise<BoxData[]> => {
+    try {
+      setLoadingBoxes(true)
+      const response = await axios.get('http://localhost:8080/api/boxes')
+      return response.data
+    } catch (error) {
+      console.log('📦 Box API not available, using empty array')
+      return []
+    } finally {
+      setLoadingBoxes(false)
+    }
+  }
+
+  // Object3D 템플릿 API 호출 함수들
+  const fetchObjectTemplates = async (): Promise<Object3DTemplate[]> => {
+    try {
+      setLoadingObjectTemplates(true)
+      const response = await axios.get('http://localhost:8080/api/object3d-templates')
+      return response.data
+    } catch (error) {
+      console.error('Object3D 템플릿 데이터 가져오기 실패:', error)
+      return []
+    } finally {
+      setLoadingObjectTemplates(false)
+    }
+  }
+
+  const deleteObjectTemplate = async (templateId: string): Promise<boolean> => {
+    try {
+      setLoadingObjectTemplates(true)
+      await axios.delete(`http://localhost:8080/api/object3d-templates/${templateId}`)
+      return true
+    } catch (error) {
+      console.error('Object3D 템플릿 삭제 실패:', error)
+      return false
+    } finally {
+      setLoadingObjectTemplates(false)
+    }
+  }
+
+  const uploadObjectTemplate = async (formData: FormData): Promise<Object3DTemplate | null> => {
+    try {
+      setLoadingObjectTemplates(true)
+      const response = await axios.post('http://localhost:8080/api/object3d-templates/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      return response.data
+    } catch (error) {
+      console.error('Object3D 템플릿 업로드 실패:', error)
+      return null
+    } finally {
+      setLoadingObjectTemplates(false)
+    }
+  }
+
   // 모든 배치된 오브젝트의 인스턴싱 값 업데이트
   const updateAllPlacedObjectsInstancing = (enabled: boolean) => {
     placedObjects.value.forEach(obj => {
@@ -631,6 +769,8 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     isLoadingWalls, // Wall 로딩 상태 추가
     boxes, // Box 데이터 추가
     isLoadingBoxes, // Box 로딩 상태 추가
+    objectTemplates, // Object3D 템플릿 데이터 추가
+    isLoadingObjectTemplates, // Object3D 템플릿 로딩 상태 추가
     
     // Getters
     hasRoom,
@@ -674,6 +814,19 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     setLoadingBoxes,
     analyzeBoxChanges, // Box 변경사항 분석 추가
     syncBoxes, // Box 동기화 추가
+    fetchZones, // Zone API 호출 함수 추가
+    fetchWalls, // Wall API 호출 함수 추가
+    fetchBoxes, // Box API 호출 함수 추가
+    // Object3D 템플릿 관련 액션들
+    setObjectTemplates,
+    addObjectTemplate,
+    updateObjectTemplate,
+    removeObjectTemplate,
+    clearObjectTemplates,
+    setLoadingObjectTemplates,
+    fetchObjectTemplates, // Object3D 템플릿 API 호출 함수 추가
+    deleteObjectTemplate, // Object3D 템플릿 삭제 함수 추가
+    uploadObjectTemplate, // Object3D 템플릿 업로드 함수 추가
     updateAllPlacedObjectsInstancing, // 인스턴싱 업데이트 함수 추가
     logCurrentState
   }

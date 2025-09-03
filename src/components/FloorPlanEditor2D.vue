@@ -3439,18 +3439,11 @@ const saveFloorPlan = async () => {
     }).filter((box: unknown) => box !== null)
 
     // 백엔드에서 최신 Zone, Wall, Box 데이터 가져오기
-    const [zonesResponse, wallsResponse, boxesResponse] = await Promise.all([
-      axios.get('http://localhost:8080/api/zones'),
-      axios.get('http://localhost:8080/api/walls'),
-      axios.get('http://localhost:8080/api/boxes').catch((error) => {
-        console.log('📦 Box API not available, using empty array')
-        return { data: [] }
-      })
+    const [savedZones, savedWalls, savedBoxes] = await Promise.all([
+      floorplanStore.fetchZones(),
+      floorplanStore.fetchWalls(),
+      floorplanStore.fetchBoxes()
     ])
-    
-    const savedZones = zonesResponse.data
-    const savedWalls = wallsResponse.data
-    const savedBoxes = boxesResponse.data
     
 
     
@@ -3514,19 +3507,13 @@ const loadSavedWalls = async () => {
   try {
 
     
-    // Store에서 로딩 상태 설정
-    floorplanStore.setLoadingWalls(true)
-    
     // 백엔드 API에서 저장된 Wall 정보 가져오기
-    const response = await axios.get('http://localhost:8080/api/walls')
-    
-    const savedWalls = response.data
+    const savedWalls = await floorplanStore.fetchWalls()
     
 
     if (savedWalls.length === 0) {
       
       floorplanStore.setWalls([])
-      floorplanStore.setLoadingWalls(false)
       return
     }
 
@@ -3559,8 +3546,7 @@ const loadSavedWalls = async () => {
     
     // 에러가 발생해도 기본 기능은 계속 동작하도록 함
   } finally {
-    // 로딩 상태 해제
-    floorplanStore.setLoadingWalls(false)
+    // 로딩 상태는 fetchWalls 함수에서 자동으로 관리됨
   }
 }
 
@@ -3571,19 +3557,13 @@ const loadSavedZones = async () => {
   try {
 
     
-    // Store에서 로딩 상태 설정
-    floorplanStore.setLoadingZones(true)
-    
     // 백엔드 API에서 저장된 Zone 정보 가져오기
-    const response = await axios.get('http://localhost:8080/api/zones')
-    
-    const savedZones = response.data
+    const savedZones = await floorplanStore.fetchZones()
     
 
     if (savedZones.length === 0) {
       
       floorplanStore.setZones([])
-      floorplanStore.setLoadingZones(false)
       return
     }
 
@@ -3619,8 +3599,7 @@ const loadSavedZones = async () => {
     
     // 에러가 발생해도 기본 기능은 계속 동작하도록 함
   } finally {
-    // 로딩 상태 해제
-    floorplanStore.setLoadingZones(false)
+    // 로딩 상태는 fetchZones 함수에서 자동으로 관리됨
   }
 }
 
@@ -3629,21 +3608,12 @@ const loadBoxes = async () => {
   try {
     console.log('📦 Box 정보 불러오기 시작...')
     
-    // Store에서 로딩 상태 설정
-    floorplanStore.setLoadingBoxes(true)
-    
     // 백엔드 API에서 저장된 Box 정보 가져오기
-    const response = await axios.get('http://localhost:8080/api/boxes').catch((error) => {
-      console.log('📦 Box API not available, using empty array')
-      return { data: [] }
-    })
-    
-    const savedBoxes = response.data || []
+    const savedBoxes = await floorplanStore.fetchBoxes()
     
     if (savedBoxes.length === 0) {
       console.log('📦 저장된 Box가 없습니다.')
       floorplanStore.setBoxes([])
-      floorplanStore.setLoadingBoxes(false)
       return
     }
 
@@ -3661,7 +3631,6 @@ const loadBoxes = async () => {
     })
 
     console.log(`✅ Box 정보 불러오기 완료: ${savedBoxes.length}개`)
-    floorplanStore.setLoadingBoxes(false)
     
   } catch (error: any) {
     console.error('❌ Failed to load box information:', error)
@@ -3682,7 +3651,7 @@ const loadBoxes = async () => {
       console.error('요청 설정 에러:', error.message)
     }
     
-    floorplanStore.setLoadingBoxes(false)
+    // 로딩 상태는 fetchBoxes 함수에서 자동으로 관리됨
   }
 }
 
