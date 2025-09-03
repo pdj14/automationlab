@@ -2,13 +2,88 @@
   <div class="object-library">
     <div class="library-header">
       <h3>📦 Object Library</h3>
+      <div class="header-actions">
+        <button @click="fetchObjectTemplates" class="btn btn-secondary" :disabled="loading">
+          🔄 {{ loading ? 'Loading...' : 'Refresh' }}
+        </button>
+        <button @click="showUploadModal = true" class="btn btn-primary">
+          ➕ Add Object
+        </button>
+      </div>
+    </div>
+
+    <!-- 에러 메시지 -->
+    <div v-if="error" class="error-message">
+      ❌ {{ error }}
+    </div>
+
+    <!-- 로딩 상태 -->
+    <div v-if="loading" class="loading-message">
+      ⏳ Loading object templates...
+    </div>
+
+    <!-- 오브젝트 목록 -->
+    <div v-else-if="objectTemplates.length > 0" class="object-grid">
+      <div 
+        v-for="template in objectTemplates" 
+        :key="template.id" 
+        class="object-card"
+        @click="selectObject(template)"
+      >
+        <div class="object-thumbnail">
+          <img 
+            v-if="template.thumbnailUrl" 
+            :src="template.thumbnailUrl" 
+            :alt="template.name"
+            @error="handleImageError"
+          />
+          <div v-else class="no-thumbnail">
+            📦
+          </div>
+        </div>
+        
+        <div class="object-info">
+          <div class="object-header">
+            <h4 class="object-name">{{ template.name }}</h4>
+            <button 
+              @click.stop="confirmDelete(template)" 
+              class="btn-delete"
+              title="Delete object"
+            >
+              🗑️
+            </button>
+          </div>
+          <div class="object-category">{{ template.category }}</div>
+          <div class="object-dimensions">
+            {{ template.width }}m × {{ template.depth }}m × {{ template.height }}m
+          </div>
+          <div v-if="template.description" class="object-description">
+            {{ template.description }}
+          </div>
+          <div class="object-meta">
+            <span class="instancing-badge" :class="{ enabled: template.instancingEnabled }">
+              {{ template.instancingEnabled ? 'Instancing ON' : 'Instancing OFF' }}
+            </span>
+            <span v-if="template.color" class="color-badge" :style="{ backgroundColor: template.color }">
+              {{ template.color }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 빈 상태 -->
+    <div v-else class="empty-state">
+      <div class="empty-icon">📦</div>
+      <h3>No objects found</h3>
+      <p>Add your first 3D object to get started!</p>
       <button @click="showUploadModal = true" class="btn btn-primary">
         ➕ Add Object
       </button>
     </div>
 
     <!-- 업로드 모달 -->
-    <div v-if="showUploadModal" class="modal-overlay" @click="closeModal">
+    <div v-if="showUploadModal" class="modal-overlay">
       <div class="modal" @click.stop>
         <div class="modal-header">
           <h3>Add New Object</h3>
@@ -25,11 +100,11 @@
             <div class="form-group">
               <label>Category:</label>
               <select v-model="newObject.category" required @change="handleCategoryChange">
-                <option value="robot">Robot</option>
-                <option value="equipment">Equipment</option>
-                <option value="appliances">Appliances</option>
-                <option value="av">AV</option>
-                <option value="etc">ETC</option>
+                <option value="ROBOT">ROBOT</option>
+                <option value="EQUIPMENT">EQUIPMENT</option>
+                <option value="APPLIANCES">APPLIANCES</option>
+                <option value="AV">AV</option>
+                <option value="RACK">RACK</option>
               </select>
             </div>
             
@@ -73,12 +148,20 @@
             </div>
             
             <div class="form-group">
-              <label>GLB File:</label>
+              <label>GLB File (optional):</label>
               <input 
                 @change="handleFileSelect" 
                 type="file" 
                 accept=".glb,.gltf" 
-                required
+              />
+            </div>
+            
+            <div class="form-group">
+              <label>LOD File (optional):</label>
+              <input 
+                @change="handleLodFileSelect" 
+                type="file" 
+                accept=".glb,.gltf" 
               />
             </div>
             
@@ -89,6 +172,28 @@
                 type="file" 
                 accept="image/*" 
               />
+            </div>
+            
+            <div class="form-group">
+              <label>Color (hex):</label>
+              <div class="color-input-group">
+                <input 
+                  v-model="newObject.color" 
+                  type="color" 
+                  class="color-picker"
+                />
+                <span class="color-hex-display">{{ newObject.color }}</span>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>
+                <input 
+                  v-model="newObject.instancingEnabled" 
+                  type="checkbox" 
+                />
+                Enable Instancing
+              </label>
             </div>
             
             <div class="form-group">
@@ -108,11 +213,43 @@
         </div>
       </div>
     </div>
+
+    <!-- 삭제 확인 모달 -->
+    <div v-if="showDeleteModal" class="modal-overlay">
+      <div class="modal" @click.stop>
+        <div class="modal-header">
+          <h3>Delete Object</h3>
+          <button @click="closeDeleteModal" class="btn-close">✕</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="delete-warning">
+            <div class="warning-icon">⚠️</div>
+            <p>Are you sure you want to delete <strong>{{ objectToDelete?.name }}</strong>?</p>
+            <p class="warning-text">This action cannot be undone.</p>
+          </div>
+          
+          <div class="modal-actions">
+            <button @click="closeDeleteModal" class="btn btn-secondary" :disabled="deleting">
+              Cancel
+            </button>
+            <button @click="deleteObject" class="btn btn-danger" :disabled="deleting">
+              {{ deleting ? 'Deleting...' : 'Delete' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+
+// Props와 Emits 정의
+const emit = defineEmits<{
+  objectSelected: [object: ObjectTemplate]
+}>()
 
 // 타입 정의
 interface NewObject {
@@ -122,32 +259,149 @@ interface NewObject {
   width: number  // 가로
   depth: number  // 세로
   height: number // 높이
+  color?: string // 색상 (hex)
+  instancingEnabled?: boolean // 인스턴싱 활성화
   etcType?: string // ETC 타입 (general)
+}
+
+interface ObjectTemplate {
+  id: string
+  name: string
+  category: string
+  description?: string
+  width: number
+  depth: number
+  height: number
+  color?: string
+  instancingEnabled: boolean
+  etcType?: string
+  glbFileUrl?: string
+  lodFileUrl?: string
+  thumbnailUrl?: string
+  createdAt: string
+  updatedAt: string
 }
 
 // 상태 관리
 const showUploadModal = ref(false)
 const uploading = ref(false)
+const objectTemplates = ref<ObjectTemplate[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+const showDeleteModal = ref(false)
+const deleting = ref(false)
+const objectToDelete = ref<ObjectTemplate | null>(null)
 
 const newObject = ref<NewObject>({
   name: '',
-  category: 'robot',
+  category: 'ROBOT',
   description: '',
   width: 1.0,
   depth: 1.0,
   height: 2.0,
+  color: '#3B82F6',
+  instancingEnabled: true,
   etcType: 'general'
 })
 
 let selectedFile: File | null = null
 let selectedThumbnail: File | null = null
+let selectedLodFile: File | null = null
+
+// API 함수들
+const fetchObjectTemplates = async () => {
+  loading.value = true
+  error.value = null
+  
+  try {
+    const response = await fetch('http://localhost:8080/api/object3d-templates')
+    
+    if (response.ok) {
+      const templates = await response.json()
+      objectTemplates.value = templates
+      console.log('Fetched templates:', templates)
+    } else {
+      const errorText = await response.text()
+      error.value = `Failed to fetch templates: ${errorText}`
+      console.error('Fetch failed:', errorText)
+    }
+  } catch (err) {
+    error.value = `Network error: ${err}`
+    console.error('Fetch error:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 컴포넌트 마운트 시 템플릿 목록 가져오기
+onMounted(() => {
+  fetchObjectTemplates()
+})
+
+// 오브젝트 선택 핸들러
+const selectObject = (template: ObjectTemplate) => {
+  console.log('Selected object:', template)
+  
+  // 2D 에디터에 오브젝트 선택 이벤트 전달
+  emit('objectSelected', template)
+}
+
+// 이미지 로드 에러 핸들러
+const handleImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement
+  img.style.display = 'none'
+  const parent = img.parentElement
+  if (parent) {
+    parent.innerHTML = '<div class="no-thumbnail">📦</div>'
+  }
+}
+
+// 삭제 확인
+const confirmDelete = (template: ObjectTemplate) => {
+  objectToDelete.value = template
+  showDeleteModal.value = true
+}
+
+// 오브젝트 삭제
+const deleteObject = async () => {
+  if (!objectToDelete.value) return
+  
+  deleting.value = true
+  
+  try {
+    const response = await fetch(`http://localhost:8080/api/object3d-templates/${objectToDelete.value.id}`, {
+      method: 'DELETE'
+    })
+    
+    if (response.ok) {
+      console.log('Object deleted successfully')
+      alert('Object deleted successfully!')
+      closeDeleteModal()
+      // 삭제 성공 후 목록 새로고침
+      await fetchObjectTemplates()
+    } else {
+      const errorText = await response.text()
+      console.error('Delete failed:', errorText)
+      alert('Failed to delete object. Please try again.')
+    }
+  } catch (err) {
+    console.error('Delete error:', err)
+    alert('Failed to delete object. Please check your connection.')
+  } finally {
+    deleting.value = false
+  }
+}
+
+// 삭제 모달 닫기
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  objectToDelete.value = null
+}
 
 // 카테고리 변경 핸들러
 const handleCategoryChange = () => {
-  if (newObject.value.category === 'etc') {
-    // ETC 카테고리 선택 시 기본값 설정
-    newObject.value.etcType = 'general'
-  }
+  // 카테고리 변경 시 필요한 로직이 있다면 여기에 추가
+  console.log('Category changed to:', newObject.value.category)
 }
 
 // 파일 선택 핸들러
@@ -165,36 +419,76 @@ const handleThumbnailSelect = (event: Event) => {
   }
 }
 
+const handleLodFileSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    selectedLodFile = target.files[0]
+  }
+}
+
+
+
 // 오브젝트 업로드
 const uploadObject = async () => {
-  if (!selectedFile) {
-    alert('GLB 파일을 선택해주세요.')
-    return
-  }
-
   uploading.value = true
 
   try {
-    const objectUrl = URL.createObjectURL(selectedFile!)
-    let thumbnailUrl = ''
+    // FormData 생성
+    const formData = new FormData()
+    
+    // 필수 필드
+    formData.append('name', newObject.value.name)
+    formData.append('category', newObject.value.category)
+    formData.append('width', newObject.value.width.toString())
+    formData.append('depth', newObject.value.depth.toString())
+    formData.append('height', newObject.value.height.toString())
+    
+    // 선택적 필드
+    if (newObject.value.description && newObject.value.description.trim()) {
+      formData.append('description', newObject.value.description)
+    }
+    
+    if (newObject.value.color) {
+      formData.append('color', newObject.value.color)
+    }
+    
+    formData.append('instancingEnabled', newObject.value.instancingEnabled ? 'true' : 'false')
+    
+    // 파일 첨부
+    if (selectedFile) {
+      formData.append('glbFile', selectedFile)
+    }
     
     if (selectedThumbnail) {
-      thumbnailUrl = URL.createObjectURL(selectedThumbnail)
+      formData.append('thumbnailFile', selectedThumbnail)
+    }
+    
+    if (selectedLodFile) {
+      formData.append('lodFile', selectedLodFile)
     }
 
-    // 여기에 실제 업로드 로직을 구현할 수 있습니다
-    console.log('New Object:', {
-      ...newObject.value,
-      glbUrl: objectUrl,
-      thumbnail: thumbnailUrl
+    // API 호출
+    const response = await fetch('http://localhost:8080/api/object3d-templates/upload', {
+      method: 'POST',
+      body: formData
     })
 
-    alert('Object added successfully!')
-    closeModal()
+    if (response.ok) {
+      const createdTemplate = await response.json()
+      console.log('Created template:', createdTemplate)
+      alert('Object added successfully!')
+      closeModal()
+      // 업로드 성공 후 목록 새로고침
+      await fetchObjectTemplates()
+    } else {
+      const errorText = await response.text()
+      console.error('Upload failed:', errorText)
+      alert('Failed to add object. Please check the form data.')
+    }
 
   } catch (error) {
-    console.error('업로드 실패:', error)
-    alert('파일 업로드에 실패했습니다.')
+    console.error('Upload error:', error)
+    alert('Failed to upload object. Please try again.')
   } finally {
     uploading.value = false
   }
@@ -205,15 +499,18 @@ const closeModal = () => {
   showUploadModal.value = false
   newObject.value = {
     name: '',
-    category: 'robot',
+    category: 'ROBOT',
     description: '',
     width: 1.0,
     depth: 1.0,
     height: 2.0,
+    color: '#3B82F6',
+    instancingEnabled: true,
     etcType: 'general'
   }
   selectedFile = null
   selectedThumbnail = null
+  selectedLodFile = null
 }
 </script>
 
@@ -239,6 +536,205 @@ const closeModal = () => {
   margin: 0;
   font-size: 1.1rem;
   color: #2c3e50;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* 에러 및 로딩 메시지 */
+.error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: #fca5a5;
+  font-size: 0.9rem;
+}
+
+.loading-message {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-secondary, #a1a1aa);
+  font-size: 1rem;
+}
+
+/* 오브젝트 그리드 */
+.object-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  padding: 0.5rem 0;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.object-card {
+  background: var(--color-bg-level-1, #0f1011);
+  border: 1px solid var(--color-border-primary, #23252a);
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.object-card:hover {
+  border-color: var(--color-accent-primary, #3b82f6);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.object-thumbnail {
+  width: 100%;
+  height: 120px;
+  background: var(--color-bg-level-2, #141516);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border-secondary, #34343a);
+}
+
+.object-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.no-thumbnail {
+  font-size: 2rem;
+  color: var(--color-text-secondary, #a1a1aa);
+}
+
+.object-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.object-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.object-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #f7f8f8);
+  line-height: 1.2;
+  flex: 1;
+}
+
+.btn-delete {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+  color: var(--color-text-secondary, #a1a1aa);
+}
+
+.btn-delete:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  transform: scale(1.1);
+}
+
+.object-category {
+  font-size: 0.8rem;
+  color: var(--color-accent-primary, #3b82f6);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.object-dimensions {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #a1a1aa);
+  font-family: monospace;
+}
+
+.object-description {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #a1a1aa);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.object-meta {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.instancing-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: var(--color-bg-tertiary, #232326);
+  color: var(--color-text-secondary, #a1a1aa);
+  border: 1px solid var(--color-border-secondary, #34343a);
+}
+
+.instancing-badge.enabled {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.color-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  color: white;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  min-width: 60px;
+  text-align: center;
+}
+
+/* 빈 상태 */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--color-text-secondary, #a1a1aa);
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-state h3 {
+  margin: 0 0 0.5rem 0;
+  color: var(--color-text-primary, #f7f8f8);
+  font-size: 1.2rem;
+}
+
+.empty-state p {
+  margin: 0 0 1.5rem 0;
+  font-size: 0.9rem;
 }
 
 /* 모달 스타일 */
@@ -326,6 +822,49 @@ const closeModal = () => {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
+.color-input-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.color-picker {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+}
+
+.color-hex-display {
+  min-width: 80px;
+  padding: 0.5rem;
+  background: var(--color-bg-level-2, #141516);
+  border: 1px solid var(--color-border-secondary, #34343a);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: var(--color-text-primary, #f7f8f8);
+  font-family: monospace;
+  text-align: center;
+  text-transform: uppercase;
+  user-select: all;
+}
+
+
+
+.form-group input[type="checkbox"] {
+  width: auto;
+  margin-right: 0.5rem;
+}
+
+.form-group label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
 .modal-actions {
   display: flex;
   gap: 0.5rem;
@@ -368,5 +907,42 @@ const closeModal = () => {
 .btn-secondary:hover {
   background: var(--color-bg-quaternary, #28282c);
   border-color: var(--color-accent-primary, #3b82f6);
+}
+
+.btn-danger {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.btn-danger:disabled {
+  background: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 삭제 확인 모달 스타일 */
+.delete-warning {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.warning-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.delete-warning p {
+  margin: 0.5rem 0;
+  color: var(--color-text-primary, #f7f8f8);
+}
+
+.warning-text {
+  color: var(--color-text-secondary, #a1a1aa);
+  font-size: 0.9rem;
 }
 </style>

@@ -27,13 +27,14 @@
         <div class="layout-2d">
           <section class="editor-2d">
             <FloorPlanEditor2D 
+              ref="editor2dRef"
               @wall-created="handleWallCreated"
               @wall-updated="handleWallUpdated"
               @wall-deleted="handleWallDeleted"
             />
           </section>
           <aside class="object-library">
-            <ObjectLibrary />
+            <ObjectLibrary @object-selected="handleObjectSelected" />
           </aside>
         </div>
       </div>
@@ -61,6 +62,7 @@ const activeTab = ref<'2d' | '3d'>('2d')
 
 // Component refs
 const viewer3dRef = ref<InstanceType<typeof FloorPlanViewer3D> | null>(null)
+const editor2dRef = ref<InstanceType<typeof FloorPlanEditor2D> | null>(null)
 
 // Tab 변경 시 컴포넌트 초기화 처리
 watch(activeTab, async (newTab) => {
@@ -158,6 +160,18 @@ const handleWallDeleted = async () => {
     }
   } else {
     console.log('3D 뷰어가 마운트되지 않음')
+  }
+}
+
+// ObjectLibrary에서 오브젝트 선택 이벤트 처리
+const handleObjectSelected = (object: any) => {
+  console.log('오브젝트 선택됨:', object)
+  
+  // 2D 에디터에 오브젝트 배치 요청
+  if (editor2dRef.value && typeof editor2dRef.value.placeObject === 'function') {
+    editor2dRef.value.placeObject(object)
+  } else {
+    console.warn('2D 에디터에 placeObject 함수가 없습니다')
   }
 }
 </script>

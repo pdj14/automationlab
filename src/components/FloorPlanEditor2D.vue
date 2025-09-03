@@ -195,7 +195,7 @@
     <div v-if="showColorPicker" class="color-picker-overlay" @click="closeColorPicker">
       <div class="color-picker-dialog" @click.stop>
         <div class="dialog-header">
-          <h3>🎨 고급 색상 선택기</h3>
+          <h3>🎨 Advanced Color Picker</h3>
           <button @click="closeColorPicker" class="close-btn">×</button>
         </div>
         
@@ -323,8 +323,8 @@
         </div>
 
         <div class="dialog-footer">
-          <button @click="closeColorPicker" class="btn btn-secondary">취소</button>
-          <button @click="confirmColorSelection" class="btn btn-primary">확인</button>
+          <button @click="closeColorPicker" class="btn btn-secondary">Cancel</button>
+          <button @click="confirmColorSelection" class="btn btn-primary">Confirm</button>
         </div>
       </div>
     </div>
@@ -2955,11 +2955,31 @@ const updatePlacedObjectInStore = (fabricObject: any) => {
   }
 }
 
-// Object Library에서 오브젝트 배치 처리
+// Object Library에서 오브젝트 배치 처리 (직접 호출용)
+const placeObject = (object: any) => {
+  if (!fabricCanvas) return
+  
+  console.log('placeObject 호출됨:', object)
+  
+  // 오브젝트 배치 로직 실행
+  executeObjectPlacement(object)
+}
+
+// Object Library에서 오브젝트 배치 처리 (이벤트용)
 const handlePlaceObject = (event: any) => {
   if (!fabricCanvas) return
 
   const { object } = event.detail
+  
+  console.log('handlePlaceObject 호출됨:', object)
+  
+  // 오브젝트 배치 로직 실행
+  executeObjectPlacement(object)
+}
+
+// 실제 오브젝트 배치 로직
+const executeObjectPlacement = (object: any) => {
+  if (!fabricCanvas) return
 
   let centerX: number
   let centerY: number
@@ -3230,13 +3250,13 @@ const confirmAndSaveZones = async () => {
         loadSavedWalls(),
         loadBoxes()
       ])
-      alert('✅ Zone, Wall, Box 변경사항이 성공적으로 저장되었습니다!')
+      alert('✅ Zone, Wall, Box changes have been saved successfully!')
     } else {
-      alert('❌ 저장 중 오류가 발생했습니다.')
+      alert('❌ An error occurred while saving.')
     }
   } catch (error) {
-    console.error('저장 실패:', error)
-    alert('❌ 저장 중 오류가 발생했습니다.')
+    console.error('Save failed:', error)
+    alert('❌ An error occurred while saving.')
   } finally {
     closeChangeConfirmDialog()
   }
@@ -3273,14 +3293,14 @@ const clearCanvasData = async () => {
     
     
   } catch (error) {
-    console.error('❌ 캔버스 데이터 초기화 실패:', error)
+    console.error('❌ Failed to initialize canvas data:', error)
   }
 }
 
 // 평면도 저장 (백엔드 API로 Zone 정보 전송)
 const saveFloorPlan = async () => {
   if (!fabricCanvas) {
-    alert('저장할 플로어플랜이 없습니다.')
+    alert('No floor plan to save.')
     return
   }
 
@@ -3300,7 +3320,7 @@ const saveFloorPlan = async () => {
       )
       
       if (!defaultFloor) {
-        throw new Error('기본 바닥을 찾을 수 없습니다.')
+        throw new Error('Default floor not found.')
       }
       
       // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 좌표 변환
@@ -3355,7 +3375,7 @@ const saveFloorPlan = async () => {
       )
       
       if (!defaultFloor) {
-        throw new Error('기본 바닥을 찾을 수 없습니다.')
+        throw new Error('Default floor not found.')
       }
       
       // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 Wall 위치 계산
@@ -3395,7 +3415,7 @@ const saveFloorPlan = async () => {
       )
       
       if (!defaultFloor) {
-        console.error('기본 바닥을 찾을 수 없습니다.')
+        console.error('Default floor not found.')
         return null
       }
       
@@ -3463,27 +3483,27 @@ const saveFloorPlan = async () => {
     if (hasChanges) {
       showChangeConfirmDialog.value = true
     } else {
-      alert('✅ 변경사항이 없습니다.')
+      alert('✅ No changes detected.')
     }
     
   } catch (error: any) {
-    console.error('❌ Zone 변경사항 분석 실패:', error)
+    console.error('❌ Failed to analyze zone changes:', error)
     
-    let errorMessage = '알 수 없는 오류'
+    let errorMessage = 'Unknown error'
     
     // axios 에러 처리
     if (error.response) {
       // 서버가 응답했지만 에러 상태 코드
-      errorMessage = `서버 오류 (${error.response.status}): ${error.response.data?.message || error.response.statusText}`
+      errorMessage = `Server error (${error.response.status}): ${error.response.data?.message || error.response.statusText}`
     } else if (error.request) {
       // 요청이 전송되었지만 응답이 없음
-      errorMessage = '서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.'
+      errorMessage = 'Cannot connect to server. Please check if the server is running.'
     } else {
       // 요청 설정 중 에러
-      errorMessage = error.message || '요청 설정 오류'
+      errorMessage = error.message || 'Request configuration error'
     }
     
-    alert(`Zone 변경사항 분석에 실패했습니다: ${errorMessage}`)
+    alert(`Failed to analyze zone changes: ${errorMessage}`)
   }
 }
 
@@ -3518,7 +3538,7 @@ const loadSavedWalls = async () => {
     
     
   } catch (error: any) {
-    console.error('❌ Wall 정보 불러오기 실패:', error)
+    console.error('❌ Failed to load wall information:', error)
     
     // axios 에러 처리
     if (error.response) {
@@ -3578,7 +3598,7 @@ const loadSavedZones = async () => {
     
     
   } catch (error: any) {
-    console.error('❌ Zone 정보 불러오기 실패:', error)
+    console.error('❌ Failed to load zone information:', error)
     
     // axios 에러 처리
     if (error.response) {
@@ -3644,7 +3664,7 @@ const loadBoxes = async () => {
     floorplanStore.setLoadingBoxes(false)
     
   } catch (error: any) {
-    console.error('❌ Box 정보 불러오기 실패:', error)
+    console.error('❌ Failed to load box information:', error)
     
     // axios 에러 처리
     if (error.response) {
@@ -3953,7 +3973,7 @@ const exportFloorPlan = () => {
 // 선택된 오브젝트 삭제 (멀티 선택 지원)
 const deleteSelectedObject = () => {
   if (!fabricCanvas) {
-    alert('삭제할 오브젝트를 먼저 선택해주세요.')
+    alert('Please select an object to delete first.')
     return
   }
 
@@ -3980,7 +4000,7 @@ const deleteSelectedObject = () => {
 
   // 단일 선택된 객체 삭제 (기존 로직)
   if (!selectedObject.value) {
-    alert('삭제할 오브젝트를 먼저 선택해주세요.')
+    alert('Please select an object to delete first.')
     return
   }
 
@@ -4281,6 +4301,11 @@ onMounted(async () => {
   onUnmounted(() => {
     observer.disconnect()
   })
+})
+
+// 외부에서 호출할 수 있는 함수들
+defineExpose({
+  placeObject
 })
 
 onUnmounted(() => {

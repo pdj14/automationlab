@@ -491,9 +491,30 @@ const create3DWalls = (wallsData: any) => {
   const canvasWidth = wallsData.canvasSize?.width || 800
   const canvasHeight = wallsData.canvasSize?.height || 600
 
+  // 중복 벽 제거를 위한 Set
+  const processedWalls = new Set<string>()
+
   // 통합된 walls 배열에서 벽 생성
   wallsData.walls.forEach((wall: any, index: number) => {
     console.log(`벽 ${index + 1} 생성:`, wall)
+    
+    // 벽 좌표 추출
+    const startX = wall.startX !== undefined ? wall.startX : wall.start?.x
+    const startY = wall.startY !== undefined ? wall.startY : wall.start?.y
+    const endX = wall.endX !== undefined ? wall.endX : wall.end?.x
+    const endY = wall.endY !== undefined ? wall.endY : wall.end?.y
+    
+    // 중복 벽 체크 (시작점과 끝점이 같은 벽)
+    const wallKey = `${Math.round(startX)},${Math.round(startY)}-${Math.round(endX)},${Math.round(endY)}`
+    const reverseWallKey = `${Math.round(endX)},${Math.round(endY)}-${Math.round(startX)},${Math.round(startY)}`
+    
+    if (processedWalls.has(wallKey) || processedWalls.has(reverseWallKey)) {
+      console.warn(`중복 벽 감지, 건너뜀:`, { startX, startY, endX, endY })
+      return
+    }
+    
+    processedWalls.add(wallKey)
+    
     const isGlass = wall.isGlass || wall.type === 'glass-wall'
     const wallType = isGlass ? 'glass-wall' : 'wall'
     const color = isGlass ? 0x4682B4 : 0x8A7B78 // glass-wall: 파란색, wall: 갈색
@@ -520,10 +541,24 @@ const createWall = (wall: any, wallType: string, color: number, canvasWidth: num
     return
   }
   
+  // 좌표가 유효한지 확인 (NaN이나 Infinity 체크)
+  if (!isFinite(startX) || !isFinite(startY) || !isFinite(endX) || !isFinite(endY)) {
+    console.warn('벽 데이터에 유효하지 않은 좌표가 있습니다:', { startX, startY, endX, endY })
+    return
+  }
+  
   const length = Math.sqrt(
     Math.pow(endX - startX, 2) + Math.pow(startY - endY, 2)
   )
   const angle = Math.atan2(startY - endY, endX - startX)
+  
+  // 벽 길이가 너무 작으면 생성하지 않음 (중복 벽 방지)
+  if (length < 5) {
+    console.warn(`벽 길이가 너무 작아서 건너뜀: ${length}px (${length/40}m)`, { startX, startY, endX, endY })
+    return
+  }
+  
+  console.log(`벽 생성: 길이 ${length}px (${length/40}m), 각도 ${angle}rad`)
   
   const wallGeometry = new THREE.BoxGeometry(length / 40, wallHeight.value, 0.1)
   const opacity = isGlass ? 0.2 : 0.7 // glass-wall: 20%, wall: 70%
