@@ -1542,65 +1542,45 @@ const setupWallDrawing = () => {
       return
     }
 
-    // 단일 선택 처리 (기존 로직 유지)
+    // 단일 선택 처리 - 모든 타입의 객체 선택 허용
     const singleSelected = e.selected[0]
-    if (singleSelected && singleSelected.userData?.type === 'placed-object') {
+    if (singleSelected) {
       selectedObject.value = singleSelected
       selectedObjects.value = [singleSelected]
 
-      // ETC 상자가 선택된 경우 상자 위 장비 배치 모드 활성화
-      if (singleSelected.userData?.category === 'etc' && singleSelected.userData?.isBox) {
-        selectedBox.value = singleSelected
-        boxPlacementMode.value = true
-      } else {
-        // 상자가 아닌 오브젝트 선택 시 상자 모드 비활성화
-        selectedBox.value = null
-        boxPlacementMode.value = false
+      // placed-object인 경우에만 상자 모드 처리
+      if (singleSelected.userData?.type === 'placed-object') {
+        // ETC 상자가 선택된 경우 상자 위 장비 배치 모드 활성화
+        if (singleSelected.userData?.category === 'etc' && singleSelected.userData?.isBox) {
+          selectedBox.value = singleSelected
+          boxPlacementMode.value = true
+        } else {
+          // 상자가 아닌 오브젝트 선택 시 상자 모드 비활성화
+          selectedBox.value = null
+          boxPlacementMode.value = false
 
-        // 상자 위에 배치된 장비가 선택된 경우 해당 상자도 함께 선택
-        if (singleSelected.userData?.isOnBox && singleSelected.userData?.boxId) {
-          const fabricObjects = fabricCanvas.getObjects()
-          const boxObject = fabricObjects.find((fabricObj: any) =>
-            fabricObj.userData?.placedObjectId === singleSelected.userData?.boxId
-          )
-          if (boxObject) {
-            fabricCanvas.setActiveObject(boxObject)
+          // 상자 위에 배치된 장비가 선택된 경우 해당 상자도 함께 선택
+          if (singleSelected.userData?.isOnBox && singleSelected.userData?.boxId) {
+            const fabricObjects = fabricCanvas.getObjects()
+            const boxObject = fabricObjects.find((fabricObj: any) =>
+              fabricObj.userData?.placedObjectId === singleSelected.userData?.boxId
+            )
+            if (boxObject) {
+              fabricCanvas.setActiveObject(boxObject)
+            }
           }
         }
+      } else {
+        // placed-object가 아닌 경우 상자 모드 비활성화
+        selectedBox.value = null
+        boxPlacementMode.value = false
       }
       return
     }
-    
-    // Zone 선택 허용
-    if (singleSelected && singleSelected.userData?.type === 'zone-floor') {
-      selectedObject.value = singleSelected
-      selectedObjects.value = [singleSelected]
-      return
-    }
-    
-    // Box 선택 허용
-    if (singleSelected && singleSelected.userData?.type === 'custom-box') {
-      selectedObject.value = singleSelected
-      selectedObjects.value = [singleSelected]
 
-      return
-    }
-
-    // 벽은 select 모드에서만 선택 가능
-    if (currentTool.value !== 'select') {
-      fabricCanvas.discardActiveObject()
-      selectedObject.value = null
-      selectedObjects.value = []
-      return
-    }
-
-    if (singleSelected && singleSelected.userData?.type === 'wall') {
-      selectedObject.value = singleSelected
-      selectedObjects.value = [singleSelected]
-    } else {
-      selectedObject.value = null
-      selectedObjects.value = []
-    }
+    // 선택된 객체가 없으면 선택 해제
+    selectedObject.value = null
+    selectedObjects.value = []
   })
 
   fabricCanvas.on('selection:updated', (e: any) => {
@@ -1613,44 +1593,17 @@ const setupWallDrawing = () => {
       return
     }
 
-    // 단일 선택 처리
+    // 단일 선택 처리 - 모든 타입의 객체 선택 허용
     const singleSelected = e.selected[0]
-    if (singleSelected && singleSelected.userData?.type === 'placed-object') {
+    if (singleSelected) {
       selectedObject.value = singleSelected
       selectedObjects.value = [singleSelected]
-      return
-    }
-    
-    // Zone 선택 허용
-    if (singleSelected && singleSelected.userData?.type === 'zone-floor') {
-      selectedObject.value = singleSelected
-      selectedObjects.value = [singleSelected]
-      return
-    }
-    
-    // Box 선택 허용
-    if (singleSelected && singleSelected.userData?.type === 'custom-box') {
-      selectedObject.value = singleSelected
-      selectedObjects.value = [singleSelected]
-
       return
     }
 
-    // 벽은 select 모드에서만 선택 가능
-    if (currentTool.value !== 'select') {
-      fabricCanvas.discardActiveObject()
-      selectedObject.value = null
-      selectedObjects.value = []
-      return
-    }
-
-    if (singleSelected && singleSelected.userData?.type === 'wall') {
-      selectedObject.value = singleSelected
-      selectedObjects.value = [singleSelected]
-    } else {
-      selectedObject.value = null
-      selectedObjects.value = []
-    }
+    // 선택된 객체가 없으면 선택 해제
+    selectedObject.value = null
+    selectedObjects.value = []
   })
 
   fabricCanvas.on('selection:cleared', () => {
@@ -2849,10 +2802,10 @@ const rerender2DObjectsFromStore = () => {
 
     // Box인 경우와 일반 오브젝트인 경우를 구분하여 처리
     if (placedObj.isBox) {
-      // Box 오브젝트 생성
+      // Box 오브젝트 생성 (좌측 상단 기준)
       const box = new fabric.Rect({
-        left: fabricX - (placedObj.width * 40) / 2,
-        top: fabricY - (placedObj.height * 40) / 2,
+        left: fabricX,  // 좌측 상단 X 좌표 직접 사용
+        top: fabricY,   // 좌측 상단 Y 좌표 직접 사용
         width: placedObj.width * 40,
         height: placedObj.height * 40,
         fill: placedObj.color || '#FFE082',
@@ -2862,7 +2815,9 @@ const rerender2DObjectsFromStore = () => {
         evented: true,
         opacity: 0.8,
         hoverCursor: 'move',
-        moveCursor: 'move'
+        moveCursor: 'move',
+        originX: 'left',  // 좌측 상단 기준
+        originY: 'top'    // 좌측 상단 기준
       })
 
       box.userData = {
@@ -2883,17 +2838,19 @@ const rerender2DObjectsFromStore = () => {
 
 
     } else {
-      // 일반 오브젝트 생성
+      // 일반 오브젝트 생성 (좌측 상단 기준)
       const objectShape = new fabric.Rect({
-        left: fabricX - (placedObj.width * 40) / 2,
-        top: fabricY - (placedObj.height * 40) / 2,
+        left: fabricX,  // 좌측 상단 X 좌표 직접 사용
+        top: fabricY,   // 좌측 상단 Y 좌표 직접 사용
         width: placedObj.width * 40,
         height: placedObj.height * 40,
         fill: placedObj.color || getObjectColor(placedObj.category, placedObj.isOnBox),
         stroke: '#333',
         strokeWidth: 1,
         selectable: true,
-        evented: true
+        evented: true,
+        originX: 'left',  // 좌측 상단 기준
+        originY: 'top'    // 좌측 상단 기준
       })
 
       // 라벨 생성
@@ -3073,8 +3030,8 @@ const executeObjectPlacement = (object: any) => {
 
   if (!fabricCanvas) return
 
-  let centerX: number
-  let centerY: number
+  let leftX: number  // object의 좌측 상단 X 좌표
+  let topY: number   // object의 좌측 상단 Y 좌표
 
   // 상자 위 배치 모드인 경우 상자 위에 배치
   if (boxPlacementMode.value && selectedBox.value && object.category !== 'etc') {
@@ -3082,12 +3039,12 @@ const executeObjectPlacement = (object: any) => {
     const boxLeft = box.left || 0
     const boxTop = box.top || 0
 
-    // 상자 위 중앙에 배치
-    centerX = boxLeft
-    centerY = boxTop - 20 // 상자 위쪽에 약간 올려서 배치
+    // 상자 위 좌측 상단에 배치
+    leftX = boxLeft
+    topY = boxTop - 20 // 상자 위쪽에 약간 올려서 배치
 
   } else if (object.x !== undefined && object.y !== undefined) {
-    // 사용자가 지정한 좌표가 있는 경우 해당 좌표 사용
+    // 사용자가 지정한 좌표가 있는 경우 해당 좌표 사용 (좌측 상단 기준)
     const scale = 40 // 1m = 40px
     
     // 기본 회색 바닥의 위치를 찾기
@@ -3100,15 +3057,15 @@ const executeObjectPlacement = (object: any) => {
       const baseX = defaultFloor.left
       const baseY = defaultFloor.top
       
-      // 미터 단위를 픽셀 단위로 변환하여 바닥 기준으로 배치
-      centerX = baseX + (object.x * scale)
-      centerY = baseY + (object.y * scale)
+      // 미터 단위를 픽셀 단위로 변환하여 바닥 기준으로 배치 (좌측 상단 기준)
+      leftX = baseX + (object.x * scale)
+      topY = baseY + (object.y * scale)
     } else {
       // 기본 바닥을 찾을 수 없는 경우 캔버스 중앙에 배치
       const canvasWidth = fabricCanvas.width || 800
       const canvasHeight = fabricCanvas.height || 600
-      centerX = canvasWidth / 2
-      centerY = canvasHeight / 2
+      leftX = canvasWidth / 2
+      topY = canvasHeight / 2
     }
   } else {
     // 일반 배치 - basefloor 중앙에 배치
@@ -3117,19 +3074,19 @@ const executeObjectPlacement = (object: any) => {
     )
     
     if (defaultFloor) {
-      // basefloor의 중앙에 배치
+      // basefloor의 중앙에 배치 (좌측 상단 기준으로 계산)
       const baseX = defaultFloor.left
       const baseY = defaultFloor.top
       const baseWidth = defaultFloor.width || 0
       const baseHeight = defaultFloor.height || 0
-      centerX = baseX + baseWidth / 2
-      centerY = baseY + baseHeight / 2
+      leftX = baseX + baseWidth / 2
+      topY = baseY + baseHeight / 2
     } else {
       // 기본 바닥을 찾을 수 없는 경우 캔버스 중앙에 배치 (fallback)
       const canvasWidth = fabricCanvas.width || 800
       const canvasHeight = fabricCanvas.height || 600
-      centerX = canvasWidth / 2
-      centerY = canvasHeight / 2
+      leftX = canvasWidth / 2
+      topY = canvasHeight / 2
     }
   }
 
@@ -3153,16 +3110,16 @@ const executeObjectPlacement = (object: any) => {
 
   // 사각형으로 오브젝트 표현 (추후 이미지나 복잡한 도형으로 확장 가능)
   objectShape = new fabric.Rect({
-    left: 0, // 그룹 내에서의 상대 위치
-    top: 0,  // 그룹 내에서의 상대 위치
+    left: 0, // 그룹 내에서의 상대 위치 (좌측 상단)
+    top: 0,  // 그룹 내에서의 상대 위치 (좌측 상단)
     width: objectWidth,
     height: objectHeight,
     fill: objectColor,
     stroke: '#333',
     strokeWidth: 2,
     angle: 0,
-    originX: 'center',
-    originY: 'center',
+    originX: 'left',  // 좌측 상단 기준
+    originY: 'top',   // 좌측 상단 기준
     shadow: boxPlacementMode.value && selectedBox.value && object.category !== 'etc'
       ? new fabric.Shadow({ color: 'rgba(0,0,0,0.3)', blur: 4, offsetX: 2, offsetY: 2 })
       : null
@@ -3170,14 +3127,14 @@ const executeObjectPlacement = (object: any) => {
 
   // 오브젝트 이름 레이블 추가
   const nameLabel = new fabric.Text(`${objectIcon} ${object.name}`, {
-    left: 0, // 그룹 내에서의 상대 위치
-    top: objectHeight / 2 + 10, // 오브젝트 아래쪽에 배치
+    left: objectWidth / 2, // 그룹 내에서의 상대 위치 (중심으로 이동)
+    top: objectHeight + 10, // 오브젝트 아래쪽에 배치
     fontSize: boxPlacementMode.value && selectedBox.value && object.category !== 'etc' ? 8 : 10,
     fill: '#333',
     fontFamily: 'Arial',
     textAlign: 'center',
     originX: 'center',
-    originY: 'center',
+    originY: 'top',  // 상단 기준으로 변경
     selectable: false,
     evented: false,
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
@@ -3189,10 +3146,11 @@ const executeObjectPlacement = (object: any) => {
 
   // 오브젝트와 레이블을 그룹으로 묶기
   const objectGroup = new fabric.Group([objectShape, nameLabel], {
-    left: centerX,
-    top: centerY,
-    originX: 'center',
-    originY: 'center',
+    left: leftX,  // 좌측 상단 X 좌표 직접 사용
+    top: topY,    // 좌측 상단 Y 좌표 직접 사용
+    angle: object.rotation || 0, // 사용자가 지정한 회전값 적용
+    originX: 'left',  // 왼쪽 위 모서리 기준
+    originY: 'top',   // 왼쪽 위 모서리 기준
     selectable: true,
     evented: true,
     hasControls: true,
@@ -3250,12 +3208,12 @@ const executeObjectPlacement = (object: any) => {
     // basefloor의 왼쪽 상단을 (0,0) 기준으로 미터 단위 좌표 계산
     const baseX = defaultFloor.left
     const baseY = defaultFloor.top
-    storeX = (centerX - baseX) / 40  // 픽셀을 미터로 변환
-    storeY = (centerY - baseY) / 40  // 픽셀을 미터로 변환
+    storeX = (leftX - baseX) / 40  // 픽셀을 미터로 변환 (좌측 상단 기준)
+    storeY = (topY - baseY) / 40   // 픽셀을 미터로 변환 (좌측 상단 기준)
   } else {
     // 기본 바닥을 찾을 수 없는 경우 캔버스 중앙 기준으로 계산 (fallback)
-    storeX = (centerX - (fabricCanvas.width || 800) / 2) / 40
-    storeY = (centerY - (fabricCanvas.height || 600) / 2) / 40
+    storeX = (leftX - (fabricCanvas.width || 800) / 2) / 40
+    storeY = (topY - (fabricCanvas.height || 600) / 2) / 40
   }
   
   const placedObjectData = {
@@ -3272,7 +3230,13 @@ const executeObjectPlacement = (object: any) => {
       x: storeX,  // basefloor 왼쪽 상단 기준 미터 단위 좌표
       y: storeY   // basefloor 왼쪽 상단 기준 미터 단위 좌표
     },
-    rotation: 0, // 초기 회전값
+    boundsPx: {
+      left: leftX,  // 2D 캔버스의 픽셀 좌표 (좌측 상단)
+      top: topY,    // 2D 캔버스의 픽셀 좌표 (좌측 상단)
+      right: leftX + objectWidth,  // 2D 캔버스의 픽셀 좌표 (우측 하단)
+      bottom: topY + objectHeight  // 2D 캔버스의 픽셀 좌표 (우측 하단)
+    },
+    rotation: (object.rotation || 0) * (Math.PI / 180), // 사용자가 지정한 회전값 (도 → 라디안)
     color: object.color, // GLB에서 추출한 색상 (있다면)
     isOnBox: boxPlacementMode.value && selectedBox.value && object.category !== 'etc', // 상자 위 배치 여부
     boxId: boxPlacementMode.value && selectedBox.value ? selectedBox.value.userData?.placedObjectId : null, // 상자 ID
@@ -3281,9 +3245,6 @@ const executeObjectPlacement = (object: any) => {
   }
 
   objectStore.addPlacedObject(placedObjectData)
-
-  // 🚀 핵심 개선: Store 기반 2D 재구성 (일관성 있는 렌더링)
-  rerender2DObjectsFromStore()
 
   // 상자 위 배치 후 상자 모드 비활성화
   if (boxPlacementMode.value) {
@@ -4077,6 +4038,11 @@ const deleteSelectedObject = () => {
     return
   }
 
+  console.log('🗑️ 삭제 요청:', {
+    selectedObject: selectedObject.value?.userData,
+    selectedObjectsCount: selectedObjects.value.length
+  })
+
   // 멀티 선택된 객체들이 있으면 모두 삭제
   if (selectedObjects.value.length > 1) {
 
@@ -4165,11 +4131,27 @@ const deleteSingleObject = (objectToDelete: any) => {
   const objectId = objectToDelete.userData?.id
   const objectType = objectToDelete.userData?.type
 
+  console.log('🗑️ 삭제 시도:', {
+    objectType,
+    objectId,
+    placedObjectId: objectToDelete.userData?.placedObjectId,
+    name: objectToDelete.userData?.objectName
+  })
+
   if (objectType === 'placed-object') {
-    // 배치된 오브젝트 삭제 (그룹으로 묶여있으므로 레이블도 함께 삭제됨)
+    // 배치된 오브젝트 삭제
     const placedObjectId = objectToDelete.userData?.placedObjectId
 
+    // Object 크기 라벨 제거
+    const objectLabels = fabricCanvas.getObjects().filter((obj: any) => 
+      obj.userData?.type === 'object-size-label' && 
+      obj.userData?.objectId === placedObjectId
+    )
+    objectLabels.forEach((lbl: any) => fabricCanvas.remove(lbl))
+
+    // Object 그룹 제거
     fabricCanvas.remove(objectToDelete)
+    console.log('✅ Object 그룹 제거 완료')
 
     // Store에서도 제거
     if (placedObjectId) {
@@ -4192,10 +4174,31 @@ const deleteSingleObject = (objectToDelete: any) => {
         })
       }
 
+      console.log('🔍 삭제할 객체 정보:', {
+        placedObjectId,
+        objectId: objectToDelete.userData?.objectId,
+        userData: objectToDelete.userData
+      })
+      
       objectStore.removePlacedObject(placedObjectId)
-
-      // 🚀 핵심 개선: Store 기반 2D 재구성 (3D와 동일한 방식)
-      rerender2DObjectsFromStore()
+      console.log('✅ Store에서 Object 제거 완료:', placedObjectId)
+      console.log('📊 Store에 남은 객체 수:', objectStore.placedObjects.length)
+      console.log('📊 Store에 남은 객체들:', objectStore.placedObjects.map(obj => ({
+        id: obj.id,
+        name: obj.name,
+        type: obj.isBox ? 'box' : 'object'
+      })))
+      
+      // Store에서 제거된 후 2D 캔버스 강제 렌더링
+      fabricCanvas.renderAll()
+      console.log('🔄 2D 캔버스 강제 렌더링 완료')
+      
+      // Store와 2D 캔버스 동기화를 위해 완전히 다시 구성
+      setTimeout(() => {
+        console.log('🔄 Store와 2D 캔버스 동기화 시작')
+        rerender2DObjectsFromStore()
+        console.log('✅ Store와 2D 캔버스 동기화 완료')
+      }, 100)
     }
 
   } else if (objectType === 'wall') {
@@ -4283,17 +4286,9 @@ const deleteSingleObject = (objectToDelete: any) => {
       
       // Box 사각형 제거
       fabricCanvas.remove(objectToDelete)
-
-      
-      // 🚀 핵심 개선: Store 기반 2D 재구성 (3D와 동기화)
-      rerender2DObjectsFromStore()
     } else {
-
       // boxId가 없는 경우도 안전하게 제거
       fabricCanvas.remove(objectToDelete)
-      
-      // Store 기반 2D 재구성
-      rerender2DObjectsFromStore()
     }
   }
 
@@ -4301,6 +4296,17 @@ const deleteSingleObject = (objectToDelete: any) => {
   try {
     fabricCanvas.renderAll()
     fabricCanvas.requestRenderAll()
+    
+    // 삭제 후 캔버스 상태 확인
+    const remainingObjects = fabricCanvas.getObjects().filter((obj: any) => 
+      obj.userData?.type === 'placed-object' || obj.userData?.type === 'custom-box'
+    )
+    console.log('📊 삭제 후 남은 객체 수:', remainingObjects.length)
+    console.log('📊 남은 객체들:', remainingObjects.map((obj: any) => ({
+      type: obj.userData?.type,
+      id: obj.userData?.id || obj.userData?.placedObjectId,
+      name: obj.userData?.objectName
+    })))
   } catch (error) {
     console.error('❌ 캔버스 재렌더링 실패:', error)
   }

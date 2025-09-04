@@ -7,7 +7,7 @@
           🔄 {{ loading ? 'Loading...' : 'Refresh' }}
         </button>
         <button @click="showUploadModal = true" class="btn btn-primary">
-          ➕ Add Object
+          ➕ Add New
         </button>
       </div>
     </div>
@@ -89,7 +89,7 @@
       <h3>No objects found</h3>
       <p>Add your first 3D object to get started!</p>
       <button @click="showUploadModal = true" class="btn btn-primary">
-        ➕ Add Object
+        ➕ Add Object Template
       </button>
     </div>
 
@@ -97,7 +97,7 @@
     <div v-if="showUploadModal" class="modal-overlay">
       <div class="modal" @click.stop>
         <div class="modal-header">
-          <h3>Add New Object</h3>
+          <h3>Add New Object Template</h3>
           <button @click="closeModal" class="btn-close">✕</button>
         </div>
         
@@ -251,6 +251,79 @@
         </div>
       </div>
     </div>
+
+    <!-- Object Placement Popup -->
+    <div v-if="showPlacementPopup" class="popup-overlay">
+      <div class="popup-content" @click.stop>
+        <div class="popup-header">
+          <h3>📍 Place Object</h3>
+          <button @click="closePlacementPopup" class="btn-close">×</button>
+        </div>
+        
+        <div class="popup-body">
+          <div class="object-preview">
+            <div class="preview-thumbnail">
+              <img 
+                v-if="selectedTemplate?.thumbnailUrl" 
+                :src="selectedTemplate.thumbnailUrl" 
+                :alt="selectedTemplate.name"
+              />
+              <div v-else class="no-thumbnail">📦</div>
+            </div>
+            <div class="preview-info">
+              <h4>{{ selectedTemplate?.name }}</h4>
+              <p>{{ selectedTemplate?.width }}m × {{ selectedTemplate?.height }}m × {{ selectedTemplate?.depth }}m</p>
+            </div>
+          </div>
+          
+          <div class="placement-form">
+            <div class="form-group">
+              <label for="placement-x">X Position (meters):</label>
+              <input 
+                id="placement-x"
+                v-model.number="placementData.x" 
+                type="number" 
+                step="0.1" 
+                min="0" 
+                max="100"
+                placeholder="0.0"
+              />
+            </div>
+            
+            <div class="form-group">
+              <label for="placement-y">Y Position (meters):</label>
+              <input 
+                id="placement-y"
+                v-model.number="placementData.y" 
+                type="number" 
+                step="0.1" 
+                min="0" 
+                max="100"
+                placeholder="0.0"
+              />
+            </div>
+            
+            <div class="form-group">
+              <label for="placement-rotation">Rotation (degrees):</label>
+              <input 
+                id="placement-rotation"
+                v-model.number="placementData.rotation" 
+                type="number" 
+                step="1" 
+                min="0" 
+                max="360"
+                placeholder="0"
+              />
+            </div>
+          </div>
+        </div>
+        
+        <div class="popup-footer">
+          <button @click="closePlacementPopup" class="btn btn-secondary">Cancel</button>
+          <button @click="confirmPlacement" class="btn btn-primary">Place Object</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -304,6 +377,15 @@ const showDeleteModal = ref(false)
 const deleting = ref(false)
 const objectToDelete = ref<ObjectTemplate | null>(null)
 
+// Placement Popup 관련
+const showPlacementPopup = ref(false)
+const selectedTemplate = ref<ObjectTemplate | null>(null)
+const placementData = ref({
+  x: 0,
+  y: 0,
+  rotation: 0
+})
+
 const newObject = ref<NewObject>({
   name: '',
   category: 'ROBOT',
@@ -349,8 +431,43 @@ onMounted(() => {
 const placeObject = (template: ObjectTemplate) => {
   console.log('Placing object:', template)
   
+  // Placement Popup 표시
+  selectedTemplate.value = template
+  placementData.value = {
+    x: 0,
+    y: 0,
+    rotation: 0
+  }
+  showPlacementPopup.value = true
+}
+
+// Placement Popup 관련 함수들
+const closePlacementPopup = () => {
+  showPlacementPopup.value = false
+  selectedTemplate.value = null
+  placementData.value = {
+    x: 0,
+    y: 0,
+    rotation: 0
+  }
+}
+
+const confirmPlacement = () => {
+  if (!selectedTemplate.value) return
+  
+  // 선택된 템플릿에 위치와 회전 정보 추가
+  const objectWithPlacement = {
+    ...selectedTemplate.value,
+    x: placementData.value.x,
+    y: placementData.value.y,
+    rotation: placementData.value.rotation
+  }
+  
   // 2D 에디터에 오브젝트 배치 이벤트 전달
-  emit('objectSelected', template)
+  emit('objectSelected', objectWithPlacement)
+  
+  // Popup 닫기
+  closePlacementPopup()
 }
 
 // 이미지 로드 에러 핸들러
@@ -996,5 +1113,191 @@ const closeModal = () => {
   font-size: 0.9rem;
 }
 
+/* Placement Popup Styles */
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.popup-content {
+  background: var(--color-bg-level-1, #0f1011);
+  border: 1px solid var(--color-border-primary, #23252a);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-border-primary, #23252a);
+}
+
+.popup-header h3 {
+  margin: 0;
+  color: var(--color-text-primary, #f7f8f8);
+  font-size: 1.2rem;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary, #a1a1aa);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-close:hover {
+  background: var(--color-bg-tertiary, #232326);
+  color: var(--color-text-primary, #f7f8f8);
+}
+
+.popup-body {
+  padding: 1.5rem;
+}
+
+.object-preview {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--color-bg-level-2, #1a1b1e);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-secondary, #34343a);
+}
+
+.preview-thumbnail {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-tertiary, #232326);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.preview-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.preview-thumbnail .no-thumbnail {
+  font-size: 1.5rem;
+  color: var(--color-text-secondary, #a1a1aa);
+}
+
+.preview-info h4 {
+  margin: 0 0 0.25rem 0;
+  color: var(--color-text-primary, #f7f8f8);
+  font-size: 1rem;
+}
+
+.preview-info p {
+  margin: 0;
+  color: var(--color-text-secondary, #a1a1aa);
+  font-size: 0.85rem;
+}
+
+.placement-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.placement-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.placement-form label {
+  color: var(--color-text-primary, #f7f8f8);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.placement-form input {
+  padding: 0.75rem;
+  border: 1px solid var(--color-border-secondary, #34343a);
+  border-radius: 6px;
+  background: var(--color-bg-level-2, #1a1b1e);
+  color: var(--color-text-primary, #f7f8f8);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.placement-form input:focus {
+  outline: none;
+  border-color: var(--color-accent-primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.placement-form input::placeholder {
+  color: var(--color-text-tertiary, #71717a);
+}
+
+.popup-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--color-border-primary, #23252a);
+}
+
+.popup-footer .btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.popup-footer .btn-secondary {
+  background: var(--color-bg-tertiary, #232326);
+  color: var(--color-text-primary, #f7f8f8);
+  border: 1px solid var(--color-border-secondary, #34343a);
+}
+
+.popup-footer .btn-secondary:hover {
+  background: var(--color-bg-quaternary, #28282c);
+  border-color: var(--color-accent-primary, #3b82f6);
+}
+
+.popup-footer .btn-primary {
+  background: var(--color-accent-primary, #3b82f6);
+  color: white;
+}
+
+.popup-footer .btn-primary:hover {
+  background: var(--color-accent-secondary, #2563eb);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
 
 </style>

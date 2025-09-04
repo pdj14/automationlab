@@ -1128,41 +1128,50 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
 
       }
       
-      // 모델 크기 조정 (width, depth, height 기준)
+      // 모델 크기 조정 (width=가로, height=세로, depth=높이)
       const box = new THREE.Box3().setFromObject(model)
       const size = box.getSize(new THREE.Vector3())
       const scaleX = placedObj.width / size.x   // 가로 (X축)
-      const scaleZ = placedObj.depth / size.z   // 세로 (Z축)  
-      const scaleY = placedObj.height / size.y  // 높이 (Y축)
+      const scaleY = placedObj.height / size.z  // 세로 (Y축) - height를 Z축에 적용
+      const scaleZ = placedObj.depth / size.y   // 높이 (Z축) - depth를 Y축에 적용
       
       model.scale.set(scaleX, scaleY, scaleZ)
       
-      // 모델 위치 설정 (Box와 다른 오브젝트 구분하여 처리)
+      // 모델 위치 설정 (Box와 동일한 방식으로 계산)
       const isTV = placedObj.category === 'av'
       const isBox = placedObj.isBox
       
-      let pos3D
+      // Box와 동일한 위치 계산 방식 사용 (baseFloor 기준)
+      const canvasWidth = canvasSize.width
+      const canvasHeight = canvasSize.height
       
-      if (isBox) {
-        // Box는 Zone과 동일한 방식: 미터 단위 원본 값을 3D 좌표로 변환
-        const canvasWidth = 800  // 기본 캔버스 너비
-        const canvasHeight = 600 // 기본 캔버스 높이
-        
-        pos3D = {
-          x: (placedObj.position.x * 40 - canvasWidth / 2) / 40,
-          y: isTV ? 0 : placedObj.height / 2,
-          z: (placedObj.position.y * 40 - canvasHeight / 2) / 40
-        }
+      let pos3D_X, pos3D_Z
+      
+      if (placedObj.boundsPx) {
+        // boundsPx가 있는 경우 Box와 동일한 방식으로 계산
+        const cx = (placedObj.boundsPx.left + placedObj.boundsPx.right) / 2
+        const cy = (placedObj.boundsPx.top + placedObj.boundsPx.bottom) / 2
+        pos3D_X = (cx - canvasWidth / 2) / 40
+        pos3D_Z = (cy - canvasHeight / 2) / 40
       } else {
-        // 다른 오브젝트는 Wall과 동일한 방식: fabricCanvas 픽셀 좌표를 3D 좌표로 변환
-        const canvasWidth = 800  // 기본 캔버스 너비
-        const canvasHeight = 600 // 기본 캔버스 높이
+        // boundsPx가 없는 경우 baseFloor 기준으로 계산 (Box와 동일)
+        // baseFloor의 왼쪽 상단을 기준으로 한 픽셀 좌표를 3D 좌표로 변환
+        const baseFloorLeft = canvasWidth / 2 - (canvasWidth * 0.4) / 2  // baseFloor의 왼쪽 X
+        const baseFloorTop = canvasHeight / 2 - (canvasHeight * 0.4) / 2 // baseFloor의 상단 Y
         
-        pos3D = {
-          x: (placedObj.position.x - canvasWidth / 2) / 40,
-          y: isTV ? 0 : placedObj.height / 2,
-          z: (placedObj.position.y - canvasHeight / 2) / 40
-        }
+        // 2D 좌표를 픽셀로 변환 (baseFloor 기준)
+        const pixelX = baseFloorLeft + (placedObj.position.x * 40)
+        const pixelY = baseFloorTop + (placedObj.position.y * 40)
+        
+        // 3D 좌표로 변환 (캔버스 중앙 기준)
+        pos3D_X = (pixelX - canvasWidth / 2) / 40
+        pos3D_Z = (pixelY - canvasHeight / 2) / 40
+      }
+      
+      const pos3D = {
+        x: pos3D_X,
+        y: isTV ? 0 : (isBox ? placedObj.depth / 2 : placedObj.depth / 2), // depth가 높이(Y축)
+        z: pos3D_Z
       }
       
       // 모델 회전 설정 (Y축 수직 회전)
@@ -1270,7 +1279,13 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
         color: '#ff0000' // 빨간색으로 오류 표시
       })
       const fallbackMesh = new THREE.Mesh(fallbackGeometry, fallbackMaterial)
-      fallbackMesh.position.set(placedObj.position.x, placedObj.depth / 2, placedObj.position.y)
+      // Box와 동일한 위치 계산 방식 사용
+      const canvasWidth = 800
+      const canvasHeight = 600
+      const pos3D_X = (placedObj.position.x * 40 - canvasWidth / 2) / 40
+      const pos3D_Y = placedObj.depth / 2
+      const pos3D_Z = (placedObj.position.y * 40 - canvasHeight / 2) / 40
+      fallbackMesh.position.set(pos3D_X, pos3D_Y, pos3D_Z)
       fallbackMesh.userData = {
         type: 'placed-object',
         placedObjectId: placedObj.id,
@@ -1757,7 +1772,7 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
   
   // Box를 바닥면에 맞추기 위해 Y 위치를 높이의 절반으로 설정
   // 3D에서는 placedObj.depth가 높이(Y축)이므로 그 절반으로 설정
-  const pos3D_Y = boxHeight / 2
+  const pos3D_Y = placedObj.depth / 2
   
 
   
