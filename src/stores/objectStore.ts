@@ -122,6 +122,9 @@ export const useObjectStore = defineStore('object', () => {
         return processTemplateFiles(template)
       })
       
+      // Store에 템플릿 데이터 저장
+      setObjectTemplates(processedTemplates)
+      
       console.log('🔄 Base64 파일 데이터를 Blob URL로 변환 완료')
       return processedTemplates
     } catch (error) {

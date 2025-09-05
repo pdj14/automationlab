@@ -1580,8 +1580,9 @@ const create3DPopup = (objectData: any, spherePosition: THREE.Vector3) => {
     { y: 0.5, color: 0xe8f4fd, text: `카테고리: ${objectData.category}` },
     { y: 0.2, color: 0xf0f0f0, text: `크기: ${objectData.width}×${objectData.depth}×${objectData.height}m` },
     { y: -0.1, color: 0xe8f4fd, text: `위치: (${objectData.position.x.toFixed(1)}, ${objectData.position.y.toFixed(1)})` },
-    { y: -0.4, color: 0xf0f0f0, text: `회전: ${objectData.rotation}°` },
-    { y: -0.7, color: 0xe8f4fd, text: `상태: 정상` }
+    { y: -0.4, color: 0xf0f0f0, text: `회전: ${(objectData.rotation * 180 / Math.PI).toFixed(1)}°` },
+    ...(objectData.description ? [{ y: -0.7, color: 0xe8f4fd, text: `설명: ${objectData.description}` }] : []),
+    { y: objectData.description ? -1.0 : -0.7, color: 0xe8f4fd, text: `상태: 정상` }
   ]
   
   infoLines.forEach((line) => {

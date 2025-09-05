@@ -199,7 +199,6 @@ export const useFloorplanStore = defineStore('floorplan', () => {
 
   // 부동소수점 정밀도를 고려한 데이터 비교 함수 (1cm 정밀도)
   const isDataEqual = (data1: any, data2: any, precision: number = 0.01): boolean => {
-    console.log('isDataEqual', data1, data2)
     if (typeof data1 !== typeof data2) return false
     
     if (typeof data1 === 'number') {

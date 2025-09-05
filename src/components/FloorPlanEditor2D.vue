@@ -3340,7 +3340,8 @@ const confirmAndSaveZones = async () => {
       await Promise.all([
         loadSavedZones(),
         loadSavedWalls(),
-        loadBoxes()
+        loadBoxes(),
+        objectStore.fetchObjectTemplates()
       ])
       alert('✅ Zone, Wall, Box changes have been saved successfully!')
     } else {
@@ -4377,6 +4378,7 @@ onMounted(async () => {
 
   // 저장된 데이터 로드
   await loadBoxes()
+  await objectStore.fetchObjectTemplates()
 
   // 테마 변경 감지 및 그리드 업데이트
   const observer = new MutationObserver((mutations) => {

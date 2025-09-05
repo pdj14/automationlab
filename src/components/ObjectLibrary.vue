@@ -315,6 +315,18 @@
                 placeholder="0"
               />
             </div>
+            
+            <div class="form-group">
+              <label for="placement-description">Description (optional):</label>
+              <textarea 
+                id="placement-description"
+                v-model="placementData.description" 
+                rows="3"
+                placeholder="Enter object description..."
+                maxlength="200"
+              ></textarea>
+              <div class="char-count">{{ placementData.description?.length || 0 }}/200</div>
+            </div>
           </div>
         </div>
         
@@ -328,7 +340,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useObjectStore } from '../stores/objectStore'
 
 // Props와 Emits 정의
@@ -370,8 +383,6 @@ interface ObjectTemplate {
 // 상태 관리
 const showUploadModal = ref(false)
 const uploading = ref(false)
-const objectTemplates = ref<ObjectTemplate[]>([])
-const loading = ref(false)
 const error = ref<string | null>(null)
 const showDeleteModal = ref(false)
 const deleting = ref(false)
@@ -383,7 +394,8 @@ const selectedTemplate = ref<ObjectTemplate | null>(null)
 const placementData = ref({
   x: 0,
   y: 0,
-  rotation: 0
+  rotation: 0,
+  description: ''
 })
 
 const newObject = ref<NewObject>({
@@ -405,27 +417,23 @@ let selectedLodFile: File | null = null
 // objectStore 인스턴스
 const objectStore = useObjectStore()
 
+// Store에서 상태 가져오기
+const { objectTemplates, isLoadingObjectTemplates: loading } = storeToRefs(objectStore)
+
 // API 함수들
 const fetchObjectTemplates = async () => {
-  loading.value = true
   error.value = null
   
   try {
-    const templates = await objectStore.fetchObjectTemplates()
-    objectTemplates.value = templates
-    console.log('Fetched templates:', templates)
+    await objectStore.fetchObjectTemplates()
+    console.log('Fetched templates from store')
   } catch (err) {
     error.value = `Network error: ${err}`
     console.error('Fetch error:', err)
-  } finally {
-    loading.value = false
   }
 }
 
-// 컴포넌트 마운트 시 템플릿 목록 가져오기
-onMounted(() => {
-  fetchObjectTemplates()
-})
+// 컴포넌트 마운트 시에는 별도 로드하지 않음 (2D 에디터에서 로드됨)
 
 // 오브젝트 배치 핸들러
 const placeObject = (template: ObjectTemplate) => {
@@ -436,7 +444,8 @@ const placeObject = (template: ObjectTemplate) => {
   placementData.value = {
     x: 0,
     y: 0,
-    rotation: 0
+    rotation: 0,
+    description: ''
   }
   showPlacementPopup.value = true
 }
@@ -448,19 +457,21 @@ const closePlacementPopup = () => {
   placementData.value = {
     x: 0,
     y: 0,
-    rotation: 0
+    rotation: 0,
+    description: ''
   }
 }
 
 const confirmPlacement = () => {
   if (!selectedTemplate.value) return
   
-  // 선택된 템플릿에 위치와 회전 정보 추가
+  // 선택된 템플릿에 위치, 회전, 설명 정보 추가
   const objectWithPlacement = {
     ...selectedTemplate.value,
     x: placementData.value.x,
     y: placementData.value.y,
-    rotation: placementData.value.rotation
+    rotation: placementData.value.rotation,
+    description: placementData.value.description || selectedTemplate.value.description || ''
   }
   
   // 2D 에디터에 오브젝트 배치 이벤트 전달
@@ -1298,6 +1309,33 @@ const closeModal = () => {
   background: var(--color-accent-secondary, #2563eb);
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* Description textarea and char count styles */
+.form-group textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border-primary, #23252a);
+  border-radius: 6px;
+  background: var(--color-bg-level-1, #0f1011);
+  color: var(--color-text-primary, #f7f8f8);
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-accent-primary, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.char-count {
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #a1a1aa);
+  margin-top: 0.25rem;
 }
 
 </style>
