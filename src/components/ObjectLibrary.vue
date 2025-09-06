@@ -54,12 +54,18 @@
                 <span class="btn-text">Place</span>
               </button>
               <button 
+                @click.stop="editObject(template)" 
+                class="btn-edit btn-icon-only"
+                title="Edit object template"
+              >
+                <span class="btn-icon">✏️</span>
+              </button>
+              <button 
                 @click.stop="confirmDelete(template)" 
-                class="btn-delete"
+                class="btn-delete btn-icon-only"
                 title="Delete object"
               >
                 <span class="btn-icon">🗑️</span>
-                <span class="btn-text">Delete</span>
               </button>
             </div>
           </div>
@@ -218,6 +224,113 @@
               </button>
               <button type="submit" class="btn btn-primary" :disabled="uploading">
                 {{ uploading ? 'Uploading...' : 'Add Object' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 편집 모달 -->
+    <div v-if="showEditModal" class="modal-overlay">
+      <div class="modal" @click.stop>
+        <div class="modal-header">
+          <h3>Edit Object Template</h3>
+          <button @click="closeEditModal" class="btn-close">✕</button>
+        </div>
+        
+        <div class="modal-body">
+          <form @submit.prevent="updateObject">
+            <div class="form-group">
+              <label>Object Name:</label>
+              <input v-model="editObjectData.name" type="text" readonly class="readonly-field" />
+              <small class="field-note">Object name cannot be changed</small>
+            </div>
+            
+            <div class="form-group">
+              <label>Category:</label>
+              <select v-model="editObjectData.category" required @change="handleCategoryChange">
+                <option value="ROBOT">ROBOT</option>
+                <option value="EQUIPMENT">EQUIPMENT</option>
+                <option value="APPLIANCES">APPLIANCES</option>
+                <option value="AV">AV</option>
+                <option value="RACK">RACK</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label>Width (m):</label>
+              <input 
+                v-model.number="editObjectData.width" 
+                type="number" 
+                min="0.1" 
+                max="10" 
+                step="0.1" 
+                required 
+                placeholder="가로 크기"
+              />
+            </div>
+            
+            <div class="form-group">
+              <label>Height (m):</label>
+              <input 
+                v-model.number="editObjectData.height" 
+                type="number" 
+                min="0.1" 
+                max="10" 
+                step="0.1" 
+                required 
+                placeholder="세로 크기"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Depth (m):</label>
+              <input 
+                v-model.number="editObjectData.depth" 
+                type="number" 
+                min="0.1" 
+                max="10" 
+                step="0.1" 
+                required 
+                placeholder="높이 크기"
+              />
+            </div>
+            
+            
+            <div class="form-group">
+              <label>Color (hex):</label>
+              <div class="color-input-group">
+                <input 
+                  v-model="editObjectData.color" 
+                  type="color" 
+                  class="color-picker"
+                />
+                <span class="color-hex-display">{{ editObjectData.color }}</span>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>
+                <input 
+                  v-model="editObjectData.instancingEnabled" 
+                  type="checkbox" 
+                />
+                Enable Instancing
+              </label>
+            </div>
+            
+            <div class="form-group">
+              <label>Description:</label>
+              <textarea v-model="editObjectData.description" rows="3"></textarea>
+            </div>
+            
+            <div class="modal-actions">
+              <button type="button" @click="closeEditModal" class="btn btn-secondary">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary" :disabled="updating">
+                {{ updating ? 'Updating...' : 'Update Object' }}
               </button>
             </div>
           </form>
@@ -388,6 +501,23 @@ const showDeleteModal = ref(false)
 const deleting = ref(false)
 const objectToDelete = ref<ObjectTemplate | null>(null)
 
+// 편집 모달 관련 상태
+const showEditModal = ref(false)
+const updating = ref(false)
+const objectToEdit = ref<ObjectTemplate | null>(null)
+const editObjectData = ref<NewObject>({
+  name: '',
+  category: 'ROBOT',
+  description: '',
+  width: 1.0,
+  depth: 1.0,
+  height: 1.0,
+  color: '#3B82F6',
+  instancingEnabled: true,
+  etcType: 'general'
+})
+
+
 // Placement Popup 관련
 const showPlacementPopup = ref(false)
 const selectedTemplate = ref<ObjectTemplate | null>(null)
@@ -448,6 +578,28 @@ const placeObject = (template: ObjectTemplate) => {
     description: ''
   }
   showPlacementPopup.value = true
+}
+
+// 오브젝트 편집 핸들러
+const editObject = (template: ObjectTemplate) => {
+  console.log('Editing object:', template)
+  
+  // 편집할 오브젝트 정보 설정
+  objectToEdit.value = template
+  editObjectData.value = {
+    name: template.name,
+    category: template.category,
+    description: template.description || '',
+    width: template.width,
+    depth: template.depth,
+    height: template.height,
+    color: template.color || '#3B82F6',
+    instancingEnabled: template.instancingEnabled,
+    etcType: template.etcType || 'general'
+  }
+  
+  
+  showEditModal.value = true
 }
 
 // Placement Popup 관련 함수들
@@ -560,6 +712,7 @@ const handleLodFileSelect = (event: Event) => {
 
 
 
+
 // 오브젝트 업로드
 const uploadObject = async () => {
   uploading.value = true
@@ -621,6 +774,66 @@ const uploadObject = async () => {
   }
 }
 
+// 오브젝트 업데이트
+const updateObject = async () => {
+  if (!objectToEdit.value) return
+  
+  updating.value = true
+  
+  try {
+    // FormData 생성
+    const formData = new FormData()
+    
+    // 필수 필드
+    formData.append('name', editObjectData.value.name)
+    formData.append('category', editObjectData.value.category)
+    formData.append('width', editObjectData.value.width.toString())
+    formData.append('depth', editObjectData.value.depth.toString())
+    formData.append('height', editObjectData.value.height.toString())
+    
+    // 선택적 필드
+    if (editObjectData.value.description && editObjectData.value.description.trim()) {
+      formData.append('description', editObjectData.value.description)
+    }
+    
+    if (editObjectData.value.color) {
+      formData.append('color', editObjectData.value.color)
+    }
+    
+    formData.append('instancingEnabled', editObjectData.value.instancingEnabled ? 'true' : 'false')
+
+    // API 호출 (업데이트용) - 파일 없이 텍스트 데이터만 전송
+    const success = await objectStore.updateObjectTemplateText(objectToEdit.value.id, {
+      name: editObjectData.value.name,
+      category: editObjectData.value.category,
+      width: editObjectData.value.width,
+      depth: editObjectData.value.depth,
+      height: editObjectData.value.height,
+      description: editObjectData.value.description,
+      color: editObjectData.value.color,
+      instancingEnabled: editObjectData.value.instancingEnabled,
+      etcType: editObjectData.value.etcType
+    })
+
+    if (success) {
+      console.log('Object updated successfully')
+      alert('Object updated successfully!')
+      closeEditModal()
+      // 업데이트 성공 후 목록 새로고침
+      await fetchObjectTemplates()
+    } else {
+      console.error('Update failed')
+      alert('Failed to update object. Please try again.')
+    }
+
+  } catch (error) {
+    console.error('Update error:', error)
+    alert('Failed to update object. Please try again.')
+  } finally {
+    updating.value = false
+  }
+}
+
 // 모달 관련
 const closeModal = () => {
   showUploadModal.value = false
@@ -638,6 +851,22 @@ const closeModal = () => {
   selectedFile = null
   selectedThumbnail = null
   selectedLodFile = null
+}
+
+const closeEditModal = () => {
+  showEditModal.value = false
+  objectToEdit.value = null
+  editObjectData.value = {
+    name: '',
+    category: 'ROBOT',
+    description: '',
+    width: 1.0,
+    depth: 1.0,
+    height: 1.0,
+    color: '#3B82F6',
+    instancingEnabled: true,
+    etcType: 'general'
+  }
 }
 </script>
 
@@ -795,6 +1024,38 @@ const closeModal = () => {
   box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
 }
 
+.btn-edit {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 70px;
+  height: 28px;
+  font-weight: 500;
+}
+
+.btn-edit:hover {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #22c55e;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(34, 197, 94, 0.2);
+}
+
+.btn-edit.btn-icon-only {
+  min-width: 32px;
+  width: 32px;
+  padding: 0.4rem;
+  justify-content: center;
+}
+
 .btn-delete {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
@@ -820,9 +1081,20 @@ const closeModal = () => {
   box-shadow: 0 4px 8px rgba(239, 68, 68, 0.2);
 }
 
+.btn-delete.btn-icon-only {
+  min-width: 32px;
+  width: 32px;
+  padding: 0.4rem;
+  justify-content: center;
+}
+
 .btn-icon {
   font-size: 0.8rem;
   line-height: 1;
+}
+
+.btn-icon-only .btn-icon {
+  font-size: 0.9rem;
 }
 
 .btn-text {
@@ -1336,6 +1608,32 @@ const closeModal = () => {
   font-size: 0.75rem;
   color: var(--color-text-secondary, #a1a1aa);
   margin-top: 0.25rem;
+}
+
+.file-info {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-accent-primary, #3b82f6);
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 4px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.readonly-field {
+  background: var(--color-bg-tertiary, #232326) !important;
+  color: var(--color-text-secondary, #a1a1aa) !important;
+  cursor: not-allowed !important;
+  border-color: var(--color-border-secondary, #34343a) !important;
+}
+
+.field-note {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #71717a);
+  margin-top: 0.25rem;
+  font-style: italic;
 }
 
 </style>

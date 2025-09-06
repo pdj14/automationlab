@@ -186,9 +186,41 @@
             </div>
           </div>
 
+          <!-- Object 변경사항 -->
+          <div v-if="objectChangeSummary.toCreate.length > 0" class="change-section">
+            <h4>🎯 Create Objects ({{ objectChangeSummary.toCreate.length }})</h4>
+            <div class="object-list">
+              <div v-for="(obj, index) in objectChangeSummary.toCreate" :key="`create-obj-${index}`" class="object-item">
+                <span class="object-info">📍 {{ obj.templateName }} at ({{ obj.x.toFixed(2) }}m, {{ obj.y.toFixed(2) }}m) {{ obj.degrees }}°</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="objectChangeSummary.toUpdate.length > 0" class="change-section">
+            <h4>🔄 Update Objects ({{ objectChangeSummary.toUpdate.length }})</h4>
+            <div class="object-list">
+              <div v-for="update in objectChangeSummary.toUpdate" :key="`update-obj-${update.id}`" class="object-item">
+                <div class="update-details">
+                  <span class="object-id">ID: {{ update.id }}</span>
+                  <span class="object-name">{{ update.templateName || 'Unknown' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="objectChangeSummary.toDelete.length > 0" class="change-section">
+            <h4>🗑️ Delete Objects ({{ objectChangeSummary.toDelete.length }})</h4>
+            <div class="object-list">
+              <div v-for="obj in objectChangeSummary.toDelete" :key="`delete-obj-${obj.id}`" class="object-item">
+                <span class="object-info">📍 {{ obj.templateName }} at ({{ obj.x.toFixed(2) }}m, {{ obj.y.toFixed(2) }}m)</span>
+              </div>
+            </div>
+          </div>
+
           <div v-if="zoneChangeSummary.toCreate.length === 0 && zoneChangeSummary.toUpdate.length === 0 && zoneChangeSummary.toDelete.length === 0 && 
                       wallChangeSummary.toCreate.length === 0 && wallChangeSummary.toUpdate.length === 0 && wallChangeSummary.toDelete.length === 0 &&
-                      boxChangeSummary.toCreate.length === 0 && boxChangeSummary.toUpdate.length === 0 && boxChangeSummary.toDelete.length === 0" class="no-changes">
+                      boxChangeSummary.toCreate.length === 0 && boxChangeSummary.toUpdate.length === 0 && boxChangeSummary.toDelete.length === 0 &&
+                      objectChangeSummary.toCreate.length === 0 && objectChangeSummary.toUpdate.length === 0 && objectChangeSummary.toDelete.length === 0" class="no-changes">
             <p>✅ No changes detected.</p>
           </div>
         </div>
@@ -197,7 +229,8 @@
           <button @click="closeChangeConfirmDialog" class="btn btn-secondary">Cancel</button>
           <button @click="confirmAndSaveZones" class="btn btn-primary" :disabled="zoneChangeSummary.toCreate.length === 0 && zoneChangeSummary.toUpdate.length === 0 && zoneChangeSummary.toDelete.length === 0 && 
                                                                         wallChangeSummary.toCreate.length === 0 && wallChangeSummary.toUpdate.length === 0 && wallChangeSummary.toDelete.length === 0 &&
-                                                                        boxChangeSummary.toCreate.length === 0 && boxChangeSummary.toUpdate.length === 0 && boxChangeSummary.toDelete.length === 0">
+                                                                        boxChangeSummary.toCreate.length === 0 && boxChangeSummary.toUpdate.length === 0 && boxChangeSummary.toDelete.length === 0 &&
+                                                                        objectChangeSummary.toCreate.length === 0 && objectChangeSummary.toUpdate.length === 0 && objectChangeSummary.toDelete.length === 0">
             💾 Save Changes
           </button>
         </div>
@@ -639,6 +672,16 @@ const wallChangeSummary = ref<{
 const boxChangeSummary = ref<{
   toCreate: any[]
   toUpdate: { id: string; oldData: any; newData: any }[]
+  toDelete: any[]
+}>({
+  toCreate: [],
+  toUpdate: [],
+  toDelete: []
+})
+
+const objectChangeSummary = ref<{
+  toCreate: any[]
+  toUpdate: any[]
   toDelete: any[]
 }>({
   toCreate: [],
@@ -3296,9 +3339,17 @@ const executeObjectPlacement = (object: any) => {
     color: object.color, // GLB에서 추출한 색상 (있다면)
     isOnBox: boxPlacementMode.value && selectedBox.value && object.category !== 'etc', // 상자 위 배치 여부
     boxId: boxPlacementMode.value && selectedBox.value ? selectedBox.value.userData?.placedObjectId : null, // 상자 ID
-    isBox: object.isBox || false, // 상자 여부
+    isBox: false, // 일반 Object는 Box가 아님 (Box는 별도로 관리)
     instancingEnabled: object.instancingEnabled || false // 인스턴싱 값 추가
   }
+
+  console.log('🎯 Object 배치 데이터:', {
+    id: placedObjectData.id,
+    name: placedObjectData.name,
+    category: placedObjectData.category,
+    isBox: placedObjectData.isBox,
+    position: placedObjectData.position
+  })
 
   objectStore.addPlacedObject(placedObjectData)
 
@@ -3307,6 +3358,9 @@ const executeObjectPlacement = (object: any) => {
     boxPlacementMode.value = false
     selectedBox.value = null
   }
+
+  console.log('✅ Object 배치 완료:', placedObjectData.name)
+  console.log('📊 현재 placedObjects 개수:', objectStore.placedObjects.length)
 
   // 배치 완료 (알림 제거)
 }
@@ -3381,14 +3435,25 @@ const closeChangeConfirmDialog = () => {
 // Zone, Wall, Box 변경사항 확인 및 저장
 const confirmAndSaveZones = async () => {
   try {
-    // Zone, Wall, Box 동기화를 병렬로 실행
-    const [zoneSuccess, wallSuccess, boxSuccess] = await Promise.all([
+    // Zone, Wall, Box, Object 동기화를 병렬로 실행
+    const syncPromises = [
       zoneStore.syncZones(zoneChangeSummary.value),
       floorplanStore.syncWalls(wallChangeSummary.value),
       boxStore.syncBoxes(boxChangeSummary.value)
-    ])
+    ]
     
-    if (zoneSuccess && wallSuccess && boxSuccess) {
+    // Object 동기화가 가능한 경우에만 추가
+    if (objectStore.syncObjects) {
+      syncPromises.push(objectStore.syncObjects(objectChangeSummary.value))
+    }
+    
+    const results = await Promise.all(syncPromises)
+    const [zoneSuccess, wallSuccess, boxSuccess, objectSuccess] = results
+    
+    // Object 동기화 결과
+    const finalObjectSuccess = objectSuccess
+    
+    if (zoneSuccess && wallSuccess && boxSuccess && finalObjectSuccess) {
       // 기존 데이터 초기화
       await clearCanvasData()
       
@@ -3581,28 +3646,80 @@ const saveFloorPlan = async () => {
       }
     }).filter((box: unknown) => box !== null)
 
-    // 백엔드에서 최신 Zone, Wall, Box 데이터 가져오기
-    const [savedZones, savedWalls, savedBoxes] = await Promise.all([
+    // 현재 배치된 Object들 수집 (Box가 아닌 것들만)
+    console.log('🔍 objectStore.placedObjects:', objectStore.placedObjects)
+    const objectsToSave = objectStore.placedObjects
+      .filter(placedObj => !placedObj.isBox) // Box가 아닌 객체들만
+      .map(placedObj => {
+        const scale = 40 // 1m = 40px
+        
+        // 기본 회색 바닥의 위치를 찾기
+        const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+          obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+        )
+        
+        if (!defaultFloor) {
+          console.error('Default floor not found for object conversion.')
+          return null
+        }
+        
+        // 회색 바닥의 왼쪽 위 모서리를 (0,0) 기준으로 Object 위치 계산
+        const baseX = defaultFloor.left
+        const baseY = defaultFloor.top
+        
+        // Object의 위치를 미터 단위로 계산
+        let objX, objY
+        
+        if (placedObj.boundsPx) {
+          // boundsPx가 있는 경우 (정확한 위치)
+          const cx = (placedObj.boundsPx.left + placedObj.boundsPx.right) / 2
+          const cy = (placedObj.boundsPx.top + placedObj.boundsPx.bottom) / 2
+          objX = (cx - baseX) / scale
+          objY = (cy - baseY) / scale
+        } else {
+          // boundsPx가 없는 경우 (기본 위치 계산)
+          objX = placedObj.position.x
+          objY = placedObj.position.y
+        }
+        
+        return {
+          id: placedObj.id,
+          description: placedObj.description || '',
+          degrees: Math.round((placedObj.rotation * 180) / Math.PI), // 라디안을 도로 변환
+          x: Math.round(objX * 100) / 100, // 소수점 2자리까지
+          y: Math.round(objY * 100) / 100,
+          templateName: placedObj.name
+        }
+      })
+      .filter((obj): obj is NonNullable<typeof obj> => obj !== null)
+
+    // 백엔드에서 최신 Zone, Wall, Box, Objects 데이터 가져오기
+    const [savedZones, savedWalls, savedBoxes, savedObjects] = await Promise.all([
       zoneStore.fetchZones(),
       floorplanStore.fetchWalls(),
-      boxStore.fetchBoxes()
+      boxStore.fetchBoxes(),
+      objectStore.fetchSavedObjects()
     ])
     
     // Store의 analyzeZoneChanges, analyzeWallChanges, analyzeBoxChanges 함수로 변경사항 분석
     const zoneChanges = zoneStore.analyzeZoneChanges(zonesToSave, savedZones)
     const wallChanges = floorplanStore.analyzeWallChanges(wallsToSave, savedWalls)
     const boxChanges = boxStore.analyzeBoxChanges(boxesToSave, savedBoxes)
+    // Object 변경사항 분석 (함수가 존재하는지 확인)
+    const objectChanges = objectStore.analyzeObjectChanges(objectsToSave, savedObjects)
     
     zoneChangeSummary.value = zoneChanges
     wallChangeSummary.value = wallChanges
     boxChangeSummary.value = boxChanges
+    objectChangeSummary.value = objectChanges
 
 
 
     // 변경사항이 있으면 팝업 표시
     const hasChanges = zoneChanges.toCreate.length > 0 || zoneChanges.toUpdate.length > 0 || zoneChanges.toDelete.length > 0 ||
                       wallChanges.toCreate.length > 0 || wallChanges.toUpdate.length > 0 || wallChanges.toDelete.length > 0 ||
-                      boxChanges.toCreate.length > 0 || boxChanges.toUpdate.length > 0 || boxChanges.toDelete.length > 0
+                      boxChanges.toCreate.length > 0 || boxChanges.toUpdate.length > 0 || boxChanges.toDelete.length > 0 ||
+                      objectChanges.toCreate.length > 0 || objectChanges.toUpdate.length > 0 || objectChanges.toDelete.length > 0
     
     if (hasChanges) {
       showChangeConfirmDialog.value = true
@@ -6248,6 +6365,35 @@ const updateBoxInStore = (box: any) => {
   font-size: 0.9rem;
   color: #495057;
   font-weight: 500;
+}
+
+/* Object 변경사항 스타일 */
+.object-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.object-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--color-bg-level-2, #1a1a1d);
+  border-radius: 4px;
+  border-left: 3px solid var(--color-accent, #10B981);
+}
+
+.object-info {
+  font-size: 0.875rem;
+  color: var(--color-text-primary, #f7f8f8);
+}
+
+.object-id, .object-name {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #a1a1aa);
 }
 
 .box-color {

@@ -64,7 +64,6 @@ interface Object3DTemplate {
 // 저장된 Objects 타입 정의 (API에서 가져오는 데이터) - Java DTO와 동일
 interface SavedObject {
   id: string
-  name: string
   description?: string
   degrees: number  // 0-360도 범위의 회전 각도 (필수)
   x: number        // X 좌표 (필수)
@@ -110,7 +109,7 @@ export const useObjectStore = defineStore('object', () => {
     objectTemplates.value.push(template)
   }
 
-  const updateObjectTemplate = (templateId: string, updatedTemplate: Partial<Object3DTemplate>) => {
+  const updateObjectTemplateLocal = (templateId: string, updatedTemplate: Partial<Object3DTemplate>) => {
     const index = objectTemplates.value.findIndex(template => template.id === templateId)
     if (index > -1) {
       objectTemplates.value[index] = { ...objectTemplates.value[index], ...updatedTemplate }
@@ -147,6 +146,43 @@ export const useObjectStore = defineStore('object', () => {
 
   const removeSavedObject = (objectId: string) => {
     savedObjects.value = savedObjects.value.filter(obj => obj.id !== objectId)
+  }
+
+  // API 호출을 하는 함수들
+  const addSavedObjectAPI = async (object: SavedObject): Promise<boolean> => {
+    try {
+      const response = await axios.post('http://localhost:8080/api/v1/objects', object)
+      savedObjects.value.push(response.data)
+      return true
+    } catch (error) {
+      console.error('Object 추가 실패:', error)
+      return false
+    }
+  }
+
+  const updateSavedObjectAPI = async (objectId: string, updatedObject: SavedObject): Promise<boolean> => {
+    try {
+      const response = await axios.put(`http://localhost:8080/api/v1/objects/${objectId}`, updatedObject)
+      const index = savedObjects.value.findIndex(obj => obj.id === objectId)
+      if (index > -1) {
+        savedObjects.value[index] = response.data
+      }
+      return true
+    } catch (error) {
+      console.error('Object 업데이트 실패:', error)
+      return false
+    }
+  }
+
+  const removeSavedObjectAPI = async (objectId: string): Promise<boolean> => {
+    try {
+      await axios.delete(`http://localhost:8080/api/v1/objects/${objectId}`)
+      savedObjects.value = savedObjects.value.filter(obj => obj.id !== objectId)
+      return true
+    } catch (error) {
+      console.error('Object 삭제 실패:', error)
+      return false
+    }
   }
 
   const clearSavedObjects = () => {
@@ -212,6 +248,56 @@ export const useObjectStore = defineStore('object', () => {
     }
   }
 
+  const updateObjectTemplate = async (templateId: string, formData: FormData): Promise<boolean> => {
+    try {
+      setLoadingObjectTemplates(true)
+      const response = await axios.put(`http://localhost:8080/api/object3d-templates/${templateId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      
+      // 로컬 상태도 업데이트
+      const updatedTemplate = response.data
+      const index = objectTemplates.value.findIndex(template => template.id === templateId)
+      if (index > -1) {
+        objectTemplates.value[index] = { ...objectTemplates.value[index], ...updatedTemplate }
+      }
+      
+      return true
+    } catch (error) {
+      console.error('Object3D 템플릿 업데이트 실패:', error)
+      return false
+    } finally {
+      setLoadingObjectTemplates(false)
+    }
+  }
+
+  const updateObjectTemplateText = async (templateId: string, updateData: Partial<Object3DTemplate>): Promise<boolean> => {
+    try {
+      setLoadingObjectTemplates(true)
+      const response = await axios.put(`http://localhost:8080/api/object3d-templates/${templateId}/text`, updateData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      // 로컬 상태도 업데이트
+      const updatedTemplate = response.data
+      const index = objectTemplates.value.findIndex(template => template.id === templateId)
+      if (index > -1) {
+        objectTemplates.value[index] = { ...objectTemplates.value[index], ...updatedTemplate }
+      }
+      
+      return true
+    } catch (error) {
+      console.error('Object3D 템플릿 텍스트 업데이트 실패:', error)
+      return false
+    } finally {
+      setLoadingObjectTemplates(false)
+    }
+  }
+
   // 저장된 Objects를 가져오는 함수
   const fetchSavedObjects = async (): Promise<SavedObject[]> => {
     try {
@@ -223,12 +309,21 @@ export const useObjectStore = defineStore('object', () => {
       // Store에 저장된 Objects 저장
       setSavedObjects(response.data)
       
-      // // 저장된 Objects를 PlacedObjects로 변환하여 placedObjects에 저장
-      // const convertedPlacedObjects = getSavedObjectsAsPlacedObjects()
+      // 저장된 Objects를 PlacedObjects로 변환하여 placedObjects에 저장
+      const convertedPlacedObjects = getSavedObjectsAsPlacedObjects()
       
-      // // 기존 placedObjects에서 Box가 아닌 것들만 제거하고 새 데이터로 교체
-      // const existingBoxes = placedObjects.value.filter(obj => obj.isBox === true)
-      // placedObjects.value = [...existingBoxes, ...convertedPlacedObjects]
+      // 기존 placedObjects에서 Box와 새로 만든 Object들을 보존
+      const existingBoxes = placedObjects.value.filter(obj => obj.isBox === true)
+      const existingNewObjects = placedObjects.value.filter(obj => !obj.isBox && !convertedPlacedObjects.some(converted => converted.id === obj.id))
+      
+      console.log('🔍 fetchSavedObjects - 기존 placedObjects:', placedObjects.value.length, '개')
+      console.log('🔍 fetchSavedObjects - existingBoxes:', existingBoxes.length, '개')
+      console.log('🔍 fetchSavedObjects - existingNewObjects:', existingNewObjects.length, '개')
+      console.log('🔍 fetchSavedObjects - convertedPlacedObjects:', convertedPlacedObjects.length, '개')
+      
+      placedObjects.value = [...existingBoxes, ...existingNewObjects, ...convertedPlacedObjects]
+      
+      console.log('🔍 fetchSavedObjects - 최종 placedObjects:', placedObjects.value.length, '개')
       
       // console.log('🔄 SavedObjects를 PlacedObjects로 변환 완료:', convertedPlacedObjects.length, '개')
       
@@ -241,14 +336,133 @@ export const useObjectStore = defineStore('object', () => {
     }
   }
 
+  // PlacedObject를 SavedObject로 변환하는 함수
+  const convertPlacedObjectToSavedObject = (placedObj: PlacedObject, templateName: string): SavedObject => {
+    return {
+      id: placedObj.id,
+      description: placedObj.description,
+      degrees: Math.round((placedObj.rotation * 180) / Math.PI), // 라디안을 도로 변환
+      x: placedObj.position.x,
+      y: placedObj.position.y,
+      templateName: templateName
+    }
+  }
+
+  // Object 변경사항 분석 함수
+  const analyzeObjectChanges = (currentObjects: SavedObject[], savedObjects: SavedObject[]) => {
+    console.log('🔍 Object 변경사항 분석 시작')
+    console.log('📊 currentObjects 총 개수:', currentObjects.length)
+    console.log('📊 savedObjects 총 개수:', savedObjects.length)
+    
+    const toCreate: SavedObject[] = []
+    const toUpdate: SavedObject[] = []
+    const toDelete: SavedObject[] = []
+
+    console.log('📊 currentObjects 상세:', currentObjects.map(obj => ({ 
+      id: obj.id, 
+      templateName: obj.templateName,
+      x: obj.x,
+      y: obj.y 
+    })))
+    console.log('📊 savedObjects 상세:', savedObjects.map(obj => ({ 
+      id: obj.id, 
+      templateName: obj.templateName,
+      x: obj.x,
+      y: obj.y 
+    })))
+
+    // 새로 생성된 객체 찾기 (currentObjects에는 있지만 savedObjects에는 없는 것)
+    currentObjects.forEach(currentObj => {
+      const existsInSaved = savedObjects.find(savedObj => savedObj.id === currentObj.id)
+      console.log(`🔍 ${currentObj.templateName} (${currentObj.id}) 검사:`, existsInSaved ? '존재함' : '없음')
+      if (!existsInSaved) {
+        console.log(`➕ 새로 생성된 객체 추가: ${currentObj.templateName} (${currentObj.id})`)
+        toCreate.push(currentObj)
+      }
+    })
+
+    // 업데이트된 객체 찾기 (currentObjects와 savedObjects 모두에 있지만 내용이 다른 것)
+    currentObjects.forEach(currentObj => {
+      const savedObj = savedObjects.find(savedObj => savedObj.id === currentObj.id)
+      if (savedObj) {
+        // 위치, 회전, 설명이 다른지 확인
+        const hasChanged = 
+          Math.abs(savedObj.x - currentObj.x) > 0.01 ||
+          Math.abs(savedObj.y - currentObj.y) > 0.01 ||
+          Math.abs(savedObj.degrees - currentObj.degrees) > 0.01 ||
+          savedObj.description !== currentObj.description ||
+          savedObj.templateName !== currentObj.templateName
+
+        if (hasChanged) {
+          console.log(`🔄 업데이트된 객체 추가: ${currentObj.templateName} (${currentObj.id})`)
+          toUpdate.push(currentObj)
+        }
+      }
+    })
+
+    // 삭제된 객체 찾기 (savedObjects에는 있지만 currentObjects에는 없는 것)
+    savedObjects.forEach(savedObj => {
+      const existsInCurrent = currentObjects.find(currentObj => currentObj.id === savedObj.id)
+      console.log(`🔍 삭제 검사: ${savedObj.templateName} (${savedObj.id})`, existsInCurrent ? '존재함' : '없음')
+      if (!existsInCurrent) {
+        console.log(`🗑️ 삭제된 객체 추가: ${savedObj.templateName} (${savedObj.id})`)
+        toDelete.push(savedObj)
+      }
+    })
+
+    console.log('✅ 분석 결과:')
+    console.log('  ➕ toCreate:', toCreate.length, '개')
+    console.log('  🔄 toUpdate:', toUpdate.length, '개') 
+    console.log('  🗑️ toDelete:', toDelete.length, '개')
+    
+    return {
+      toCreate,
+      toUpdate,
+      toDelete
+    }
+  }
+
+  // Object 변경사항을 백엔드에 동기화하는 함수
+  const syncObjects = async (objectChanges: { toCreate: SavedObject[], toUpdate: SavedObject[], toDelete: SavedObject[] }): Promise<boolean> => {
+    try {
+      console.log('🎯 Object 변경사항 동기화 시작...')
+      
+      // 병렬로 Create, Update, Delete 실행
+      const promises: Promise<any>[] = []
+      
+      // Create
+      objectChanges.toCreate.forEach(obj => {
+        promises.push(addSavedObjectAPI(obj))
+      })
+      
+      // Update
+      objectChanges.toUpdate.forEach(obj => {
+        promises.push(updateSavedObjectAPI(obj.id, obj))
+      })
+      
+      // Delete
+      objectChanges.toDelete.forEach(obj => {
+        promises.push(removeSavedObjectAPI(obj.id))
+      })
+      
+      await Promise.all(promises)
+      
+      console.log(`🎯 Object 동기화 완료: Create ${objectChanges.toCreate.length}, Update ${objectChanges.toUpdate.length}, Delete ${objectChanges.toDelete.length}`)
+      return true
+    } catch (error) {
+      console.error('❌ Object 동기화 실패:', error)
+      return false
+    }
+  }
+
   // SavedObject를 PlacedObject로 변환하는 유틸리티 함수
   const convertSavedObjectToPlacedObject = (savedObj: SavedObject, template?: Object3DTemplate): PlacedObject => {
     // 템플릿이 없으면 기본값 사용
     if (!template) {
-      console.warn(`⚠️ 템플릿을 찾을 수 없습니다 (${savedObj.templateName}):`, savedObj.name)
+      console.warn(`⚠️ 템플릿을 찾을 수 없습니다 (${savedObj.templateName})`)
       return {
         id: savedObj.id,
-        name: savedObj.name,
+        name: savedObj.templateName,
         category: 'Unknown',
         description: savedObj.description,
         width: 1,
@@ -265,7 +479,7 @@ export const useObjectStore = defineStore('object', () => {
 
     return {
       id: savedObj.id,
-      name: savedObj.name,
+      name: template.name,
       category: template.category,
       description: savedObj.description,
       glbUrl: template.glbUrl,
@@ -362,7 +576,9 @@ export const useObjectStore = defineStore('object', () => {
     clearPlacedObjects,
     setObjectTemplates,
     addObjectTemplate,
+    updateObjectTemplateLocal,
     updateObjectTemplate,
+    updateObjectTemplateText,
     removeObjectTemplate,
     clearObjectTemplates,
     setLoadingObjectTemplates,
@@ -376,6 +592,9 @@ export const useObjectStore = defineStore('object', () => {
     clearSavedObjects,
     setLoadingSavedObjects,
     fetchSavedObjects,
+    convertPlacedObjectToSavedObject,
+    analyzeObjectChanges,
+    syncObjects,
     convertSavedObjectToPlacedObject,
     getSavedObjectsAsPlacedObjects,
     updateAllPlacedObjectsInstancing,
