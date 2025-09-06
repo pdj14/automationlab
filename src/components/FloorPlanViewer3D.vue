@@ -392,9 +392,15 @@ const create3DFloorFromRoom = (data: any) => {
       const mesh = new THREE.Mesh(geo, mat)
       mesh.rotation.x = -Math.PI / 2
       
-      // 좌표 변환 (2D px → 3D m)
-      const cx = (f.boundsPx.left + f.boundsPx.right) / 2
-      const cy = (f.boundsPx.top + f.boundsPx.bottom) / 2
+      // 좌표 변환 (2D px → 3D m) - Room Floor의 좌상단 좌표를 기준으로 계산
+      const roomLeft = f.boundsPx.left
+      const roomTop = f.boundsPx.top
+      const roomWidth = f.boundsPx.right - f.boundsPx.left
+      const roomHeight = f.boundsPx.bottom - f.boundsPx.top
+      
+      // Room Floor의 중앙점 계산
+      const cx = roomLeft + roomWidth / 2
+      const cy = roomTop + roomHeight / 2
       const posX = (cx - data.canvasSize.width / 2) / 40
       const posZ = (cy - data.canvasSize.height / 2) / 40
       
@@ -428,9 +434,15 @@ const create3DFloorFromRoom = (data: any) => {
       const mesh = new THREE.Mesh(geo, mat)
       mesh.rotation.x = -Math.PI / 2
       
-      // 좌표 변환
-      const cx = (f.boundsPx.left + f.boundsPx.right) / 2
-      const cy = (f.boundsPx.top + f.boundsPx.bottom) / 2
+      // 좌표 변환 - Zone의 좌상단 좌표를 기준으로 계산
+      const zoneLeft = f.boundsPx.left
+      const zoneTop = f.boundsPx.top
+      const zoneWidth = f.boundsPx.right - f.boundsPx.left
+      const zoneHeight = f.boundsPx.bottom - f.boundsPx.top
+      
+      // Zone의 중앙점 계산
+      const cx = zoneLeft + zoneWidth / 2
+      const cy = zoneTop + zoneHeight / 2
       const posX = (cx - data.canvasSize.width / 2) / 40
       const posZ = (cy - data.canvasSize.height / 2) / 40
       
@@ -468,7 +480,6 @@ const create3DFloorFromRoom = (data: any) => {
 
 // 2D 평면도에서 3D 벽 생성
 const create3DWalls = (wallsData: any) => {
-  console.log('create3DWalls 호출됨:', wallsData)
   
   const existingWalls: any[] = []
   scene.traverse((child) => {
@@ -477,7 +488,6 @@ const create3DWalls = (wallsData: any) => {
     }
   })
   
-  console.log('기존 3D 벽 개수:', existingWalls.length)
   
   existingWalls.forEach(wall => {
     scene.remove(wall)
@@ -491,7 +501,6 @@ const create3DWalls = (wallsData: any) => {
     return
   }
 
-  console.log('3D 벽 생성 시작, 벽 개수:', wallsData.walls.length)
   const canvasWidth = wallsData.canvasSize?.width || 800
   const canvasHeight = wallsData.canvasSize?.height || 600
 
@@ -499,9 +508,7 @@ const create3DWalls = (wallsData: any) => {
   const processedWalls = new Set<string>()
 
   // 통합된 walls 배열에서 벽 생성
-  wallsData.walls.forEach((wall: any, index: number) => {
-    console.log(`벽 ${index + 1} 생성:`, wall)
-    
+  wallsData.walls.forEach((wall: any, index: number) => {    
     // 벽 좌표 추출
     const startX = wall.startX !== undefined ? wall.startX : wall.start?.x
     const startY = wall.startY !== undefined ? wall.startY : wall.start?.y
@@ -524,21 +531,16 @@ const create3DWalls = (wallsData: any) => {
     const color = isGlass ? 0x4682B4 : 0x8A7B78 // glass-wall: 파란색, wall: 갈색
     createWall(wall, wallType, color, canvasWidth, canvasHeight, isGlass)
   })
-  
-  console.log('3D 벽 생성 완료')
 }
 
 // 개별 벽 생성 함수
 const createWall = (wall: any, wallType: string, color: number, canvasWidth: number, canvasHeight: number, isGlass: boolean = false) => {
-  console.log('createWall 호출됨:', { wall, wallType, color, isGlass })
   
   // 새로운 벽 데이터 구조에 맞게 좌표 추출
   const startX = wall.startX !== undefined ? wall.startX : wall.start?.x
   const startY = wall.startY !== undefined ? wall.startY : wall.start?.y
   const endX = wall.endX !== undefined ? wall.endX : wall.end?.x
   const endY = wall.endY !== undefined ? wall.endY : wall.end?.y
-  
-  console.log('추출된 좌표:', { startX, startY, endX, endY })
   
   if (startX === undefined || startY === undefined || endX === undefined || endY === undefined) {
     console.warn('벽 데이터에 좌표 정보가 없습니다:', wall)
@@ -561,8 +563,6 @@ const createWall = (wall: any, wallType: string, color: number, canvasWidth: num
     console.warn(`벽 길이가 너무 작아서 건너뜀: ${length}px (${length/40}m)`, { startX, startY, endX, endY })
     return
   }
-  
-  console.log(`벽 생성: 길이 ${length}px (${length/40}m), 각도 ${angle}rad`)
   
   const wallGeometry = new THREE.BoxGeometry(length / 40, wallHeight.value, 0.1)
   const opacity = isGlass ? 0.2 : 0.7 // glass-wall: 20%, wall: 70%
@@ -1054,12 +1054,12 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
   }
 
   // 인스턴싱이 활성화된 오브젝트들 분리 (상자가 아닌 것들만)
-  const instancedObjects = placedObjects.filter(obj => obj.instancing && !obj.isBox)
-  const normalObjects = placedObjects.filter(obj => !obj.instancing || obj.isBox)
+  const instancedObjects = placedObjects.filter(obj => obj.instancingEnabled && !obj.isBox)
+  const normalObjects = placedObjects.filter(obj => !obj.instancingEnabled || obj.isBox)
   
   // 인스턴싱 오브젝트가 있으면 GLB 기반 InstancedMesh 생성
   if (instancedObjects.length > 0) {
-    createInstancedObjectsFromGLB(instancedObjects)
+    createInstancedObjectsFromGLB(instancedObjects, canvasSize)
   }
   
   // GLTFLoader 사용하여 GLB 모델 로딩
@@ -1073,9 +1073,7 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
       continue
     }
     
-    try {
-  
-      
+    try {      
       // 메인 모델 로드
       const gltf = await new Promise<any>((resolve, reject) => {
         loader.load(
@@ -1124,13 +1122,13 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
         } catch (lodError) {
           console.warn(`${placedObj.name} LOD 모델 로드 실패:`, lodError)
         }
-      } else {
-
       }
       
       // 모델 크기 조정 (width=가로, height=세로, depth=높이)
       const box = new THREE.Box3().setFromObject(model)
       const size = box.getSize(new THREE.Vector3())
+      console.log('size', size)
+
       const scaleX = placedObj.width / size.x   // 가로 (X축)
       const scaleY = placedObj.height / size.z  // 세로 (Y축) - height를 Z축에 적용
       const scaleZ = placedObj.depth / size.y   // 높이 (Z축) - depth를 Y축에 적용
@@ -1730,12 +1728,9 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
   const boxColor = placedObj.color || color || '#E6D5AC'
   
   // Box의 크기 계산
-  // width: boundsPx에서 계산 (2D 가로)
-  // depth: 원본 depth 값 사용 (3D 깊이)
-  // height: 원본 height 값 사용 (3D 높이)
   // 3D Box 차원 설정
   // 2D: width(가로) × height(세로) × depth(높이)
-  // 3D: width(X축) × depth(Y축 높이) × height(Z축 깊이)
+  // 3D: width(X축) × height(Y축 높이) × depth(Z축 깊이)
   const boxWidth = placedObj.width   // X축 (가로)
   const boxHeight = placedObj.depth  // Y축 (높이) - 2D의 depth가 3D의 높이
   const boxDepth = placedObj.height  // Z축 (깊이) - 2D의 height가 3D의 깊이
@@ -1773,6 +1768,7 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
   
   // Box를 바닥면에 맞추기 위해 Y 위치를 높이의 절반으로 설정
   // 3D에서는 placedObj.depth가 높이(Y축)이므로 그 절반으로 설정
+  // Box의 중심이 Y=0에 오도록 하여 바닥에 정착
   const pos3D_Y = placedObj.depth / 2
   
 
@@ -1797,7 +1793,7 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
 
 // GLB 파일을 사용한 인스턴싱 오브젝트들 생성 (InstancedMesh 사용)
 // 같은 glbUrl(+lodUrl) 별로 묶어서 각각의 InstancedMesh를 생성
-const createInstancedObjectsFromGLB = async (instancedObjects: any[]) => {
+const createInstancedObjectsFromGLB = async (instancedObjects: any[], canvasSize: { width: number, height: number } = { width: 800, height: 600 }) => {
   if (instancedObjects.length === 0) return
   
   // glbUrl(+lodUrl) 키로 그룹핑
@@ -1859,36 +1855,50 @@ const createInstancedObjectsFromGLB = async (instancedObjects: any[]) => {
       group.forEach((obj, index) => {
         const matrix = new THREE.Matrix4()
         
-        let position
-        if (obj.isBox) {
-          // Box는 Zone과 동일한 방식: 미터 단위 원본 값을 3D 좌표로 변환
-          const canvasWidth = 800  // 기본 캔버스 너비
-          const canvasHeight = 600 // 기본 캔버스 높이
-          
-          position = new THREE.Vector3(
-            (obj.position.x * 40 - canvasWidth / 2) / 40, 
-            obj.height / 2, 
-            (obj.position.y * 40 - canvasHeight / 2) / 40
-          )
+        // create3DObjects와 create3DBox의 정확한 위치 계산 방식 사용
+        const canvasWidth = canvasSize.width
+        const canvasHeight = canvasSize.height
+        
+        let pos3D_X, pos3D_Z
+        
+        if (obj.boundsPx) {
+          // boundsPx가 있는 경우 create3DBox와 동일한 방식으로 계산
+          const cx = (obj.boundsPx.left + obj.boundsPx.right) / 2
+          const cy = (obj.boundsPx.top + obj.boundsPx.bottom) / 2
+          pos3D_X = (cx - canvasWidth / 2) / 40
+          pos3D_Z = (cy - canvasHeight / 2) / 40
         } else {
-          // 다른 오브젝트는 Wall과 동일한 방식: fabricCanvas 픽셀 좌표를 3D 좌표로 변환
-          const canvasWidth = 800  // 기본 캔버스 너비
-          const canvasHeight = 600 // 기본 캔버스 높이
+          // boundsPx가 없는 경우 create3DObjects와 동일한 방식으로 계산
+          const baseFloorLeft = canvasWidth / 2 - (canvasWidth * 0.4) / 2  // baseFloor의 왼쪽 X
+          const baseFloorTop = canvasHeight / 2 - (canvasHeight * 0.4) / 2 // baseFloor의 상단 Y
           
-          position = new THREE.Vector3(
-            (obj.position.x - canvasWidth / 2) / 40, 
-            obj.height / 2, 
-            (obj.position.y - canvasHeight / 2) / 40
-          )
+          // 2D 좌표를 픽셀로 변환 (baseFloor 기준)
+          const pixelX = baseFloorLeft + (obj.position.x * 40)
+          const pixelY = baseFloorTop + (obj.position.y * 40)
+          
+          // 3D 좌표로 변환 (캔버스 중앙 기준)
+          pos3D_X = (pixelX - canvasWidth / 2) / 40
+          pos3D_Z = (pixelY - canvasHeight / 2) / 40
         }
+        
+        const isTV = obj.category === 'av'
+        const position = new THREE.Vector3(
+          pos3D_X,
+          isTV ? 0 : obj.depth / 2, // depth가 높이(Y축)
+          pos3D_Z
+        )
+        
         const rotation = new THREE.Euler(0, -(obj.rotation || 0), 0)
         const instanceQuaternion = new THREE.Quaternion().setFromEuler(rotation)
         const finalQuaternion = baseQuaternion.clone().multiply(instanceQuaternion)
+        
+        // create3DObjects와 동일한 스케일 계산 방식 사용
         const scale = new THREE.Vector3(
-          (obj.width || 1) / (originalSize.width || 1),
-          (obj.height || 1) / (originalSize.height || 1),
-          (obj.depth || 1) / (originalSize.depth || 1)
+          (obj.width || 1) / (originalSize.width || 1),   // 가로 (X축)
+          (obj.depth || 1) / (originalSize.height || 1),  // 높이 (Y축) - 2D의 depth가 3D의 높이
+          (obj.height || 1) / (originalSize.depth || 1)   // 세로 (Z축) - 2D의 height가 3D의 깊이
         )
+        
         matrix.compose(position, finalQuaternion, scale)
         mesh.setMatrixAt(index, matrix)
       })
@@ -1904,24 +1914,38 @@ const createInstancedObjectsFromGLB = async (instancedObjects: any[]) => {
       group.forEach(obj => {
         const dummyGroup = new THREE.Group()
         
-        let posX, posZ
-        if (obj.isBox) {
-          // Box는 Zone과 동일한 방식: 미터 단위 원본 값을 3D 좌표로 변환
-          const canvasWidth = 800  // 기본 캔버스 너비
-          const canvasHeight = 600 // 기본 캔버스 높이
-          
-          posX = (obj.position.x * 40 - canvasWidth / 2) / 40
-          posZ = (obj.position.y * 40 - canvasHeight / 2) / 40
+        // create3DObjects와 create3DBox의 정확한 위치 계산 방식 사용
+        const canvasWidth = canvasSize.width
+        const canvasHeight = canvasSize.height
+        
+        let pos3D_X, pos3D_Z
+        
+        if (obj.boundsPx) {
+          // boundsPx가 있는 경우 create3DBox와 동일한 방식으로 계산
+          const cx = (obj.boundsPx.left + obj.boundsPx.right) / 2
+          const cy = (obj.boundsPx.top + obj.boundsPx.bottom) / 2
+          pos3D_X = (cx - canvasWidth / 2) / 40
+          pos3D_Z = (cy - canvasHeight / 2) / 40
         } else {
-          // 다른 오브젝트는 Wall과 동일한 방식: fabricCanvas 픽셀 좌표를 3D 좌표로 변환
-          const canvasWidth = 800  // 기본 캔버스 너비
-          const canvasHeight = 600 // 기본 캔버스 높이
+          // boundsPx가 없는 경우 create3DObjects와 동일한 방식으로 계산
+          const baseFloorLeft = canvasWidth / 2 - (canvasWidth * 0.4) / 2  // baseFloor의 왼쪽 X
+          const baseFloorTop = canvasHeight / 2 - (canvasHeight * 0.4) / 2 // baseFloor의 상단 Y
           
-          posX = (obj.position.x - canvasWidth / 2) / 40
-          posZ = (obj.position.y - canvasHeight / 2) / 40
+          // 2D 좌표를 픽셀로 변환 (baseFloor 기준)
+          const pixelX = baseFloorLeft + (obj.position.x * 40)
+          const pixelY = baseFloorTop + (obj.position.y * 40)
+          
+          // 3D 좌표로 변환 (캔버스 중앙 기준)
+          pos3D_X = (pixelX - canvasWidth / 2) / 40
+          pos3D_Z = (pixelY - canvasHeight / 2) / 40
         }
         
-        dummyGroup.position.set(posX, obj.height / 2, posZ)
+        const isTV = obj.category === 'av'
+        dummyGroup.position.set(
+          pos3D_X,
+          isTV ? 0 : obj.depth / 2, // depth가 높이(Y축)
+          pos3D_Z
+        )
         dummyGroup.userData = {
           type: 'placed-object',
           placedObjectId: obj.id,
@@ -1937,13 +1961,13 @@ const createInstancedObjectsFromGLB = async (instancedObjects: any[]) => {
 
     } catch (e) {
       console.error('❌ GLB 로딩 실패(그룹):', key, e)
-      createInstancedObjects(group)
+      createInstancedObjects(group, canvasSize)
     }
   }
 }
 
 // 큐브 기반 인스턴싱 오브젝트들 생성 (폴백용)
-const createInstancedObjects = (instancedObjects: any[]) => {
+const createInstancedObjects = (instancedObjects: any[], canvasSize: { width: number, height: number } = { width: 800, height: 600 }) => {
   // 기존 인스턴스 메시 정리 (폴백 전용 단일 메쉬)
   if (instancedMeshes.length > 0) {
     instancedMeshes.forEach(mesh => {
@@ -1987,28 +2011,38 @@ const createInstancedObjects = (instancedObjects: any[]) => {
   instancedObjects.forEach((obj, index) => {
     const matrix = new THREE.Matrix4()
     
-    let posX, posZ
-    if (obj.isBox) {
-      // Box는 Zone과 동일한 방식: 미터 단위 원본 값을 3D 좌표로 변환
-      const canvasWidth = 800  // 기본 캔버스 너비
-      const canvasHeight = 600 // 기본 캔버스 높이
-      
-      posX = (obj.position.x * 40 - canvasWidth / 2) / 40
-      posZ = (obj.position.y * 40 - canvasHeight / 2) / 40
+    // create3DObjects와 create3DBox의 정확한 위치 계산 방식 사용
+    const canvasWidth = canvasSize.width
+    const canvasHeight = canvasSize.height
+    
+    let pos3D_X, pos3D_Z
+    
+    if (obj.boundsPx) {
+      // boundsPx가 있는 경우 create3DBox와 동일한 방식으로 계산
+      const cx = (obj.boundsPx.left + obj.boundsPx.right) / 2
+      const cy = (obj.boundsPx.top + obj.boundsPx.bottom) / 2
+      pos3D_X = (cx - canvasWidth / 2) / 40
+      pos3D_Z = (cy - canvasHeight / 2) / 40
     } else {
-      // 다른 오브젝트는 Wall과 동일한 방식: fabricCanvas 픽셀 좌표를 3D 좌표로 변환
-      const canvasWidth = 800  // 기본 캔버스 너비
-      const canvasHeight = 600 // 기본 캔버스 높이
+      // boundsPx가 없는 경우 create3DObjects와 동일한 방식으로 계산
+      const baseFloorLeft = canvasWidth / 2 - (canvasWidth * 0.4) / 2  // baseFloor의 왼쪽 X
+      const baseFloorTop = canvasHeight / 2 - (canvasHeight * 0.4) / 2 // baseFloor의 상단 Y
       
-      posX = (obj.position.x - canvasWidth / 2) / 40
-      posZ = (obj.position.y - canvasHeight / 2) / 40
+      // 2D 좌표를 픽셀로 변환 (baseFloor 기준)
+      const pixelX = baseFloorLeft + (obj.position.x * 40)
+      const pixelY = baseFloorTop + (obj.position.y * 40)
+      
+      // 3D 좌표로 변환 (캔버스 중앙 기준)
+      pos3D_X = (pixelX - canvasWidth / 2) / 40
+      pos3D_Z = (pixelY - canvasHeight / 2) / 40
     }
     
+    const isTV = obj.category === 'av'
     // 위치 설정
     const position = new THREE.Vector3(
-      posX,
-      obj.height / 2, // 바닥에서 높이의 절반만큼 올림
-      posZ
+      pos3D_X,
+      isTV ? 0 : obj.depth / 2, // depth가 높이(Y축)
+      pos3D_Z
     )
     
     // 회전 설정
@@ -2017,8 +2051,8 @@ const createInstancedObjects = (instancedObjects: any[]) => {
     // 스케일 설정 (오브젝트 크기에 맞춤)
     const scale = new THREE.Vector3(
       obj.width || 1,
-      obj.height || 1,
-      obj.depth || 1
+      obj.depth || 1,  // 2D의 depth가 3D의 높이(Y축)
+      obj.height || 1  // 2D의 height가 3D의 깊이(Z축)
     )
     
     // 변환 행렬 구성
@@ -2053,24 +2087,38 @@ const createInstancedObjects = (instancedObjects: any[]) => {
   instancedObjects.forEach(obj => {
     const dummyGroup = new THREE.Group()
     
-    let posX, posZ
-    if (obj.isBox) {
-      // Box는 Zone과 동일한 방식: 미터 단위 원본 값을 3D 좌표로 변환
-      const canvasWidth = 800  // 기본 캔버스 너비
-      const canvasHeight = 600 // 기본 캔버스 높이
-      
-      posX = (obj.position.x * 40 - canvasWidth / 2) / 40
-      posZ = (obj.position.y * 40 - canvasHeight / 2) / 40
+    // create3DObjects와 create3DBox의 정확한 위치 계산 방식 사용
+    const canvasWidth = canvasSize.width
+    const canvasHeight = canvasSize.height
+    
+    let pos3D_X, pos3D_Z
+    
+    if (obj.boundsPx) {
+      // boundsPx가 있는 경우 create3DBox와 동일한 방식으로 계산
+      const cx = (obj.boundsPx.left + obj.boundsPx.right) / 2
+      const cy = (obj.boundsPx.top + obj.boundsPx.bottom) / 2
+      pos3D_X = (cx - canvasWidth / 2) / 40
+      pos3D_Z = (cy - canvasHeight / 2) / 40
     } else {
-      // 다른 오브젝트는 Wall과 동일한 방식: fabricCanvas 픽셀 좌표를 3D 좌표로 변환
-      const canvasWidth = 800  // 기본 캔버스 너비
-      const canvasHeight = 600 // 기본 캔버스 높이
+      // boundsPx가 없는 경우 create3DObjects와 동일한 방식으로 계산
+      const baseFloorLeft = canvasWidth / 2 - (canvasWidth * 0.4) / 2  // baseFloor의 왼쪽 X
+      const baseFloorTop = canvasHeight / 2 - (canvasHeight * 0.4) / 2 // baseFloor의 상단 Y
       
-      posX = (obj.position.x - canvasWidth / 2) / 40
-      posZ = (obj.position.y - canvasHeight / 2) / 40
+      // 2D 좌표를 픽셀로 변환 (baseFloor 기준)
+      const pixelX = baseFloorLeft + (obj.position.x * 40)
+      const pixelY = baseFloorTop + (obj.position.y * 40)
+      
+      // 3D 좌표로 변환 (캔버스 중앙 기준)
+      pos3D_X = (pixelX - canvasWidth / 2) / 40
+      pos3D_Z = (pixelY - canvasHeight / 2) / 40
     }
     
-    dummyGroup.position.set(posX, obj.height / 2, posZ)
+    const isTV = obj.category === 'av'
+    dummyGroup.position.set(
+      pos3D_X,
+      isTV ? 0 : obj.depth / 2, // depth가 높이(Y축)
+      pos3D_Z
+    )
     dummyGroup.userData = {
       type: 'instanced-object-dummy',
       placedObjectId: obj.id,
@@ -2167,7 +2215,6 @@ const make3D = async () => {
   
   try {
     const data = floorplanStore.floorplanData
-    console.log('Make3D 실행 - Store 데이터:', data)
 
     if (!data) {
       console.log('Store 데이터가 없음')
@@ -2181,7 +2228,6 @@ const make3D = async () => {
 
     // 벽이 있을 때만 3D 벽 생성
     if (data.walls && data.walls.length > 0) {
-      console.log('벽 데이터 발견, 3D 벽 생성:', data.walls)
       create3DWalls(data)
     } else {
       console.log('벽 데이터가 없음')
@@ -2454,9 +2500,7 @@ const export3DWithResolution = (scale: number, filename: string) => {
       width: originalSize.width * scale,
       height: originalSize.height * scale
     }
-    
-    console.log(`3D Export 시작 - 해상도: ${exportSize.width}x${exportSize.height} (${scale}x 스케일)`)
-    
+        
     // 렌더러 크기 임시 변경
     renderer.setSize(exportSize.width, exportSize.height, false)
     camera.aspect = exportSize.width / exportSize.height
@@ -2517,7 +2561,6 @@ watch(() => floorplanStore.walls, (newWalls, oldWalls) => {
   // walls 배열이 변경되었을 때 실행 (길이 또는 내용 변화)
   if (newWalls && (newWalls.length !== (oldWalls?.length || 0) || 
       JSON.stringify(newWalls) !== JSON.stringify(oldWalls))) {
-    console.log('Store walls 변경 감지, 3D 벽 업데이트:', newWalls)
     
     // 기존 3D 벽들 제거
     const existingWalls = scene.children.filter(child => 

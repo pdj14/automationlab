@@ -12,9 +12,22 @@
 
         <div class="wall-tools">
           <h4>🧱 Wall Tools</h4>
-          <button @click="openWallCreatorPopup" class="btn btn-primary wall-create-btn">
-            ➕ WALL
-          </button>
+          <div class="wall-tool-buttons">
+            <button @click="openWallCreatorPopup" class="btn btn-primary wall-create-btn">
+              ➕ WALL
+            </button>
+            <div class="draw-controls">
+              <button @click="toggleWallDrawMode" :class="['btn', currentTool === 'wall' ? 'btn-active' : 'btn-secondary']" class="wall-draw-btn-small">
+                {{ currentTool === 'wall' ? '✏️ Drawing' : '✏️ Draw' }}
+              </button>
+              <div v-if="currentTool === 'wall'" class="glass-type-control">
+                <label class="glass-checkbox-label">
+                  <input type="checkbox" v-model="drawModeIsGlass" class="glass-checkbox">
+                  <span class="glass-checkbox-text">Glass Type</span>
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="box-tools">
@@ -524,6 +537,9 @@ const wallStartX = ref(0)  // 벽 시작점 X (m)
 const wallStartY = ref(0)  // 벽 시작점 Y (m)
 const wallEndX = ref(10)   // 벽 끝점 X (m)
 const wallEndY = ref(0)    // 벽 끝점 Y (m)
+
+// Draw 모드에서의 Glass Type 설정
+const drawModeIsGlass = ref(false)  // 기본값 false
 
 
 
@@ -1156,6 +1172,37 @@ const setTool = (tool: string) => {
   
   // 벽 선택 가능 여부 업데이트
   updateWallSelectability()
+  
+  // 커서 스타일 직접 설정
+  if (canvasWrapper.value) {
+    if (tool === 'wall') {
+      // 매우 작은 크기의 X 모양 crosshair 커서 설정
+      const smallCrosshair = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiIgdmlld0JveD0iMCAwIDEyIDEyIiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48cGF0aCBkPSJNNiA2TDkgOU02IDZMMyAzTTYgNkw5IDNNNiA2TDMgOSIvPjwvc3ZnPg==") 6 6, crosshair'
+      canvasWrapper.value.style.cursor = smallCrosshair
+      // 캔버스 요소에도 직접 설정
+      const canvas = canvasWrapper.value.querySelector('canvas')
+      if (canvas) {
+        canvas.style.cursor = smallCrosshair
+      }
+    } else {
+      canvasWrapper.value.style.cursor = 'grab'
+      const canvas = canvasWrapper.value.querySelector('canvas')
+      if (canvas) {
+        canvas.style.cursor = 'grab'
+      }
+    }
+  }
+}
+
+// 벽 그리기 모드 토글 함수
+const toggleWallDrawMode = () => {
+  if (currentTool.value === 'wall') {
+    // 현재 벽 그리기 모드인 경우, 선택 모드로 전환
+    setTool('select')
+  } else {
+    // 다른 모드인 경우, 벽 그리기 모드로 전환
+    setTool('wall')
+  }
 }
 
 // 벽 선택 가능 여부 업데이트 함수
@@ -1718,11 +1765,9 @@ const setupWallDrawing = () => {
       fabricCanvas.remove(currentLine)
     } else {
       fabricCanvas.remove(currentLine)
-      addWall(startPoint, pointer)
+      addWall(startPoint, pointer, drawModeIsGlass.value)
       
-      // 벽 그리기 완료 후 자동으로 Select 모드로 전환
-  
-      setTool('select')
+      // 벽 그리기 완료 후 Draw 모드 유지 (사용자가 Draw 버튼을 다시 클릭할 때까지)
     }
 
     isDrawing = false
@@ -2012,9 +2057,7 @@ const drawWallFromCoordinates = () => {
   // 벽 그리기
   addWall({ x: startX, y: startY }, { x: endX, y: endY })
   
-  // 벽 그리기 완료 후 자동으로 Select 모드로 전환
-  
-  setTool('select')
+  // 벽 그리기 완료 후 Draw 모드 유지
   
   // 입력 필드 초기화 (소수점 2자리 제한)
   wallStartX.value = 0.00
@@ -2058,8 +2101,7 @@ const createWallFromCoordinatesWithClass = () => {
   // 벽 그리기 (isGlass 옵션 포함)
   addWall({ x: startX, y: startY }, { x: endX, y: endY }, popupWallIsGlass.value)
   
-  // 벽 그리기 완료 후 자동으로 Select 모드로 전환
-  setTool('select')
+  // 벽 그리기 완료 후 Draw 모드 유지
 }
 
 // Box 생성 함수
@@ -2088,7 +2130,7 @@ const createBoxFromCoordinates = () => {
   
 
   const boxWidth = popupBoxWidth.value * scale
-  const boxHeight = popupBoxHeight.value * scale
+  const boxHeight = popupBoxHeight.value * scale // 2D에서는 height가 세로
   const boxDepth = popupBoxDepth.value * scale
   
   // Box 생성 (직사각형으로 표현)
@@ -2096,7 +2138,7 @@ const createBoxFromCoordinates = () => {
     left: boxX,
     top: boxY,
     width: boxWidth,
-    height: popupBoxHeight.value * scale, // 높이를 2D에서 표시
+    height: boxHeight, // 2D에서는 height가 세로
     fill: popupSelectedBoxColor.value.hex, // 선택된 색상 사용
     stroke: '#F57F17',
     strokeWidth: 2,
@@ -2123,7 +2165,7 @@ const createBoxFromCoordinates = () => {
   
   fabricCanvas.add(box)
   
-  // Box 크기 라벨 추가
+  // Box 크기 라벨 추가 (width × height × depth 순서로 통일)
   addBoxSizeLabel(box, popupBoxWidth.value, popupBoxHeight.value, popupBoxDepth.value)
   
   // Store에 Box를 별도로 저장 (Zone/Wall과 동일한 방식)
@@ -2162,7 +2204,7 @@ const createBoxFromCoordinates = () => {
     isOnBox: false,
     boxId: undefined,
     isBox: true,
-    instancing: false,
+    instancingEnabled: false,
     description: '2D에서 생성된 Box'
   }
   
@@ -2989,18 +3031,32 @@ const updatePlacedObjectInStore = (fabricObject: any) => {
   const fabricAngle = fabricObject.angle || 0
   const rotationRadians = fabricAngle * (Math.PI / 180)
 
-
-
   // Store에서 해당 오브젝트 찾기
   const existingObject = objectStore.placedObjects.find(obj => obj.id === placedObjectId)
-  if (existingObject) {
-    const updatedObject = {
-      ...existingObject,
-      position: { x: worldX, y: worldY },
-      rotation: rotationRadians
-    }
-    objectStore.updatePlacedObject(placedObjectId, updatedObject)
+  if (!existingObject) return
+  
+  // boundsPx 계산 (3D 위치 계산에 필요)
+  // Fabric.js Group 객체는 originX: 'left', originY: 'top'으로 설정되어 있으므로
+  // fabricObject.left, fabricObject.top이 이미 좌상단 좌표입니다.
+  // Object 크기는 userData에서 가져와서 픽셀로 변환
+  const scale = 40 // 1m = 40px
+  const objectWidthPx = existingObject.width * scale
+  const objectHeightPx = existingObject.depth * scale // depth가 2D에서의 높이
+  
+  const boundsPx = {
+    left: fabricObject.left,    // 이미 좌상단 좌표
+    top: fabricObject.top,      // 이미 좌상단 좌표
+    right: fabricObject.left + objectWidthPx,
+    bottom: fabricObject.top + objectHeightPx
   }
+  
+  const updatedObject = {
+    ...existingObject,
+    position: { x: worldX, y: worldY },
+    rotation: rotationRadians,
+    boundsPx: boundsPx
+  }
+  objectStore.updatePlacedObject(placedObjectId, updatedObject)
 }
 
 // Object Library에서 오브젝트 배치 처리 (직접 호출용)
@@ -3241,7 +3297,7 @@ const executeObjectPlacement = (object: any) => {
     isOnBox: boxPlacementMode.value && selectedBox.value && object.category !== 'etc', // 상자 위 배치 여부
     boxId: boxPlacementMode.value && selectedBox.value ? selectedBox.value.userData?.placedObjectId : null, // 상자 ID
     isBox: object.isBox || false, // 상자 여부
-    instancing: object.instancing || false // 인스턴싱 값 추가
+    instancingEnabled: object.instancingEnabled || false // 인스턴싱 값 추가
   }
 
   objectStore.addPlacedObject(placedObjectData)
@@ -3340,9 +3396,12 @@ const confirmAndSaveZones = async () => {
       await Promise.all([
         loadSavedZones(),
         loadSavedWalls(),
-        loadBoxes(),
-        objectStore.fetchObjectTemplates()
+        loadBoxes()
       ])
+      
+      // 템플릿을 먼저 로드한 후 저장된 Objects 로드 (템플릿 정보가 필요)
+      await objectStore.fetchObjectTemplates()
+      await objectStore.fetchSavedObjects()
       alert('✅ Zone, Wall, Box changes have been saved successfully!')
     } else {
       alert('❌ An error occurred while saving.')
@@ -3444,19 +3503,10 @@ const saveFloorPlan = async () => {
       }
     })
 
-
-    
-    // 디버깅: 각 Zone의 상세 정보 출력
-    zonesToSave.forEach((zone: any, index: number) => {
-
-    })
-
     // 현재 캔버스에 그려진 Wall들 수집
     const walls = fabricCanvas.getObjects().filter((obj: any) => 
       obj.userData?.type === 'wall'
     )
-
-
 
     // Wall 정보를 백엔드 형식으로 변환
     const wallsToSave = walls.map((wall: any) => {
@@ -3538,18 +3588,6 @@ const saveFloorPlan = async () => {
       boxStore.fetchBoxes()
     ])
     
-
-    
-    // 디버깅: 백엔드 Zone 데이터 상세 정보 출력
-    savedZones.forEach((zone: any, index: number) => {
-
-    })
-    
-    // 디버깅: 백엔드 Wall 데이터 상세 정보 출력
-    savedWalls.forEach((wall: any, index: number) => {
-
-    })
-
     // Store의 analyzeZoneChanges, analyzeWallChanges, analyzeBoxChanges 함수로 변경사항 분석
     const zoneChanges = zoneStore.analyzeZoneChanges(zonesToSave, savedZones)
     const wallChanges = floorplanStore.analyzeWallChanges(wallsToSave, savedWalls)
@@ -3718,8 +3756,6 @@ const loadBoxes = async () => {
       // Box 데이터 유효성 체크
       if (boxData && typeof boxData === 'object') {
         createBoxFromSavedData(boxData)
-      } else {
-
       }
     })
 
@@ -3785,7 +3821,7 @@ const createBoxFromSavedData = (boxData: any) => {
   
 
   const boxWidth = safeBoxData.width * scale
-  const boxHeight = safeBoxData.depth * scale // 2D에서는 depth가 세로
+  const boxHeight = safeBoxData.height * scale // 2D에서는 height가 세로
   
   // Box 생성 (직사각형으로 표현)
   const box = new fabric.Rect({
@@ -3842,7 +3878,7 @@ const createBoxFromSavedData = (boxData: any) => {
       isOnBox: false,
       boxId: undefined,
       isBox: true,
-      instancing: false,
+      instancingEnabled: false,
       description: 'DB에서 불러온 Box'
     }
     
@@ -4256,47 +4292,74 @@ const deleteSingleObject = (objectToDelete: any) => {
     // Box 삭제: 관련된 크기 라벨도 함께 제거하고 Store에서도 제거
     const boxId = objectToDelete.userData?.id
     if (boxId) {
-
-      
-      // Box 크기 라벨 제거
-      const boxLabels = fabricCanvas.getObjects().filter((obj: any) => obj.userData?.type === 'box-size-label' && obj.userData?.boxId === boxId)
-      if (boxLabels.length > 0) {
-        boxLabels.forEach((lbl: any) => {
-          fabricCanvas.remove(lbl)
-
-        })
-      } else {
-
-      }
-      
       // Store에서 Box 제거 - boxId가 이미 문자열인지 확인
       let boxIdString = boxId
       if (typeof boxId === 'number') {
         boxIdString = boxId.toString()
       }
       
-
+      console.log('🗑️ Box 삭제 시작:', boxIdString)
       
+      // 1. Box 크기 라벨 제거
+      const boxLabels = fabricCanvas.getObjects().filter((obj: any) => 
+        obj.userData?.type === 'box-size-label' && obj.userData?.boxId === boxId
+      )
+      console.log('📊 발견된 Box 라벨 수:', boxLabels.length)
+      boxLabels.forEach((lbl: any) => {
+        fabricCanvas.remove(lbl)
+        console.log('✅ Box 라벨 제거:', lbl.userData?.boxId)
+      })
+      
+      // 2. Box와 관련된 모든 객체 제거 (더 강력한 검색)
+      const relatedObjects = fabricCanvas.getObjects().filter((obj: any) => 
+        obj.userData?.id === boxIdString || 
+        obj.userData?.boxId === boxId ||
+        obj.userData?.placedObjectId === boxIdString
+      )
+      console.log('📊 발견된 관련 객체 수:', relatedObjects.length)
+      relatedObjects.forEach((obj: any) => {
+        fabricCanvas.remove(obj)
+        console.log('✅ 관련 객체 제거:', obj.userData?.type, obj.userData?.id)
+      })
+      
+      // 3. Store에서 Box 제거
       const placedObject = objectStore.placedObjects.find(obj => obj.id === boxIdString)
       if (placedObject) {
         objectStore.removePlacedObject(boxIdString)
-
+        console.log('✅ Store에서 Box Object 제거 완료:', boxIdString)
       } else {
-
+        console.warn('⚠️ Store에서 Box Object를 찾을 수 없습니다:', boxIdString)
       }
       
-      // Box 사각형 제거
-      fabricCanvas.remove(objectToDelete)
+      // 4. boxStore에서도 Box 제거
+      boxStore.removeBox(boxIdString)
+      console.log('✅ boxStore에서 Box 제거 완료:', boxIdString)
+      
+      // 5. 메인 Box 사각형 제거 (이미 제거되었을 수 있지만 안전하게)
+      try {
+        fabricCanvas.remove(objectToDelete)
+        console.log('✅ 메인 Box 사각형 제거 완료')
+      } catch (error) {
+        console.warn('⚠️ 메인 Box 사각형 제거 실패 (이미 제거됨):', error)
+      }
     } else {
       // boxId가 없는 경우도 안전하게 제거
+      console.log('🗑️ boxId 없는 객체 제거')
       fabricCanvas.remove(objectToDelete)
     }
   }
 
-  // 강제 캔버스 재렌더링
+  // 강제 캔버스 재렌더링 및 상태 확인
   try {
+    // 캔버스 강제 리렌더링
     fabricCanvas.renderAll()
     fabricCanvas.requestRenderAll()
+    
+    // 다음 틱에서 다시 한 번 리렌더링 (안전장치)
+    setTimeout(() => {
+      fabricCanvas.renderAll()
+      fabricCanvas.requestRenderAll()
+    }, 0)
     
     // 삭제 후 캔버스 상태 확인
     const remainingObjects = fabricCanvas.getObjects().filter((obj: any) => 
@@ -4308,6 +4371,23 @@ const deleteSingleObject = (objectToDelete: any) => {
       id: obj.userData?.id || obj.userData?.placedObjectId,
       name: obj.userData?.objectName
     })))
+    
+    // Store 상태도 확인
+    console.log('📊 Store에 남은 placedObjects 수:', objectStore.placedObjects.length)
+    console.log('📊 Store에 남은 boxes 수:', boxStore.boxes.length)
+    
+    // Box 관련 객체가 남아있는지 확인
+    const remainingBoxes = fabricCanvas.getObjects().filter((obj: any) => 
+      obj.userData?.type === 'custom-box'
+    )
+    if (remainingBoxes.length > 0) {
+      console.warn('⚠️ Box 삭제 후에도 캔버스에 Box 객체가 남아있습니다:', remainingBoxes.length, '개')
+      remainingBoxes.forEach((obj: any) => {
+        console.warn('  - 남은 Box:', obj.userData?.id, obj.userData?.type)
+      })
+    } else {
+      console.log('✅ 모든 Box 객체가 성공적으로 제거되었습니다')
+    }
   } catch (error) {
     console.error('❌ 캔버스 재렌더링 실패:', error)
   }
@@ -4379,6 +4459,7 @@ onMounted(async () => {
   // 저장된 데이터 로드
   await loadBoxes()
   await objectStore.fetchObjectTemplates()
+  await objectStore.fetchSavedObjects()
 
   // 테마 변경 감지 및 그리드 업데이트
   const observer = new MutationObserver((mutations) => {
@@ -5610,6 +5691,158 @@ const updateBoxInStore = (box: any) => {
   color: #2c3e50;
 }
 
+.wall-tool-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.wall-draw-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.wall-draw-btn.btn-secondary {
+  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(149, 165, 166, 0.4);
+}
+
+.wall-draw-btn.btn-active {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+  transform: translateY(-1px);
+}
+
+.wall-draw-btn:hover {
+  transform: translateY(-2px);
+}
+
+.wall-draw-btn.btn-secondary:hover {
+  box-shadow: 0 6px 20px rgba(149, 165, 166, 0.6);
+}
+
+.wall-draw-btn.btn-active:hover {
+  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.6);
+}
+
+.wall-draw-btn:active {
+  transform: translateY(0);
+}
+
+.draw-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.wall-draw-btn-small {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+.wall-draw-btn-small.btn-secondary {
+  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+  color: white;
+  box-shadow: 0 3px 10px rgba(149, 165, 166, 0.4);
+}
+
+.wall-draw-btn-small.btn-active {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+  box-shadow: 0 3px 10px rgba(52, 152, 219, 0.4);
+  transform: translateY(-1px);
+}
+
+.wall-draw-btn-small:hover {
+  transform: translateY(-2px);
+}
+
+.wall-draw-btn-small.btn-secondary:hover {
+  box-shadow: 0 5px 15px rgba(149, 165, 166, 0.6);
+}
+
+.wall-draw-btn-small.btn-active:hover {
+  box-shadow: 0 5px 15px rgba(52, 152, 219, 0.6);
+}
+
+.wall-draw-btn-small:active {
+  transform: translateY(0);
+}
+
+.glass-type-control {
+  margin-top: 0.25rem;
+}
+
+.glass-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #2c3e50;
+  user-select: none;
+}
+
+.glass-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #3498db;
+  cursor: pointer;
+}
+
+.glass-checkbox-text {
+  font-weight: 500;
+}
+
+.wall-draw-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+  border: 1px solid #c3e6cb;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #155724;
+  animation: pulse 2s infinite;
+}
+
+.status-indicator {
+  font-size: 1.1rem;
+}
+
+.status-text {
+  font-weight: 500;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 .box-tools {
   display: flex;
   flex-direction: column;
@@ -5816,9 +6049,25 @@ const updateBoxInStore = (box: any) => {
   cursor: grabbing;
 }
 
-/* 벽 그리기 모드일 때 커서 변경 */
+/* 벽 그리기 모드일 때 커서 변경 - 매우 작은 크기 X 모양 */
 .canvas-wrapper.drawing-mode {
-  cursor: crosshair;
+  cursor: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiIgdmlld0JveD0iMCAwIDEyIDEyIiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48cGF0aCBkPSJNNiA2TDkgOU02IDZMMyAzTTYgNkw5IDNNNiA2TDMgOSIvPjwvc3ZnPg==') 6 6, crosshair !important;
+}
+
+.canvas-wrapper.drawing-mode canvas {
+  cursor: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiIgdmlld0JveD0iMCAwIDEyIDEyIiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48cGF0aCBkPSJNNiA2TDkgOU02IDZMMyAzTTYgNkw5IDNNNiA2TDMgOSIvPjwvc3ZnPg==') 6 6, crosshair !important;
+}
+
+/* 벽 그리기 모드일 때 모든 하위 요소에도 커서 적용 */
+.canvas-wrapper.drawing-mode * {
+  cursor: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiIgdmlld0JveD0iMCAwIDEyIDEyIiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48cGF0aCBkPSJNNiA2TDkgOU02IDZMMyAzTTYgNkw5IDNNNiA2TDMgOSIvPjwvc3ZnPg==') 6 6, crosshair !important;
+}
+
+/* 더 강력한 커서 설정 */
+.canvas-wrapper.drawing-mode,
+.canvas-wrapper.drawing-mode canvas,
+.canvas-wrapper.drawing-mode * {
+  cursor: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiIgdmlld0JveD0iMCAwIDEyIDEyIiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48cGF0aCBkPSJNNiA2TDkgOU02IDZMMyAzTTYgNkw5IDNNNiA2TDMgOSIvPjwvc3ZnPg==') 6 6, crosshair !important;
 }
 
 

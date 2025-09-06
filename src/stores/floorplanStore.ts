@@ -134,7 +134,6 @@ export const useFloorplanStore = defineStore('floorplan', () => {
       isGlass: wall.isGlass || false
     }
     walls.value.push(wallData)
-    console.log('Store에 벽 추가됨:', wallData) // 디버깅용 로그
   }
   
   const updateWall = (wallId: string | number, updatedWall: Wall) => {
@@ -338,14 +337,6 @@ export const useFloorplanStore = defineStore('floorplan', () => {
       setLoadingWalls(false)
     }
   }
-
-
-
-
-  
-  const logCurrentState = () => {
-    // 디버깅용 함수 (빈 함수로 유지)
-  }
   
   return {
     // State
@@ -380,6 +371,5 @@ export const useFloorplanStore = defineStore('floorplan', () => {
     syncWalls, // Wall 동기화 추가
 
     fetchWalls, // Wall API 호출 함수 추가
-    logCurrentState
   }
 }) 

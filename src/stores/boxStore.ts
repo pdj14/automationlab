@@ -25,6 +25,7 @@ export const useBoxStore = defineStore('box', () => {
   // 상태 (state)
   const boxes = ref<BoxData[]>([])
   const isLoadingBoxes = ref(false)
+  const deletedBoxIds = ref<string[]>([]) // 삭제된 Box ID들을 추적
 
   // Getters (computed)
   const boxCount = computed(() => boxes.value.length)
@@ -48,6 +49,10 @@ export const useBoxStore = defineStore('box', () => {
 
   const removeBox = (boxId: string) => {
     boxes.value = boxes.value.filter(box => box.id !== boxId)
+    // 삭제된 Box ID를 추적 목록에 추가
+    if (!deletedBoxIds.value.includes(boxId)) {
+      deletedBoxIds.value.push(boxId)
+    }
   }
 
   const clearBoxes = () => {
@@ -149,6 +154,14 @@ export const useBoxStore = defineStore('box', () => {
       }
     })
 
+    // 삭제된 Box ID 목록에 있는 Box들도 삭제 대상에 추가
+    deletedBoxIds.value.forEach(deletedId => {
+      const deletedBox = savedBoxes.find(box => box.id === deletedId)
+      if (deletedBox && !toDelete.find(box => box.id === deletedId)) {
+        toDelete.push(deletedBox)
+      }
+    })
+
     return { toCreate, toUpdate, toDelete }
   }
 
@@ -171,6 +184,9 @@ export const useBoxStore = defineStore('box', () => {
           await axios.delete(`http://localhost:8080/api/boxes/${box.id}`)
         }
       }
+
+      // 동기화 완료 후 삭제된 Box ID 목록 초기화
+      deletedBoxIds.value = []
 
       return true
     } catch (error) {
@@ -197,6 +213,7 @@ export const useBoxStore = defineStore('box', () => {
     // State
     boxes,
     isLoadingBoxes,
+    deletedBoxIds,
     
     // Getters
     boxCount,
