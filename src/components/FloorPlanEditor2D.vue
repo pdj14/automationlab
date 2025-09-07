@@ -36,6 +36,17 @@
             ➕ Add Box
           </button>
         </div>
+
+        <div class="checkpoint-tools">
+          <h4>📍 Point Check</h4>
+          <button 
+            @click="toggleCheckPointMode" 
+            :class="['btn', checkPointMode ? 'btn-success' : 'btn-secondary', 'checkpoint-btn']"
+            :title="checkPointMode ? 'Click on canvas to get coordinates' : 'Enable CheckPoint mode'"
+          >
+            {{ checkPointMode ? '📍 Check ON' : '📍 Check OFF' }}
+          </button>
+        </div>
       </div>
 
       <!-- 선택된 객체 정보 -->
@@ -574,6 +585,9 @@ const wallEndY = ref(0)    // 벽 끝점 Y (m)
 // Draw 모드에서의 Glass Type 설정
 const drawModeIsGlass = ref(false)  // 기본값 false
 
+// CheckPoint 모드 관련 변수들
+const checkPointMode = ref(false)  // CheckPoint 모드 활성화 여부
+
 
 
 const floorColors = ref([
@@ -820,6 +834,99 @@ const openZoneCreatorPopup = () => {
 
 const closeZoneCreatorPopup = () => {
   showZoneCreatorPopup.value = false
+}
+
+// CheckPoint 모드 관련 함수들
+const toggleCheckPointMode = () => {
+  checkPointMode.value = !checkPointMode.value
+  
+  if (checkPointMode.value) {
+    // CheckPoint 모드 활성화 시 커서 변경 (손가락 모양)
+    if (canvas2d.value) {
+      canvas2d.value.style.cursor = 'pointer'
+    }
+    // Fabric.js 캔버스에도 커서 적용
+    if (fabricCanvas) {
+      fabricCanvas.defaultCursor = 'pointer'
+      fabricCanvas.hoverCursor = 'pointer'
+    }
+  } else {
+    // CheckPoint 모드 비활성화 시 커서 원래대로
+    if (canvas2d.value) {
+      canvas2d.value.style.cursor = 'default'
+    }
+    if (fabricCanvas) {
+      fabricCanvas.defaultCursor = 'default'
+      fabricCanvas.hoverCursor = 'move'
+    }
+  }
+}
+
+// CheckPoint 좌표 계산 및 표시
+const handleCheckPointClick = (event: any) => {
+  if (!checkPointMode.value || !fabricCanvas) return
+  
+  // 이벤트 전파 중지
+  event.e.stopPropagation()
+  event.e.preventDefault()
+  
+  // Fabric.js 이벤트에서 좌표 가져오기
+  const pointer = fabricCanvas.getPointer(event.e)
+  const x = pointer.x
+  const y = pointer.y
+  
+  // defaultFloor 객체 찾기 (Box, Zone, Object와 동일한 방식)
+  const defaultFloor = fabricCanvas.getObjects().find((obj: any) =>
+    obj.userData?.type === 'base-floor' && obj.userData?.floorId === 'default-floor'
+  )
+  
+  if (!defaultFloor) {
+    showToast('❌ 기본 바닥을 찾을 수 없습니다.', 'error')
+    return
+  }
+  
+  // baseFloor의 왼쪽 상단을 기준으로 좌표 계산 (Box, Zone, Object와 동일한 방식)
+  const baseX = defaultFloor.left
+  const baseY = defaultFloor.top
+  
+  // 픽셀 좌표를 미터 단위로 변환
+  const meterX = (x - baseX) / 40
+  const meterY = (y - baseY) / 40
+  
+  // Toast 메시지 표시
+  showToast(`📍 CheckPoint: (${meterX.toFixed(2)}, ${meterY.toFixed(2)})`, 'info')
+  
+  // CheckPoint 모드는 유지 (자동 비활성화 제거)
+}
+
+// Toast 메시지 표시 함수
+const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  // 간단한 toast 구현 (실제로는 더 정교한 toast 라이브러리 사용 권장)
+  const toast = document.createElement('div')
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    z-index: 10000;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  `
+  toast.textContent = message
+  document.body.appendChild(toast)
+  
+  // 3초 후 자동 제거
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.parentNode.removeChild(toast)
+    }
+  }, 3000)
 }
 
 // 팝업 Zone 크기 유효성 검사
@@ -1418,6 +1525,9 @@ const setupKeyboardEvents = () => {
   if (canvasWrapper.value) {
     canvasWrapper.value.addEventListener('click', focusCanvas)
   }
+
+  // CheckPoint 클릭 이벤트 추가 (Fabric.js 이벤트 시스템 사용)
+  fabricCanvas.on('mouse:down', handleCheckPointClick)
 }
 
 // 캔버스 포커스 함수
@@ -1598,6 +1708,13 @@ const setupWallDrawing = () => {
   let currentLine: any = null
 
   fabricCanvas.on('selection:created', (e: any) => {
+    // CheckPoint 모드일 때는 선택 방지
+    if (checkPointMode.value) {
+      fabricCanvas.discardActiveObject()
+      fabricCanvas.renderAll()
+      return
+    }
+    
     const selected = e.selected
 
     // 멀티 선택 지원
@@ -1674,6 +1791,13 @@ const setupWallDrawing = () => {
   })
 
   fabricCanvas.on('selection:updated', (e: any) => {
+    // CheckPoint 모드일 때는 선택 방지
+    if (checkPointMode.value) {
+      fabricCanvas.discardActiveObject()
+      fabricCanvas.renderAll()
+      return
+    }
+    
     const selected = e.selected
 
     // 멀티 선택 지원
@@ -1719,6 +1843,12 @@ const setupWallDrawing = () => {
   })
 
   fabricCanvas.on('object:moving', (e: any) => {
+    // CheckPoint 모드일 때는 객체 이동 방지
+    if (checkPointMode.value) {
+      e.e.preventDefault()
+      return
+    }
+    
     const movingObject = e.target
     if (movingObject && movingObject.userData?.type === 'wall') {
       const wallType = movingObject.userData?.isGlass ? '유리 벽' : '벽'
@@ -1734,6 +1864,12 @@ const setupWallDrawing = () => {
   })
 
   fabricCanvas.on('object:scaling', (e: any) => {
+    // CheckPoint 모드일 때는 객체 크기 조정 방지
+    if (checkPointMode.value) {
+      e.e.preventDefault()
+      return
+    }
+    
     const scalingObject = e.target
     if (scalingObject && scalingObject.userData?.type === 'wall') {
       const wallType = scalingObject.userData?.isGlass ? '유리 벽' : '벽'
@@ -1745,6 +1881,12 @@ const setupWallDrawing = () => {
   })
 
   fabricCanvas.on('object:rotating', (e: any) => {
+    // CheckPoint 모드일 때는 객체 회전 방지
+    if (checkPointMode.value) {
+      e.e.preventDefault()
+      return
+    }
+    
     const rotatingObject = e.target
     if (rotatingObject && rotatingObject.userData?.type === 'wall') {
       const wallType = rotatingObject.userData?.isGlass ? '유리 벽' : '벽'
@@ -5872,6 +6014,28 @@ const updateBoxInStore = (box: any) => {
   margin: 0;
   font-size: 1rem;
   color: #2c3e50;
+}
+
+.checkpoint-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0;
+}
+
+.checkpoint-tools h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #2c3e50;
+}
+
+.checkpoint-btn {
+  transition: all 0.2s ease;
+}
+
+.checkpoint-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .tool-buttons {
