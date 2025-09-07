@@ -68,7 +68,7 @@
         <span>Zoom: {{ currentZoom.toFixed(1) }}x (0.2단계, 최대20x)</span>
         <span>PAN Speed: {{ currentPanSpeed.toFixed(1) }}</span>
         <span v-if="lodEnabled" class="lod-status">
-          LOD: {{ shouldUseLOD() ? 'ON' : 'OFF' }} (통일된 회색)
+          LOD: {{ shouldUseLOD() ? 'ON' : 'OFF' }} (Object 색상)
         </span>
         <span v-else class="lod-status lod-disabled">
           LOD: OFF
@@ -1193,10 +1193,10 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
               }
             }
             
-                         // 통일된 색상 머티리얼로 교체
-             const lodColor = getLODColor()
+                         // Object의 색상 사용 (있으면 사용, 없으면 기본 회색)
+            const objectColor = placedObj.color ? new THREE.Color(placedObj.color) : new THREE.Color(getLODColor())
             const newMaterial = new THREE.MeshStandardMaterial({
-              color: lodColor,
+              color: objectColor,
               roughness: 0.5,
               metalness: 0.0
             })
@@ -1225,11 +1225,13 @@ const create3DObjects = async (placedObjects: any[], canvasSize: { width: number
            lodModel.rotation.y = -rotationValue
            finalObject = lodModel
          } else {
-           // LOD 모델이 없으면 원본 모델에 회색 적용
+           // LOD 모델이 없으면 원본 모델에 Object 색상 적용
            model.traverse((child: any) => {
              if (child.isMesh && child.material) {
+               // Object의 색상 사용 (있으면 사용, 없으면 기본 회색)
+               const objectColor = placedObj.color ? new THREE.Color(placedObj.color) : new THREE.Color(getLODColor())
                const newMaterial = new THREE.MeshStandardMaterial({
-                 color: getLODColor(),
+                 color: objectColor,
                  roughness: 0.5,
                  metalness: 0.0
                })
@@ -1797,10 +1799,12 @@ const create3DBox = (placedObj: any, color: string, canvasSize: { width: number,
 const createInstancedObjectsFromGLB = async (instancedObjects: any[], canvasSize: { width: number, height: number } = { width: 800, height: 600 }) => {
   if (instancedObjects.length === 0) return
   
-  // glbUrl(+lodUrl) 키로 그룹핑
+  // glbUrl(+lodUrl) + color 키로 그룹핑 (색상별로 분리)
   const groups = new Map<string, any[]>()
   instancedObjects.forEach(obj => {
-    const key = `${(lodEnabled.value && obj.lodUrl) ? obj.lodUrl : obj.glbUrl}`
+    const modelKey = `${(lodEnabled.value && obj.lodUrl) ? obj.lodUrl : obj.glbUrl}`
+    const colorKey = obj.color || '#CCCCCC' // 색상이 없으면 기본 회색
+    const key = `${modelKey}|${colorKey}`
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key)!.push(obj)
   })
@@ -1808,14 +1812,17 @@ const createInstancedObjectsFromGLB = async (instancedObjects: any[], canvasSize
   const loader = new GLTFLoader()
   for (const [key, group] of groups.entries()) {
     try {
+      // 키에서 모델 URL과 색상 분리
+      const [modelKey, colorKey] = key.split('|')
+      
       const gltf = await new Promise<any>((resolve, reject) => {
-        loader.load(key, resolve, undefined, reject)
+        loader.load(modelKey, resolve, undefined, reject)
       })
 
       gltf.scene.updateMatrixWorld(true)
       const sourceMesh = gltf.scene.children.find((child: THREE.Object3D) => child.type === 'Mesh') as THREE.Mesh
       if (!sourceMesh) {
-        console.error('❌ GLB에서 메시를 찾을 수 없음:', key)
+        console.error('❌ GLB에서 메시를 찾을 수 없음:', modelKey)
         continue
       }
       const baseQuaternion = new THREE.Quaternion()
@@ -1827,13 +1834,13 @@ const createInstancedObjectsFromGLB = async (instancedObjects: any[], canvasSize
         ? (sourceMesh.material[0] as THREE.Material).clone()
         : (sourceMesh.material as THREE.Material).clone()
 
-      // LOD 모드일 경우, 통일된 회색 머티리얼 적용
+      // LOD 모드일 경우, 그룹의 색상으로 머티리얼 적용
       if (lodEnabled.value) {
         if ('dispose' in instancedMaterial) {
           instancedMaterial.dispose()
         }
         instancedMaterial = new THREE.MeshStandardMaterial({
-          color: getLODColor(),
+          color: new THREE.Color(colorKey),
           roughness: 0.5,
           metalness: 0.0
         })

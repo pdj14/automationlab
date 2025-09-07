@@ -273,10 +273,10 @@ export const useObjectStore = defineStore('object', () => {
     }
   }
 
-  const updateObjectTemplateText = async (templateId: string, updateData: Partial<Object3DTemplate>): Promise<boolean> => {
+  const updateObjectTemplateText = async (templateName: string, updateData: Partial<Object3DTemplate>): Promise<boolean> => {
     try {
       setLoadingObjectTemplates(true)
-      const response = await axios.put(`http://localhost:8080/api/object3d-templates/${templateId}/text`, updateData, {
+      const response = await axios.patch(`http://localhost:8080/api/object3d-templates/name/${templateName}`, updateData, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -284,7 +284,7 @@ export const useObjectStore = defineStore('object', () => {
       
       // 로컬 상태도 업데이트
       const updatedTemplate = response.data
-      const index = objectTemplates.value.findIndex(template => template.id === templateId)
+      const index = objectTemplates.value.findIndex(template => template.name === templateName)
       if (index > -1) {
         objectTemplates.value[index] = { ...objectTemplates.value[index], ...updatedTemplate }
       }

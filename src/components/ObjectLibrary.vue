@@ -803,7 +803,7 @@ const updateObject = async () => {
     formData.append('instancingEnabled', editObjectData.value.instancingEnabled ? 'true' : 'false')
 
     // API 호출 (업데이트용) - 파일 없이 텍스트 데이터만 전송
-    const success = await objectStore.updateObjectTemplateText(objectToEdit.value.id, {
+    const success = await objectStore.updateObjectTemplateText(objectToEdit.value.name, {
       name: editObjectData.value.name,
       category: editObjectData.value.category,
       width: editObjectData.value.width,
@@ -818,9 +818,8 @@ const updateObject = async () => {
     if (success) {
       console.log('Object updated successfully')
       alert('Object updated successfully!')
-      closeEditModal()
-      // 업데이트 성공 후 목록 새로고침
-      await fetchObjectTemplates()
+      // 페이지 reload
+      window.location.reload()
     } else {
       console.error('Update failed')
       alert('Failed to update object. Please try again.')
