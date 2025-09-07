@@ -1017,6 +1017,7 @@ let instancedMeshes: THREE.InstancedMesh[] = []
 
 // 3D 오브젝트 생성 (GLB 모델 로딩) - Three.js 내장 LOD 사용
 const create3DObjects = async (placedObjects: any[], canvasSize: { width: number, height: number } = { width: 800, height: 600 }) => {
+  console.log('placedObjects', placedObjects)
   if (!scene || !placedObjects || placedObjects.length === 0) {
     return
   }

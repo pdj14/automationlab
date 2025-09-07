@@ -1713,8 +1713,7 @@ const setupWallDrawing = () => {
     } else if (modifiedObject && modifiedObject.userData?.type === 'zone-floor') {
       handleZoneModified(modifiedObject)
     } else if (modifiedObject && modifiedObject.userData?.type === 'custom-box') {
-      // Box가 수정될 때 크기 라벨 업데이트 및 Store 업데이트
-      updateBoxSizeLabel(modifiedObject)
+      // Box가 수정될 때 Store 업데이트
       updateBoxInStore(modifiedObject)
     }
   })
@@ -1729,8 +1728,7 @@ const setupWallDrawing = () => {
     } else if (movingObject && movingObject.userData?.type === 'zone-floor') {
       handleZoneMoving(movingObject)
     } else if (movingObject && movingObject.userData?.type === 'custom-box') {
-      // Box가 이동할 때 크기 라벨 업데이트 및 Store 업데이트
-      updateBoxSizeLabel(movingObject)
+      // Box가 이동할 때 Store 업데이트
       updateBoxInStore(movingObject)
     }
   })
@@ -1741,8 +1739,7 @@ const setupWallDrawing = () => {
       const wallType = scalingObject.userData?.isGlass ? '유리 벽' : '벽'
       updateWallInList(scalingObject)
     } else if (scalingObject && scalingObject.userData?.type === 'custom-box') {
-      // Box가 크기가 조정될 때 크기 라벨 업데이트 및 Store 업데이트
-      updateBoxSizeLabel(scalingObject)
+      // Box가 크기가 조정될 때 Store 업데이트
       updateBoxInStore(scalingObject)
     }
   })
@@ -1755,8 +1752,7 @@ const setupWallDrawing = () => {
     } else if (rotatingObject && rotatingObject.userData?.type === 'placed-object') {
       updatePlacedObjectInStore(rotatingObject)
     } else if (rotatingObject && rotatingObject.userData?.type === 'custom-box') {
-      // Box가 회전할 때 크기 라벨 업데이트 및 Store 업데이트
-      updateBoxSizeLabel(rotatingObject)
+      // Box가 회전할 때 Store 업데이트
       updateBoxInStore(rotatingObject)
     }
   })
@@ -2207,9 +2203,6 @@ const createBoxFromCoordinates = () => {
   }
   
   fabricCanvas.add(box)
-  
-  // Box 크기 라벨 추가 (width × height × depth 순서로 통일)
-  addBoxSizeLabel(box, popupBoxWidth.value, popupBoxHeight.value, popupBoxDepth.value)
   
   // Store에 Box를 별도로 저장 (Zone/Wall과 동일한 방식)
   const boxData = {
@@ -2707,88 +2700,6 @@ const addWallLengthLabel = (wall: any, start: { x: number, y: number }, end: { x
   fabricCanvas.add(lengthLabel)
 }
 
-// Object 크기 표시 레이블 추가
-const addObjectSizeLabel = (object: any, width: number, height: number, depth?: number) => {
-  if (!fabricCanvas) return
-
-  // 안전한 값 사용 (undefined나 null 체크)
-  const safeWidth = width || 1.0
-  const safeHeight = height || 1.0
-  const safeDepth = depth || 1.0
-
-  // Object 크기 텍스트 (미터 단위) - width × height × depth로 표시
-  const sizeText = `${safeWidth.toFixed(1)}×${safeHeight.toFixed(1)}×${safeDepth.toFixed(1)}m`
-
-  // Object의 중점 계산
-  const centerX = object.left + (object.width / 2)
-  const centerY = object.top + (object.height / 2)
-
-  // 텍스트 객체 생성
-  const sizeLabel = new fabric.Text(sizeText, {
-    left: centerX,
-    top: centerY + 15, // Object 아래쪽에 배치
-    fontSize: 10,
-    fill: '#333333',
-    fontFamily: 'Arial',
-    textAlign: 'center',
-    originX: 'center',
-    originY: 'center',
-    selectable: false,
-    evented: false,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    padding: 2
-  })
-
-  // 라벨 식별 정보 추가
-  sizeLabel.userData = {
-    type: 'object-size-label',
-    objectId: object.userData?.placedObjectId || object.userData?.id
-  }
-
-  fabricCanvas.add(sizeLabel)
-}
-
-// Box 크기 표시 레이블 추가
-const addBoxSizeLabel = (box: any, width: number, height: number, depth?: number) => {
-  if (!fabricCanvas) return
-
-  // 안전한 값 사용 (undefined나 null 체크)
-  const safeWidth = width || 1.0
-  const safeHeight = height || 1.0
-  const safeDepth = depth || 1.0
-
-  // Box 크기 텍스트 (미터 단위) - width × height × depth로 표시
-  const sizeText = `${safeWidth.toFixed(1)}×${safeHeight.toFixed(1)}×${safeDepth.toFixed(1)}m`
-
-  // Box의 중점 계산
-  const centerX = box.left + (box.width / 2)
-  const centerY = box.top + (box.height / 2)
-
-  // 텍스트 객체 생성
-  const sizeLabel = new fabric.Text(sizeText, {
-    left: centerX,
-    top: centerY,
-    fontSize: 11,
-    fill: '#333333',
-    fontFamily: 'Arial',
-    textAlign: 'center',
-    originX: 'center',
-    originY: 'center',
-    selectable: false,
-    evented: false,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    padding: 3,
-    fontWeight: 'bold'
-  })
-
-  // Box와 연관된 레이블임을 표시
-  sizeLabel.userData = {
-    type: 'box-size-label',
-    boxId: box.userData?.id
-  }
-
-  fabricCanvas.add(sizeLabel)
-}
 
 // 벽 길이 레이블 업데이트
 const updateWallLengthLabel = (wall: any) => {
@@ -2848,14 +2759,10 @@ const updateObjectColorOnCanvas = (placedObjectId: string, newColor: string) => 
 const rerender2DObjectsFromStore = () => {
   if (!fabricCanvas) return
 
-
-
   // 기존 배치 오브젝트와 Box 오브젝트 모두 제거
   const objectsToRemove = (fabricCanvas.getObjects() as Array<fabric.Object & { userData?: any }>).filter((obj) =>
     obj.userData?.type === 'placed-object' || obj.userData?.type === 'custom-box'
   )
-
-
 
   objectsToRemove.forEach(obj => {
     fabricCanvas.remove(obj)
@@ -2918,9 +2825,28 @@ const rerender2DObjectsFromStore = () => {
 
       fabricCanvas.add(box)
 
-      // Box 크기 라벨 추가
-      addBoxSizeLabel(box, placedObj.width, placedObj.height, placedObj.depth)
-
+      // boundsPx 계산하여 Store에 업데이트
+      const boxWidthPx = placedObj.width * 40
+      const boxHeightPx = placedObj.height * 40
+      
+      const boundsPx = {
+        left: fabricX,    // 이미 좌상단 좌표
+        top: fabricY,     // 이미 좌상단 좌표
+        right: fabricX + boxWidthPx,
+        bottom: fabricY + boxHeightPx
+      }
+      
+      // Store에서 해당 Box의 boundsPx 업데이트
+      const updatedBox = {
+        ...placedObj,
+        boundsPx: boundsPx
+      }
+      
+      // Store에서 Box 업데이트
+      const index = objectStore.placedObjects.findIndex(obj => obj.id === placedObj.id)
+      if (index !== -1) {
+        objectStore.placedObjects[index] = updatedBox
+      }
 
     } else {
       // 일반 오브젝트 생성 (좌측 상단 기준)
@@ -2971,8 +2897,28 @@ const rerender2DObjectsFromStore = () => {
 
       fabricCanvas.add(group)
 
-      // Object 크기 라벨 추가
-      addObjectSizeLabel(group, placedObj.width, placedObj.height, placedObj.depth)
+      // boundsPx 계산하여 Store에 업데이트
+      const objectWidthPx = placedObj.width * 40
+      const objectHeightPx = placedObj.height * 40
+      
+      const boundsPx = {
+        left: fabricX,    // 이미 좌상단 좌표
+        top: fabricY,     // 이미 좌상단 좌표
+        right: fabricX + objectWidthPx,
+        bottom: fabricY + objectHeightPx
+      }
+      
+      // Store에서 해당 Object의 boundsPx 업데이트
+      const updatedObject = {
+        ...placedObj,
+        boundsPx: boundsPx
+      }
+      
+      // Store에서 Object 업데이트
+      const index = objectStore.placedObjects.findIndex(obj => obj.id === placedObj.id)
+      if (index !== -1) {
+        objectStore.placedObjects[index] = updatedObject
+      }
 
     }
   })
@@ -3289,8 +3235,6 @@ const executeObjectPlacement = (object: any) => {
 
   fabricCanvas.add(objectGroup)
   
-  // Object 크기 라벨 추가
-  addObjectSizeLabel(objectGroup, object.width || 1, object.height || 1, object.depth || 1)
   
   fabricCanvas.renderAll()
 
@@ -3454,20 +3398,9 @@ const confirmAndSaveZones = async () => {
     const finalObjectSuccess = objectSuccess
     
     if (zoneSuccess && wallSuccess && boxSuccess && finalObjectSuccess) {
-      // 기존 데이터 초기화
-      await clearCanvasData()
-      
-      // 성공 시 최신 데이터 다시 로드 (mount 시와 동일하게)
-      await Promise.all([
-        loadSavedZones(),
-        loadSavedWalls(),
-        loadBoxes()
-      ])
-      
-      // 템플릿을 먼저 로드한 후 저장된 Objects 로드 (템플릿 정보가 필요)
-      await objectStore.fetchObjectTemplates()
-      await objectStore.fetchSavedObjects()
+      // Save 완료 후 페이지 reload
       alert('✅ Zone, Wall, Box changes have been saved successfully!')
+      window.location.reload()
     } else {
       alert('❌ An error occurred while saving.')
     }
@@ -3479,40 +3412,6 @@ const confirmAndSaveZones = async () => {
   }
 }
 
-// 캔버스의 Zone과 Wall 데이터 초기화 (기본 바닥과 그리드는 유지)
-const clearCanvasData = async () => {
-  if (!fabricCanvas) return
-  
-  try {
-
-    
-    // Zone, Wall, Box 객체만 제거 (기본 바닥과 그리드는 유지)
-    const objectsToRemove = fabricCanvas.getObjects().filter((obj: any) => {
-      const type = obj.userData?.type
-      return type === 'zone-floor' || 
-             type === 'wall' || 
-             type === 'custom-box' ||
-             type === 'placed-object'
-    })
-    
-    // 객체들을 캔버스에서 제거
-    objectsToRemove.forEach((obj: any) => {
-      fabricCanvas.remove(obj)
-    })
-    
-    
-    
-    // Store의 Zone, Wall, Box 데이터도 초기화
-    zoneStore.setZones([])
-    floorplanStore.setWalls([])
-    boxStore.setBoxes([])
-    
-    
-    
-  } catch (error) {
-    console.error('❌ Failed to initialize canvas data:', error)
-  }
-}
 
 // 평면도 저장 (백엔드 API로 Zone 정보 전송)
 const saveFloorPlan = async () => {
@@ -3668,16 +3567,17 @@ const saveFloorPlan = async () => {
         const baseY = defaultFloor.top
         
         // Object의 위치를 미터 단위로 계산
+        // boundsPx가 있어도 기존 position.x, position.y를 우선 사용 (비교 정확성을 위해)
         let objX, objY
         
-        if (placedObj.boundsPx) {
-          // boundsPx가 있는 경우 (정확한 위치)
+        if (placedObj.boundsPx && !placedObj.position.x && !placedObj.position.y) {
+          // boundsPx만 있고 position이 없는 경우에만 boundsPx 사용
           const cx = (placedObj.boundsPx.left + placedObj.boundsPx.right) / 2
           const cy = (placedObj.boundsPx.top + placedObj.boundsPx.bottom) / 2
           objX = (cx - baseX) / scale
           objY = (cy - baseY) / scale
         } else {
-          // boundsPx가 없는 경우 (기본 위치 계산)
+          // position이 있는 경우 우선 사용 (기존 데이터와의 호환성)
           objX = placedObj.position.x
           objY = placedObj.position.y
         }
@@ -3969,8 +3869,6 @@ const createBoxFromSavedData = (boxData: any) => {
 
   fabricCanvas.add(box)
 
-  // Box 크기 라벨 추가 (안전한 값 사용)
-  addBoxSizeLabel(box, safeBoxData.width, safeBoxData.height, safeBoxData.depth)
 
   // Store에 Box를 placedObjects에도 추가 (3D 렌더링을 위해)
   // 중복 추가 방지: 이미 존재하는지 확인
@@ -4549,11 +4447,18 @@ watch(currentTool, (newTool, oldTool) => {
   }
 })
 
-// Store의 배치된 오브젝트 색상 변경 감지
+// Store의 배치된 오브젝트 변경 감지
 watch(
   () => objectStore.placedObjects,
   (newObjects, oldObjects) => {
     if (!fabricCanvas || !newObjects) return
+
+    // 객체 개수가 변경된 경우 (새로 추가되거나 삭제된 경우) 전체 재렌더링
+    if (!oldObjects || newObjects.length !== oldObjects.length) {
+      console.log('🔄 placedObjects 개수 변경 감지, 2D 캔버스 재렌더링...')
+      rerender2DObjectsFromStore()
+      return
+    }
 
     // 색상이 변경된 오브젝트들을 찾아서 2D 캔버스 업데이트
     newObjects.forEach(newObj => {
@@ -4568,15 +4473,33 @@ watch(
   { deep: true }
 )
 
+// 저장된 Objects를 2D 캔버스에 로드하는 함수
+const loadObjects = async () => {
+  try {
+    console.log('📦 저장된 Objects를 2D 캔버스에 로드 시작...')
+    
+    // fetchSavedObjects가 이미 호출되어 placedObjects에 데이터가 추가된 상태
+    // 이제 2D 캔버스에 렌더링
+    rerender2DObjectsFromStore()
+    
+    console.log('✅ 저장된 Objects 2D 캔버스 로드 완료')
+  } catch (error) {
+    console.error('❌ Objects 2D 캔버스 로드 실패:', error)
+  }
+}
+
 onMounted(async () => {
+  await objectStore.fetchObjectTemplates()
   await initCanvas()
   window.addEventListener('resize', handleResize)
   window.addEventListener('placeObject', handlePlaceObject)
 
   // 저장된 데이터 로드
-  await loadBoxes()
-  await objectStore.fetchObjectTemplates()
+  await loadBoxes()  
   await objectStore.fetchSavedObjects()
+  
+  // 저장된 Objects를 2D 캔버스에 렌더링
+  await loadObjects()
 
   // 테마 변경 감지 및 그리드 업데이트
   const observer = new MutationObserver((mutations) => {
@@ -4639,28 +4562,6 @@ onUnmounted(() => {
   window.removeEventListener('placeObject', handlePlaceObject)
 })
 
-// Box 크기 라벨 업데이트
-const updateBoxSizeLabel = (box: any) => {
-  if (!fabricCanvas) return
-
-  const boxId = box.userData?.id
-  if (!boxId) return
-
-  // 기존 라벨 찾기 및 제거
-  const existingLabel = fabricCanvas.getObjects().find((obj: any) =>
-    obj.userData?.type === 'box-size-label' && obj.userData?.boxId === boxId
-  )
-
-  if (existingLabel) {
-    fabricCanvas.remove(existingLabel)
-  }
-
-  // 새로운 위치로 라벨 재생성
-  const width = box.userData?.width || 1.0
-  const height = box.userData?.height || 1.0
-  const depth = box.userData?.depth || 1.0
-  addBoxSizeLabel(box, width, height, depth)
-}
 
 // Object의 위치 정보를 가져오는 함수
 const getObjectPosition = (obj: any) => {
